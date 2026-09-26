@@ -1,0 +1,26 @@
+{
+  "name": "lifeadmin",
+  "version": "1.0.0",
+  "description": "LifeAdmin — Personal life-management platform for college students and young professionals",
+  "private": true,
+  "scripts": {
+    "dev": "concurrently -n \"server,client\" -c \"blue,green\" \"npm run server:dev\" \"npm run client:dev\"",
+    "client:dev": "npm run dev --prefix client",
+    "client:build": "npm run build --prefix client",
+    "server:dev": "npm run dev --prefix server",
+    "server:build": "npm run build --prefix server",
+    "build": "npm run server:build && npm run client:build"
+  },
+  "keywords": [
+    "lifeadmin",
+    "productivity",
+    "students",
+    "task-management",
+    "ai"
+  ],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "concurrently": "^10.0.5"
+  }
+}
