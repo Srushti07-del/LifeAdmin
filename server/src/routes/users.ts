@@ -1,4 +1,6 @@
 import { Router, Request, Response } from 'express';
+import path from 'path';
+import fs from 'fs';
 import User from '../models/User';
 import Task from '../models/Task';
 import Bill from '../models/Bill';
@@ -9,9 +11,12 @@ import CalendarEvent from '../models/CalendarEvent';
 import Notification from '../models/Notification';
 import AIInteraction from '../models/AIInteraction';
 import { authenticate } from '../middleware/auth';
+import config from '../config';
 
 const router = Router();
 router.use(authenticate);
+
+const uploadDirPath = path.join(process.cwd(), config.uploadDir);
 
 // GET /api/users/profile — Get full profile
 router.get('/profile', async (req: Request, res: Response): Promise<void> => {
@@ -58,7 +63,6 @@ router.put('/settings', async (req: Request, res: Response): Promise<void> => {
       defaultReminderTiming,
       categories,
       aiPreferences,
-      subscriptionTier,
     } = req.body;
 
     const user = await User.findById(req.user!._id);
@@ -77,9 +81,7 @@ router.put('/settings', async (req: Request, res: Response): Promise<void> => {
         ...aiPreferences,
       };
     }
-    if (subscriptionTier && ['free', 'premium', 'premium_ai'].includes(subscriptionTier)) {
-      user.subscriptionTier = subscriptionTier;
-    }
+    // Note: subscriptionTier is not client-controllable (prevents unauthorized privilege escalation)
 
     await user.save();
     res.json({ message: 'Settings saved successfully', user });
@@ -128,11 +130,29 @@ router.get('/export', async (req: Request, res: Response): Promise<void> => {
   }
 });
 
-// DELETE /api/users/account — Delete user account and cascade delete all associated data
+// DELETE /api/users/account — Canonical account deletion workflow:
+// Cascades across all user data in DB AND securely removes all uploaded physical files from disk.
 router.delete('/account', async (req: Request, res: Response): Promise<void> => {
   try {
     const userId = req.user!._id;
 
+    // 1. Fetch user's documents and safely delete associated physical files
+    const userDocs = await DocumentModel.find({ userId });
+    for (const doc of userDocs) {
+      if (doc.fileName) {
+        const safeFilename = path.basename(doc.fileName);
+        const fullPath = path.join(uploadDirPath, safeFilename);
+        if (fs.existsSync(fullPath)) {
+          try {
+            fs.unlinkSync(fullPath);
+          } catch (fileErr) {
+            console.warn('Could not remove physical document file on account deletion:', fullPath, fileErr);
+          }
+        }
+      }
+    }
+
+    // 2. Cascade delete all user records from database
     await Promise.all([
       Task.deleteMany({ userId }),
       Bill.deleteMany({ userId }),

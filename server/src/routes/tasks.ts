@@ -1,5 +1,6 @@
 import { Router, Request, Response } from 'express';
 import { body, query, validationResult } from 'express-validator';
+import mongoose from 'mongoose';
 import Task from '../models/Task';
 import { authenticate } from '../middleware/auth';
 
@@ -62,11 +63,23 @@ router.get('/', async (req: Request, res: Response): Promise<void> => {
 // GET /api/tasks/:id — Get single task
 router.get('/:id', async (req: Request, res: Response): Promise<void> => {
   try {
-    const task = await Task.findOne({ _id: req.params.id, userId: req.user!._id });
+    const id = req.params.id as string;
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      res.status(404).json({ message: 'Task not found' });
+      return;
+    }
+
+    const task = await Task.findById(id);
     if (!task) {
       res.status(404).json({ message: 'Task not found' });
       return;
     }
+
+    if (task.userId.toString() !== req.user!._id.toString()) {
+      res.status(403).json({ message: 'Access denied' });
+      return;
+    }
+
     res.json({ task });
   } catch (error) {
     console.error('Get task error:', error);
@@ -90,8 +103,9 @@ router.post(
         return;
       }
 
+      const { _id, userId, createdAt, updatedAt, ...taskData } = req.body;
       const task = await Task.create({
-        ...req.body,
+        ...taskData,
         userId: req.user!._id,
       });
 
@@ -106,25 +120,39 @@ router.post(
 // PUT /api/tasks/:id — Update task
 router.put('/:id', async (req: Request, res: Response): Promise<void> => {
   try {
-    // If marking as completed, set completedAt
-    if (req.body.status === 'completed' && !req.body.completedAt) {
-      req.body.completedAt = new Date();
-    }
-    // If un-completing, clear completedAt
-    if (req.body.status && req.body.status !== 'completed') {
-      req.body.completedAt = null;
-    }
-
-    const task = await Task.findOneAndUpdate(
-      { _id: req.params.id, userId: req.user!._id },
-      { $set: req.body },
-      { new: true, runValidators: true }
-    );
-
-    if (!task) {
+    const id = req.params.id as string;
+    if (!mongoose.Types.ObjectId.isValid(id)) {
       res.status(404).json({ message: 'Task not found' });
       return;
     }
+
+    const existingTask = await Task.findById(id);
+    if (!existingTask) {
+      res.status(404).json({ message: 'Task not found' });
+      return;
+    }
+
+    if (existingTask.userId.toString() !== req.user!._id.toString()) {
+      res.status(403).json({ message: 'Access denied' });
+      return;
+    }
+
+    const { _id, userId, createdAt, updatedAt, ...updateData } = req.body;
+
+    // If marking as completed, set completedAt
+    if (updateData.status === 'completed' && !updateData.completedAt) {
+      updateData.completedAt = new Date();
+    }
+    // If un-completing, clear completedAt
+    if (updateData.status && updateData.status !== 'completed') {
+      updateData.completedAt = null;
+    }
+
+    const task = await Task.findByIdAndUpdate(
+      id,
+      { $set: updateData },
+      { new: true, runValidators: true }
+    );
 
     res.json({ message: 'Task updated', task });
   } catch (error) {
@@ -136,16 +164,24 @@ router.put('/:id', async (req: Request, res: Response): Promise<void> => {
 // DELETE /api/tasks/:id — Delete task
 router.delete('/:id', async (req: Request, res: Response): Promise<void> => {
   try {
-    const task = await Task.findOneAndDelete({
-      _id: req.params.id,
-      userId: req.user!._id,
-    });
-
-    if (!task) {
+    const id = req.params.id as string;
+    if (!mongoose.Types.ObjectId.isValid(id)) {
       res.status(404).json({ message: 'Task not found' });
       return;
     }
 
+    const existingTask = await Task.findById(id);
+    if (!existingTask) {
+      res.status(404).json({ message: 'Task not found' });
+      return;
+    }
+
+    if (existingTask.userId.toString() !== req.user!._id.toString()) {
+      res.status(403).json({ message: 'Access denied' });
+      return;
+    }
+
+    await Task.findByIdAndDelete(id);
     res.json({ message: 'Task deleted' });
   } catch (error) {
     console.error('Delete task error:', error);

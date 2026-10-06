@@ -22,33 +22,14 @@ interface AuthContextType {
   register: (name: string, email: string, password: string) => Promise<void>;
   logout: () => void;
   updateUser: (updates: Partial<User>) => void;
-  setTheme: (theme: 'light' | 'dark' | 'system') => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
-
-function applyTheme(theme: 'light' | 'dark' | 'system') {
-  const root = document.documentElement;
-  if (theme === 'dark') {
-    root.classList.add('dark');
-  } else if (theme === 'light') {
-    root.classList.remove('dark');
-  } else {
-    const isDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-    if (isDark) root.classList.add('dark');
-    else root.classList.remove('dark');
-  }
-}
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [token, setToken] = useState<string | null>(localStorage.getItem('lifeadmin_token'));
   const [loading, setLoading] = useState(true);
-
-  // Apply theme on mount and when user changes
-  useEffect(() => {
-    applyTheme(user?.theme || 'system');
-  }, [user?.theme]);
 
   // Fetch user on mount if token exists
   useEffect(() => {
@@ -60,7 +41,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       try {
         const res = await api.get('/auth/me');
         setUser(res.data.user);
-        applyTheme(res.data.user.theme || 'system');
       } catch {
         localStorage.removeItem('lifeadmin_token');
         setToken(null);
@@ -77,7 +57,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     localStorage.setItem('lifeadmin_token', newToken);
     setToken(newToken);
     setUser(userData);
-    applyTheme(userData.theme || 'system');
   }, []);
 
   const register = useCallback(async (name: string, email: string, password: string) => {
@@ -86,7 +65,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     localStorage.setItem('lifeadmin_token', newToken);
     setToken(newToken);
     setUser(userData);
-    applyTheme(userData.theme || 'system');
   }, []);
 
   const logout = useCallback(() => {
@@ -99,13 +77,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setUser((prev) => prev ? { ...prev, ...updates } : null);
   }, []);
 
-  const setThemeCallback = useCallback((theme: 'light' | 'dark' | 'system') => {
-    applyTheme(theme);
-    setUser((prev) => prev ? { ...prev, theme } : null);
-  }, []);
-
   return (
-    <AuthContext.Provider value={{ user, token, loading, login, register, logout, updateUser, setTheme: setThemeCallback }}>
+    <AuthContext.Provider value={{ user, token, loading, login, register, logout, updateUser }}>
       {children}
     </AuthContext.Provider>
   );

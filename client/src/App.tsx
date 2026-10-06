@@ -19,7 +19,7 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-surface-50 dark:bg-surface-950 text-primary-600">
+      <div className="min-h-screen flex items-center justify-center bg-[#2F2F2F] text-[#F5F3EE]">
         <Loader2 className="w-8 h-8 animate-spin" />
       </div>
     );
@@ -37,7 +37,7 @@ function PublicOnlyRoute({ children }: { children: React.ReactNode }) {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-surface-50 dark:bg-surface-950 text-primary-600">
+      <div className="min-h-screen flex items-center justify-center bg-[#2F2F2F] text-[#F5F3EE]">
         <Loader2 className="w-8 h-8 animate-spin" />
       </div>
     );
@@ -85,14 +85,18 @@ export default function App() {
             <Route path="/dashboard" element={<DashboardPage />} />
             <Route path="/tasks" element={<TasksPage />} />
             <Route path="/tasks/new" element={<TasksPage />} />
+            <Route path="/tasks/:id" element={<TasksPage />} />
             <Route path="/bills" element={<BillsPage />} />
             <Route path="/bills/new" element={<BillsPage />} />
+            <Route path="/bills/:id" element={<BillsPage />} />
             <Route path="/appointments" element={<AppointmentsPage />} />
             <Route path="/appointments/new" element={<AppointmentsPage />} />
+            <Route path="/appointments/:id" element={<AppointmentsPage />} />
             <Route path="/documents" element={<DocumentsPage />} />
             <Route path="/documents/new" element={<DocumentsPage />} />
             <Route path="/reminders" element={<RemindersPage />} />
             <Route path="/reminders/new" element={<RemindersPage />} />
+            <Route path="/reminders/:id" element={<RemindersPage />} />
             <Route path="/calendar" element={<CalendarPage />} />
             <Route path="/calendar/new" element={<CalendarPage />} />
             <Route path="/ai" element={<AIAssistantPage />} />

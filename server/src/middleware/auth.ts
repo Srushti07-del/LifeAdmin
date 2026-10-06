@@ -25,13 +25,18 @@ export const authenticate = async (
 ): Promise<void> => {
   try {
     const authHeader = req.headers.authorization;
-    
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    let token: string | undefined;
+
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      token = authHeader.split(' ')[1];
+    } else if (req.query && typeof req.query.token === 'string') {
+      token = req.query.token;
+    }
+
+    if (!token) {
       res.status(401).json({ message: 'Authentication required' });
       return;
     }
-    
-    const token = authHeader.split(' ')[1];
     
     const decoded = jwt.verify(token, config.jwtSecret) as JwtPayload;
     
@@ -65,8 +70,13 @@ export const optionalAuth = async (
 ): Promise<void> => {
   try {
     const authHeader = req.headers.authorization;
+    let token: string | undefined;
     if (authHeader && authHeader.startsWith('Bearer ')) {
-      const token = authHeader.split(' ')[1];
+      token = authHeader.split(' ')[1];
+    } else if (req.query && typeof req.query.token === 'string') {
+      token = req.query.token;
+    }
+    if (token) {
       const decoded = jwt.verify(token, config.jwtSecret) as JwtPayload;
       const user = await User.findById(decoded.userId);
       if (user) {

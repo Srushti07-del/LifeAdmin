@@ -47,58 +47,89 @@ async function getUserLifeAdminContext(userId: any) {
 function generateIntelligentFallbackResponse(prompt: string, context: any) {
   const p = prompt.toLowerCase();
   let text = '';
-  let suggestions: Array<{ type: 'task' | 'bill' | 'appointment' | 'reminder'; title: string; dueDate?: string; priority?: string; amount?: number }> = [];
+  const suggestions: Array<{ type: 'task' | 'bill' | 'appointment' | 'reminder'; title: string; dueDate?: string; priority?: string; amount?: number; status?: string }> = [];
 
-  if (p.includes('what do i need to do') || p.includes('this week') || p.includes('today') || p.includes('urgent') || p.includes('summary')) {
+  const now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+
+  if (p.includes('overdue') || p.includes('late') || p.includes('missed')) {
+    const overdueTasks = context.tasks.filter((t: any) => t.dueDate && new Date(t.dueDate) < today && t.status !== 'completed');
+    const overdueBills = context.bills.filter((b: any) => b.dueDate && new Date(b.dueDate) < today);
+
+    text = `🚨 **Overdue Responsibilities Audit**:\n\n`;
+    if (overdueTasks.length === 0 && overdueBills.length === 0) {
+      text += `Great news! You have no overdue tasks or bills right now. Everything is on schedule.`;
+    } else {
+      if (overdueTasks.length > 0) {
+        text += `**Overdue Tasks (${overdueTasks.length})**:\n` +
+          overdueTasks.map((t: any) => `• **${t.title}** (Priority: ${t.priority}, Due: ${new Date(t.dueDate).toLocaleDateString()})`).join('\n') + '\n\n';
+      }
+      if (overdueBills.length > 0) {
+        text += `**Overdue Bills (${overdueBills.length})**:\n` +
+          overdueBills.map((b: any) => `• **${b.title}** ($${b.amount}) due on ${new Date(b.dueDate).toLocaleDateString()} to ${b.provider || 'vendor'}`).join('\n') + '\n\n';
+      }
+      text += `💡 Recommendation: Resolve these high-urgency items first to prevent penalties or missed obligations.`;
+    }
+  } else if (p.includes('prioritize') || p.includes('priority') || p.includes('first')) {
+    const urgentTasks = context.tasks.filter((t: any) => t.priority === 'urgent' || t.priority === 'high');
+    const upcomingBills = context.bills.slice(0, 3);
+
+    text = `🎯 **Priority Action Plan**:\n\n` +
+      `Here is the recommended order of focus based on urgency:\n\n`;
+    let rank = 1;
+    for (const t of urgentTasks.slice(0, 3)) {
+      text += `${rank++}. 📋 **Task**: ${t.title} [Priority: ${t.priority}] — Target: ${t.dueDate ? new Date(t.dueDate).toLocaleDateString() : 'Immediate'}\n`;
+    }
+    for (const b of upcomingBills) {
+      text += `${rank++}. 💳 **Bill**: Pay ${b.title} ($${b.amount}) due ${new Date(b.dueDate).toLocaleDateString()}\n`;
+    }
+    if (rank === 1) {
+      text += `You have no high-urgency tasks or pending bills right now! Review your standard task list or relax.`;
+    }
+  } else if (p.includes('appointment') || p.includes('meeting') || p.includes('doctor') || p.includes('visit')) {
+    if (context.appointments.length === 0) {
+      text = `You have no appointments currently scheduled in your LifeAdmin calendar.`;
+    } else {
+      text = `📅 **Upcoming Appointments (${context.appointments.length})**:\n\n` +
+        context.appointments.map((a: any) => `• **${a.title}** on ${new Date(a.date).toLocaleDateString()} at ${a.time || 'all day'}${a.location ? ` @ ${a.location}` : ''}`).join('\n');
+    }
+  } else if (p.includes('bill') || p.includes('pay') || p.includes('money') || p.includes('expense')) {
+    if (context.bills.length === 0) {
+      text = `You have no pending bills right now! All payments are up to date.`;
+    } else {
+      const totalAmount = context.bills.reduce((sum: number, b: any) => sum + (b.amount || 0), 0);
+      text = `💳 **Pending Bills (${context.bills.length})** totaling **$${totalAmount.toFixed(2)}**:\n\n` +
+        context.bills.map((b: any) => `• **${b.title}** ($${b.amount}) due on ${new Date(b.dueDate).toLocaleDateString()} to ${b.provider || 'provider'}`).join('\n') +
+        `\n\nEnsure payment is processed before each due date.`;
+    }
+  } else if (p.includes('what do i need to do') || p.includes('this week') || p.includes('today') || p.includes('summary')) {
     const urgentTasks = context.tasks.filter((t: any) => t.priority === 'urgent' || t.priority === 'high');
     const pendingBills = context.bills;
     const nextAppts = context.appointments;
 
-    text = `Here is your LifeAdmin status summary:\n\n` +
-      `📋 **Tasks Needing Attention**: You have ${context.tasks.length} active tasks (${urgentTasks.length} high/urgent priority).\n` +
-      (urgentTasks.length > 0 ? urgentTasks.map((t: any) => `  • **${t.title}** (Priority: ${t.priority}, Due: ${t.dueDate ? new Date(t.dueDate).toLocaleDateString() : 'No date'})`).join('\n') + '\n\n' : '  • No urgent tasks at this moment.\n\n') +
-      `💳 **Pending Bills**: You have ${pendingBills.length} unpaid bill(s).\n` +
-      (pendingBills.length > 0 ? pendingBills.map((b: any) => `  • **${b.title}** ($${b.amount}) - Due: ${new Date(b.dueDate).toLocaleDateString()}`).join('\n') + '\n\n' : '  • All current bills are paid! ✨\n\n') +
-      `📅 **Upcoming Appointments**: ${nextAppts.length} scheduled.\n` +
-      (nextAppts.length > 0 ? nextAppts.map((a: any) => `  • **${a.title}** on ${new Date(a.date).toLocaleDateString()} at ${a.time || 'all day'}${a.location ? ` (${a.location})` : ''}`).join('\n') + '\n\n' : '  • No immediate appointments.\n\n') +
-      `🔔 **Reminders**: ${context.reminders.length} unacknowledged reminder(s).`;
-  } else if (p.includes('bill') || p.includes('pay') || p.includes('money') || p.includes('expense')) {
-    if (context.bills.length === 0) {
-      text = `You have no pending bills right now! Would you like me to help you log a new upcoming bill?`;
-    } else {
-      const totalAmount = context.bills.reduce((sum: number, b: any) => sum + (b.amount || 0), 0);
-      text = `You have **${context.bills.length} pending bill(s)** totaling **$${totalAmount.toFixed(2)}**:\n\n` +
-        context.bills.map((b: any) => `• **${b.title}** ($${b.amount}) due on ${new Date(b.dueDate).toLocaleDateString()} to ${b.provider}`).join('\n') +
-        `\n\nMake sure to pay before the due dates to avoid late fees.`;
-    }
-  } else if (p.includes('exam') || p.includes('assignment') || p.includes('study') || p.includes('plan')) {
-    text = `Here is a structured preparation plan for your academic schedule:\n\n` +
-      `1. **Break Down Topics & Materials** (3-4 days before)\n` +
-      `2. **Active Recall & Practice Problems** (2 days before)\n` +
-      `3. **Comprehensive Review & Mock Exam** (1 day before)\n` +
-      `4. **Exam Day Logistics & Rest** (Day of exam)\n\n` +
-      `I have prepared 3 recommended tasks you can add directly to your LifeAdmin workspace below:`;
-    
-    const d1 = new Date(); d1.setDate(d1.getDate() + 2);
-    const d2 = new Date(); d2.setDate(d2.getDate() + 4);
-    const d3 = new Date(); d3.setDate(d3.getDate() + 6);
-
-    suggestions = [
-      { type: 'task', title: 'Review lecture notes & create study cheat sheet', dueDate: d1.toISOString().split('T')[0], priority: 'high' },
-      { type: 'task', title: 'Complete practice questions and problem sets', dueDate: d2.toISOString().split('T')[0], priority: 'urgent' },
-      { type: 'task', title: 'Final timed mock test & formula memorization', dueDate: d3.toISOString().split('T')[0], priority: 'urgent' },
-    ];
+    text = `📋 **Your LifeAdmin Workspace Summary**:\n\n` +
+      `• **Active Tasks**: ${context.tasks.length} total (${urgentTasks.length} urgent/high priority)\n` +
+      (urgentTasks.length > 0 ? urgentTasks.map((t: any) => `  - **${t.title}** (Due: ${t.dueDate ? new Date(t.dueDate).toLocaleDateString() : 'No date'})`).join('\n') + '\n' : '') +
+      `• **Unpaid Bills**: ${pendingBills.length} pending\n` +
+      (pendingBills.length > 0 ? pendingBills.map((b: any) => `  - **${b.title}** ($${b.amount}) due ${new Date(b.dueDate).toLocaleDateString()}`).join('\n') + '\n' : '') +
+      `• **Scheduled Appointments**: ${nextAppts.length}\n` +
+      (nextAppts.length > 0 ? nextAppts.map((a: any) => `  - **${a.title}** on ${new Date(a.date).toLocaleDateString()} at ${a.time || 'all day'}`).join('\n') + '\n' : '') +
+      `• **Active Reminders**: ${context.reminders.length}\n` +
+      `• **Stored Documents**: ${context.documents.length}`;
   } else {
-    text = `I can help manage your everyday responsibilities across tasks, bills, appointments, documents, and reminders!\n\n` +
-      `You currently have:\n` +
-      `• ${context.tasks.length} active tasks\n` +
-      `• ${context.bills.length} unpaid bills\n` +
+    text = `I can help coordinate your daily responsibilities across tasks, bills, appointments, documents, and reminders!\n\n` +
+      `Current snapshot:\n` +
+      `• ${context.tasks.length} tasks\n` +
+      `• ${context.bills.length} bills\n` +
       `• ${context.appointments.length} appointments\n` +
-      `• ${context.documents.length} uploaded documents\n\n` +
-      `Ask me things like:\n` +
-      `• *"What do I need to do this week?"*\n` +
+      `• ${context.reminders.length} reminders\n` +
+      `• ${context.documents.length} documents\n\n` +
+      `Try asking:\n` +
+      `• *"What responsibilities are overdue?"*\n` +
+      `• *"What should I prioritize today?"*\n` +
       `• *"What bills are due soon?"*\n` +
-      `• *"Help me plan preparation for finals"* or *"Break down my apartment move"*`;
+      `• *"What appointments are coming up?"*\n` +
+      `• *"Summarize my upcoming week"*`;
   }
 
   return { text, suggestions };
@@ -188,7 +219,8 @@ If the user asks to plan something or if action items naturally emerge, suggest 
   }
 );
 
-// POST /api/ai/plan — Planning assistant (Phase 4.3: breakdown assignments, exams, moves, etc.)
+// POST /api/ai/plan — Planning assistant
+// Uses Gemini if available; otherwise returns generic template tasks clearly marked as suggestions.
 router.post(
   '/plan',
   [body('goal').notEmpty().withMessage('Goal or scenario is required')],
@@ -197,7 +229,38 @@ router.post(
       const { goal, targetDate } = req.body;
       const baseDate = targetDate ? new Date(targetDate) : new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
 
-      // Break goal down into actionable tasks
+      if (geminiModel) {
+        try {
+          const prompt = `You are LifeAdmin AI. The user wants to plan for: "${goal}" with a target date of ${baseDate.toLocaleDateString()}.
+Break this into 3-5 actionable task steps with realistic titles, due dates (ISO format YYYY-MM-DD), and priority levels (low/medium/high/urgent).
+Respond ONLY in this JSON format:
+{
+  "plan": "Brief summary of the plan",
+  "tasks": [{ "title": "...", "dueDate": "YYYY-MM-DD", "priority": "medium", "category": "Work/Study" }]
+}`;
+          const result = await geminiModel.generateContent(prompt);
+          const responseText = result.response.text();
+          // Try to parse JSON from response
+          const jsonMatch = responseText.match(/\{[\s\S]*\}/);
+          if (jsonMatch) {
+            const parsed = JSON.parse(jsonMatch[0]);
+            const planTasks = (parsed.tasks || []).map((t: any) => ({
+              ...t,
+              status: 'suggestion',
+            }));
+            res.json({
+              plan: parsed.plan || `AI-generated plan for: "${goal}"`,
+              tasks: planTasks,
+              source: 'ai',
+            });
+            return;
+          }
+        } catch (apiErr) {
+          console.warn('Gemini plan call failed, falling back to template:', apiErr);
+        }
+      }
+
+      // Fallback: generic template — clearly marked as template suggestions, not AI analysis
       const step1Date = new Date(baseDate.getTime() - 5 * 24 * 60 * 60 * 1000);
       const step2Date = new Date(baseDate.getTime() - 3 * 24 * 60 * 60 * 1000);
       const step3Date = new Date(baseDate.getTime() - 1 * 24 * 60 * 60 * 1000);
@@ -208,24 +271,28 @@ router.post(
           dueDate: step1Date > new Date() ? step1Date.toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
           priority: 'medium',
           category: 'Work/Study',
+          status: 'suggestion',
         },
         {
           title: `Execution: Complete core deliverables / study phase for "${goal}"`,
           dueDate: step2Date > new Date() ? step2Date.toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
           priority: 'high',
           category: 'Work/Study',
+          status: 'suggestion',
         },
         {
           title: `Final Review & Submission / Readiness Check: "${goal}"`,
           dueDate: step3Date > new Date() ? step3Date.toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
           priority: 'urgent',
           category: 'Work/Study',
+          status: 'suggestion',
         },
       ];
 
       res.json({
-        plan: `Created a 3-step action roadmap for: "${goal}" targeting ${baseDate.toLocaleDateString()}`,
+        plan: `Template roadmap for: "${goal}" targeting ${baseDate.toLocaleDateString()}. These are generic suggestions — review and adjust before adding.`,
         tasks: planTasks,
+        source: 'template',
       });
     } catch (error) {
       console.error('AI Plan error:', error);
@@ -234,61 +301,143 @@ router.post(
   }
 );
 
-// POST /api/ai/detect — Responsibility detection from pasted text/email/syllabus (Phase 4.4)
+// POST /api/ai/detect — Responsibility detection from pasted text/email/syllabus
+// Only returns items with genuine evidence found in the text. Never fabricates data.
 router.post(
   '/detect',
   [body('text').notEmpty().withMessage('Text snippet is required')],
   async (req: Request, res: Response): Promise<void> => {
     try {
       const { text } = req.body;
+
+      // If Gemini is available, use it for real analysis
+      if (geminiModel) {
+        try {
+          const prompt = `You are LifeAdmin AI. Analyze this text and detect any actionable responsibilities (tasks, bills, appointments, reminders).
+For each detected item, extract ONLY information that is explicitly stated in the text. Do NOT invent dates, amounts, or names that aren't present.
+If a field is not found in the text, omit it.
+
+Text to analyze:
+"${text.slice(0, 2000)}"
+
+Respond ONLY in this JSON format:
+{
+  "summary": "Brief description of what was found",
+  "detectedItems": [
+    {
+      "type": "task|bill|appointment|reminder",
+      "title": "Descriptive title based on actual text content",
+      "description": "Relevant excerpt from text",
+      "dueDate": "YYYY-MM-DD if explicitly mentioned",
+      "amount": 123.45,
+      "provider": "Provider name if explicitly mentioned",
+      "confidence": "high|medium|low",
+      "status": "suggestion"
+    }
+  ]
+}
+If nothing actionable is found, return an empty detectedItems array.`;
+
+          const result = await geminiModel.generateContent(prompt);
+          const responseText = result.response.text();
+          const jsonMatch = responseText.match(/\{[\s\S]*\}/);
+          if (jsonMatch) {
+            const parsed = JSON.parse(jsonMatch[0]);
+            // Ensure all items are marked as suggestions
+            const items = (parsed.detectedItems || []).map((item: any) => ({
+              ...item,
+              status: 'suggestion',
+              confidence: item.confidence || 'medium',
+            }));
+            res.json({
+              summary: parsed.summary || `Analyzed text and found ${items.length} potential item(s).`,
+              detectedItems: items,
+              source: 'ai',
+            });
+            return;
+          }
+        } catch (apiErr) {
+          console.warn('Gemini detect call failed, falling back to pattern matching:', apiErr);
+        }
+      }
+
+      // Fallback: simple pattern matching — only extract genuinely present data
       const detectedItems: any[] = [];
       const lower = text.toLowerCase();
 
-      // Simple regex pattern searches for dates, amounts, deadlines
-      if (lower.includes('due') || lower.includes('deadline') || lower.includes('submit')) {
-        detectedItems.push({
-          type: 'task',
-          title: 'Action Item from text: Submit deliverable / assignment',
-          description: text.slice(0, 150),
-          dueDate: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-          priority: 'high',
-        });
-      }
-
-      const dollarMatch = text.match(/\$\s?(\d+(?:\.\d{2})?)/);
-      if (dollarMatch || lower.includes('bill') || lower.includes('pay') || lower.includes('rent')) {
+      // Try to find actual dollar amounts in the text
+      const dollarMatches = text.matchAll(/\$\s?(\d+(?:,\d{3})*(?:\.\d{2})?)/g);
+      for (const match of dollarMatches) {
+        const amount = parseFloat(match[1].replace(/,/g, ''));
         detectedItems.push({
           type: 'bill',
-          title: 'Payment responsibility detected',
-          amount: dollarMatch ? parseFloat(dollarMatch[1]) : 50.0,
-          provider: 'Detected Merchant / Service',
-          dueDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+          title: `Payment of $${amount} detected in text`,
+          description: text.slice(Math.max(0, match.index! - 40), Math.min(text.length, match.index! + match[0].length + 40)).trim(),
+          amount,
+          status: 'suggestion',
+          confidence: 'medium',
         });
       }
 
-      if (lower.includes('appointment') || lower.includes('doctor') || lower.includes('meeting') || lower.includes('zoom')) {
-        detectedItems.push({
-          type: 'appointment',
-          title: 'Upcoming meeting/appointment detected',
-          date: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-          notes: text.slice(0, 150),
-        });
+      // Try to find explicit date patterns (MM/DD/YYYY, YYYY-MM-DD, Month DD, etc.)
+      const datePatterns = [
+        /(\d{1,2}\/\d{1,2}\/\d{2,4})/g,
+        /(\d{4}-\d{2}-\d{2})/g,
+        /((?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\s+\d{1,2}(?:,?\s+\d{4})?)/gi,
+      ];
+
+      for (const pattern of datePatterns) {
+        const dateMatches = text.matchAll(pattern);
+        for (const match of dateMatches) {
+          const parsedDate = new Date(match[1]);
+          if (!isNaN(parsedDate.getTime())) {
+            // Check surrounding text for context
+            const surrounding = text.slice(Math.max(0, match.index! - 60), Math.min(text.length, match.index! + match[0].length + 60));
+            const surroundLower = surrounding.toLowerCase();
+
+            let type: string = 'task';
+            let titlePrefix = 'Date reference';
+            if (surroundLower.includes('due') || surroundLower.includes('deadline') || surroundLower.includes('submit')) {
+              titlePrefix = 'Deadline';
+            } else if (surroundLower.includes('appointment') || surroundLower.includes('meeting') || surroundLower.includes('visit')) {
+              type = 'appointment';
+              titlePrefix = 'Appointment';
+            } else if (surroundLower.includes('pay') || surroundLower.includes('bill') || surroundLower.includes('rent')) {
+              type = 'bill';
+              titlePrefix = 'Payment due';
+            }
+
+            detectedItems.push({
+              type,
+              title: `${titlePrefix}: ${match[1]}`,
+              description: surrounding.trim(),
+              dueDate: parsedDate.toISOString().split('T')[0],
+              status: 'suggestion',
+              confidence: 'medium',
+            });
+          }
+        }
       }
 
-      if (detectedItems.length === 0) {
-        // Fallback default detected task
+      // If the text mentions deadlines/tasks but no dates were found, note that
+      if (detectedItems.length === 0 && (lower.includes('due') || lower.includes('deadline') || lower.includes('submit') || lower.includes('appointment'))) {
         detectedItems.push({
           type: 'task',
-          title: 'Extracted task from notes',
-          description: text.slice(0, 120),
-          dueDate: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-          priority: 'medium',
+          title: 'Potential action item detected — no specific date found',
+          description: text.slice(0, 150),
+          status: 'suggestion',
+          confidence: 'low',
         });
       }
 
+      const summary = detectedItems.length > 0
+        ? `Found ${detectedItems.length} potential item(s) based on pattern matching. Review each carefully before adding — dates and amounts are extracted from the text but may need correction.`
+        : `No specific dates, amounts, or actionable items were detected in the provided text. Try pasting text that contains explicit dates, dollar amounts, or deadline keywords.`;
+
       res.json({
-        summary: `Detected ${detectedItems.length} potential responsibility item(s) from your input.`,
+        summary,
         detectedItems,
+        source: 'pattern-matching',
       });
     } catch (error) {
       console.error('AI Detect error:', error);

@@ -2,6 +2,7 @@ import { Router, Request, Response } from 'express';
 import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
+import mongoose from 'mongoose';
 import { body, validationResult } from 'express-validator';
 import DocumentModel from '../models/Document';
 import Task from '../models/Task';
@@ -46,60 +47,32 @@ const upload = multer({
   },
 });
 
-// Helper to simulate/execute document extraction
-function extractDocumentMetadata(originalName: string, notes?: string) {
+// Truthful document classification helper — does NOT fabricate extracted data.
+// Only classifies document type based on filename/notes keywords.
+// No amounts, providers, or dates are invented.
+function classifyDocument(originalName: string, notes?: string) {
   const nameLower = (originalName + ' ' + (notes || '')).toLowerCase();
   let documentType = 'General';
-  let provider = '';
-  let amounts: Array<{ label: string; amount: number }> = [];
-  let importantDates: Array<{ label: string; date: Date }> = [];
 
   if (nameLower.includes('bill') || nameLower.includes('utility') || nameLower.includes('electric') || nameLower.includes('water') || nameLower.includes('internet') || nameLower.includes('wifi')) {
     documentType = 'Utility Bill';
-    if (nameLower.includes('electric')) provider = 'Electric Utility Co.';
-    else if (nameLower.includes('water')) provider = 'City Water Services';
-    else if (nameLower.includes('internet') || nameLower.includes('wifi')) provider = 'Broadband ISP';
-    else provider = 'Service Provider';
-    
-    // Suggest payment due date in 14 days
-    const dueDate = new Date();
-    dueDate.setDate(dueDate.getDate() + 14);
-    importantDates.push({ label: 'Payment Due Date', date: dueDate });
-    amounts.push({ label: 'Amount Due', amount: 75.50 });
   } else if (nameLower.includes('lease') || nameLower.includes('rent') || nameLower.includes('tenancy')) {
     documentType = 'Lease Agreement';
-    provider = 'Property Management';
-    const renewalDate = new Date();
-    renewalDate.setFullYear(renewalDate.getFullYear() + 1);
-    importantDates.push({ label: 'Lease Expiration', date: renewalDate });
-    amounts.push({ label: 'Monthly Rent', amount: 1200 });
   } else if (nameLower.includes('insurance') || nameLower.includes('policy')) {
     documentType = 'Insurance Policy';
-    provider = 'Insurance Corp';
-    const renewal = new Date();
-    renewal.setFullYear(renewal.getFullYear() + 1);
-    importantDates.push({ label: 'Policy Renewal', date: renewal });
-    amounts.push({ label: 'Annual Premium', amount: 650 });
   } else if (nameLower.includes('id') || nameLower.includes('passport') || nameLower.includes('license')) {
     documentType = 'Identification';
-    provider = 'Government Agency';
-    const expiry = new Date();
-    expiry.setFullYear(expiry.getFullYear() + 4);
-    importantDates.push({ label: 'Expiration Date', date: expiry });
   } else if (nameLower.includes('tax') || nameLower.includes('w2') || nameLower.includes('1099')) {
     documentType = 'Tax Document';
-    provider = 'IRS / Revenue Agency';
   } else if (nameLower.includes('medical') || nameLower.includes('prescription') || nameLower.includes('doctor')) {
     documentType = 'Medical Record';
-    provider = 'Healthcare Clinic';
   }
 
   return {
     documentType,
-    provider,
-    amounts,
-    importantDates,
-    summary: `Automatically analyzed from "${originalName}". Identified as ${documentType} with ${importantDates.length} important date(s) and ${amounts.length} financial amount(s).`,
+    summary: documentType !== 'General'
+      ? `Classified as "${documentType}" based on filename. No content extraction was performed — OCR/AI extraction is not configured. You can manually add details or confirm the classification.`
+      : `Document uploaded. No content extraction was performed — OCR/AI extraction is not configured. You can manually add details below.`,
   };
 }
 
@@ -152,13 +125,24 @@ router.get('/', async (req: Request, res: Response): Promise<void> => {
 // GET /api/documents/:id — Get document details
 router.get('/:id', async (req: Request, res: Response): Promise<void> => {
   try {
-    const doc = await DocumentModel.findOne({ _id: req.params.id, userId: req.user!._id })
+    const id = req.params.id as string;
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      res.status(404).json({ message: 'Document not found' });
+      return;
+    }
+
+    const doc = await DocumentModel.findById(id)
       .populate('linkedTasks')
       .populate('linkedBills')
       .populate('linkedReminders');
 
     if (!doc) {
       res.status(404).json({ message: 'Document not found' });
+      return;
+    }
+
+    if (doc.userId.toString() !== req.user!._id.toString()) {
+      res.status(403).json({ message: 'Access denied' });
       return;
     }
 
@@ -169,7 +153,60 @@ router.get('/:id', async (req: Request, res: Response): Promise<void> => {
   }
 });
 
-// POST /api/documents/upload — Upload document and trigger extraction
+// GET /api/documents/:id/download — Authenticated document file download
+// Verifies ownership and prevents path traversal before serving the file.
+router.get('/:id/download', async (req: Request, res: Response): Promise<void> => {
+  try {
+    const id = req.params.id as string;
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      res.status(404).json({ message: 'Document not found' });
+      return;
+    }
+
+    const doc = await DocumentModel.findById(id);
+    if (!doc) {
+      res.status(404).json({ message: 'Document not found' });
+      return;
+    }
+
+    // Explicit ownership check
+    if (doc.userId.toString() !== req.user!._id.toString()) {
+      res.status(403).json({ message: 'Access denied' });
+      return;
+    }
+
+    // Path traversal prevention: use only the stored basename, never any client input
+    const safeFilename = path.basename(doc.fileName);
+    const fullPath = path.join(uploadDirPath, safeFilename);
+
+    // Verify the resolved path is actually inside the upload directory
+    const resolvedPath = path.resolve(fullPath);
+    const resolvedUploadDir = path.resolve(uploadDirPath);
+    if (!resolvedPath.startsWith(resolvedUploadDir + path.sep) && resolvedPath !== resolvedUploadDir) {
+      res.status(403).json({ message: 'Access denied' });
+      return;
+    }
+
+    if (!fs.existsSync(resolvedPath)) {
+      res.status(404).json({ message: 'File not found on disk' });
+      return;
+    }
+
+    // Set appropriate headers for download/inline viewing
+    const contentDisposition = req.query.download === 'true'
+      ? `attachment; filename="${encodeURIComponent(doc.originalName)}"`
+      : `inline; filename="${encodeURIComponent(doc.originalName)}"`;
+
+    res.setHeader('Content-Disposition', contentDisposition);
+    res.setHeader('Content-Type', doc.mimeType || 'application/octet-stream');
+    res.sendFile(resolvedPath);
+  } catch (error) {
+    console.error('Download document error:', error);
+    res.status(500).json({ message: 'Failed to download document' });
+  }
+});
+
+// POST /api/documents/upload — Upload document with truthful classification
 router.post('/upload', upload.single('file'), async (req: Request, res: Response): Promise<void> => {
   try {
     if (!req.file) {
@@ -177,10 +214,10 @@ router.post('/upload', upload.single('file'), async (req: Request, res: Response
       return;
     }
 
-    const { category = 'General', notes = '', documentType } = req.body;
+    const { category = 'General', notes = '', documentType, expiryDate } = req.body;
 
-    // Run extraction helper
-    const extracted = extractDocumentMetadata(req.file.originalname, notes);
+    // Classify document type from filename — no fake extraction
+    const classification = classifyDocument(req.file.originalname, notes);
 
     const doc = new DocumentModel({
       userId: req.user!._id,
@@ -188,23 +225,29 @@ router.post('/upload', upload.single('file'), async (req: Request, res: Response
       originalName: req.file.originalname,
       mimeType: req.file.mimetype,
       fileSize: req.file.size,
-      filePath: `/uploads/${req.file.filename}`,
+      filePath: `/api/documents/placeholder/download`, // not used for access; download route uses doc ID
       category: category || 'General',
-      documentType: documentType || extracted.documentType,
+      documentType: documentType || classification.documentType,
       notes,
-      aiProcessed: true,
+      aiProcessed: false, // No real extraction was performed
       aiConfirmed: false,
       aiExtracted: {
-        provider: extracted.provider,
-        summary: extracted.summary,
-        amounts: extracted.amounts,
-        importantDates: extracted.importantDates,
+        provider: '',
+        expiryDate: expiryDate ? new Date(expiryDate) : undefined,
+        summary: classification.summary,
+        amounts: [],
+        importantDates: [],
         identifiers: [],
       },
     });
 
     await doc.save();
-    res.status(201).json({ message: 'Document uploaded and analyzed successfully', document: doc });
+
+    // Update filePath to use the actual document ID for the download route
+    doc.filePath = `/api/documents/${doc._id}/download`;
+    await doc.save();
+
+    res.status(201).json({ message: 'Document uploaded and classified', document: doc });
   } catch (error) {
     console.error('Upload document error:', error);
     res.status(500).json({ message: 'Failed to upload document' });
@@ -214,13 +257,24 @@ router.post('/upload', upload.single('file'), async (req: Request, res: Response
 // PUT /api/documents/:id — Update metadata
 router.put('/:id', async (req: Request, res: Response): Promise<void> => {
   try {
-    const { category, documentType, tags, notes, aiConfirmed, aiExtracted } = req.body;
+    const id = req.params.id as string;
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      res.status(404).json({ message: 'Document not found' });
+      return;
+    }
 
-    const doc = await DocumentModel.findOne({ _id: req.params.id, userId: req.user!._id });
+    const doc = await DocumentModel.findById(id);
     if (!doc) {
       res.status(404).json({ message: 'Document not found' });
       return;
     }
+
+    if (doc.userId.toString() !== req.user!._id.toString()) {
+      res.status(403).json({ message: 'Access denied' });
+      return;
+    }
+
+    const { category, documentType, tags, notes, aiConfirmed, aiExtracted, expiryDate } = req.body;
 
     if (category !== undefined) doc.category = category;
     if (documentType !== undefined) doc.documentType = documentType;
@@ -228,6 +282,10 @@ router.put('/:id', async (req: Request, res: Response): Promise<void> => {
     if (notes !== undefined) doc.notes = notes;
     if (aiConfirmed !== undefined) doc.aiConfirmed = aiConfirmed;
     if (aiExtracted !== undefined) doc.aiExtracted = { ...doc.aiExtracted, ...aiExtracted };
+    if (expiryDate !== undefined) {
+      doc.aiExtracted = doc.aiExtracted || {};
+      doc.aiExtracted.expiryDate = expiryDate ? new Date(expiryDate) : undefined;
+    }
 
     await doc.save();
     res.json({ message: 'Document updated successfully', document: doc });
@@ -252,9 +310,20 @@ router.post(
         return;
       }
 
-      const doc = await DocumentModel.findOne({ _id: req.params.id, userId: req.user!._id });
+      const id = req.params.id as string;
+      if (!mongoose.Types.ObjectId.isValid(id)) {
+        res.status(404).json({ message: 'Document not found' });
+        return;
+      }
+
+      const doc = await DocumentModel.findById(id);
       if (!doc) {
         res.status(404).json({ message: 'Document not found' });
+        return;
+      }
+
+      if (doc.userId.toString() !== req.user!._id.toString()) {
+        res.status(403).json({ message: 'Access denied' });
         return;
       }
 
@@ -324,14 +393,29 @@ router.post(
 // DELETE /api/documents/:id — Delete document
 router.delete('/:id', async (req: Request, res: Response): Promise<void> => {
   try {
-    const doc = await DocumentModel.findOneAndDelete({ _id: req.params.id, userId: req.user!._id });
+    const id = req.params.id as string;
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      res.status(404).json({ message: 'Document not found' });
+      return;
+    }
+
+    const doc = await DocumentModel.findById(id);
     if (!doc) {
       res.status(404).json({ message: 'Document not found' });
       return;
     }
 
+    if (doc.userId.toString() !== req.user!._id.toString()) {
+      res.status(403).json({ message: 'Access denied' });
+      return;
+    }
+
+    // Remove DB record
+    await DocumentModel.findByIdAndDelete(id);
+
     // Try to remove physical file
-    const fullPath = path.join(uploadDirPath, doc.fileName);
+    const safeFilename = path.basename(doc.fileName);
+    const fullPath = path.join(uploadDirPath, safeFilename);
     if (fs.existsSync(fullPath)) {
       try {
         fs.unlinkSync(fullPath);

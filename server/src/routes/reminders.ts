@@ -1,5 +1,6 @@
 import { Router, Request, Response } from 'express';
 import { body, validationResult } from 'express-validator';
+import mongoose from 'mongoose';
 import Reminder from '../models/Reminder';
 import { authenticate } from '../middleware/auth';
 
@@ -31,6 +32,7 @@ router.get('/', async (req: Request, res: Response): Promise<void> => {
       pagination: { total, page: pageNum, limit: limitNum, pages: Math.ceil(total / limitNum) },
     });
   } catch (error) {
+    console.error('List reminders error:', error);
     res.status(500).json({ message: 'Failed to fetch reminders' });
   }
 });
@@ -38,10 +40,26 @@ router.get('/', async (req: Request, res: Response): Promise<void> => {
 // GET /api/reminders/:id
 router.get('/:id', async (req: Request, res: Response): Promise<void> => {
   try {
-    const reminder = await Reminder.findOne({ _id: req.params.id, userId: req.user!._id });
-    if (!reminder) { res.status(404).json({ message: 'Reminder not found' }); return; }
+    const id = req.params.id as string;
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      res.status(404).json({ message: 'Reminder not found' });
+      return;
+    }
+
+    const reminder = await Reminder.findById(id);
+    if (!reminder) {
+      res.status(404).json({ message: 'Reminder not found' });
+      return;
+    }
+
+    if (reminder.userId.toString() !== req.user!._id.toString()) {
+      res.status(403).json({ message: 'Access denied' });
+      return;
+    }
+
     res.json({ reminder });
   } catch (error) {
+    console.error('Get reminder error:', error);
     res.status(500).json({ message: 'Failed to fetch reminder' });
   }
 });
@@ -60,9 +78,16 @@ router.post(
         res.status(400).json({ message: errors.array()[0].msg });
         return;
       }
-      const reminder = await Reminder.create({ ...req.body, userId: req.user!._id });
+
+      const { _id, userId, createdAt, updatedAt, ...reminderData } = req.body;
+      const reminder = await Reminder.create({
+        ...reminderData,
+        userId: req.user!._id,
+      });
+
       res.status(201).json({ message: 'Reminder created', reminder });
     } catch (error) {
+      console.error('Create reminder error:', error);
       res.status(500).json({ message: 'Failed to create reminder' });
     }
   }
@@ -71,14 +96,33 @@ router.post(
 // PUT /api/reminders/:id
 router.put('/:id', async (req: Request, res: Response): Promise<void> => {
   try {
-    const reminder = await Reminder.findOneAndUpdate(
-      { _id: req.params.id, userId: req.user!._id },
-      { $set: req.body },
+    const id = req.params.id as string;
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      res.status(404).json({ message: 'Reminder not found' });
+      return;
+    }
+
+    const existingReminder = await Reminder.findById(id);
+    if (!existingReminder) {
+      res.status(404).json({ message: 'Reminder not found' });
+      return;
+    }
+
+    if (existingReminder.userId.toString() !== req.user!._id.toString()) {
+      res.status(403).json({ message: 'Access denied' });
+      return;
+    }
+
+    const { _id, userId, createdAt, updatedAt, ...updateData } = req.body;
+    const reminder = await Reminder.findByIdAndUpdate(
+      id,
+      { $set: updateData },
       { new: true, runValidators: true }
     );
-    if (!reminder) { res.status(404).json({ message: 'Reminder not found' }); return; }
+
     res.json({ message: 'Reminder updated', reminder });
   } catch (error) {
+    console.error('Update reminder error:', error);
     res.status(500).json({ message: 'Failed to update reminder' });
   }
 });
@@ -86,14 +130,32 @@ router.put('/:id', async (req: Request, res: Response): Promise<void> => {
 // PATCH /api/reminders/:id/acknowledge
 router.patch('/:id/acknowledge', async (req: Request, res: Response): Promise<void> => {
   try {
-    const reminder = await Reminder.findOneAndUpdate(
-      { _id: req.params.id, userId: req.user!._id },
+    const id = req.params.id as string;
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      res.status(404).json({ message: 'Reminder not found' });
+      return;
+    }
+
+    const existingReminder = await Reminder.findById(id);
+    if (!existingReminder) {
+      res.status(404).json({ message: 'Reminder not found' });
+      return;
+    }
+
+    if (existingReminder.userId.toString() !== req.user!._id.toString()) {
+      res.status(403).json({ message: 'Access denied' });
+      return;
+    }
+
+    const reminder = await Reminder.findByIdAndUpdate(
+      id,
       { $set: { status: 'acknowledged', acknowledgedAt: new Date() } },
       { new: true }
     );
-    if (!reminder) { res.status(404).json({ message: 'Reminder not found' }); return; }
+
     res.json({ message: 'Reminder acknowledged', reminder });
   } catch (error) {
+    console.error('Acknowledge reminder error:', error);
     res.status(500).json({ message: 'Failed to acknowledge reminder' });
   }
 });
@@ -101,10 +163,27 @@ router.patch('/:id/acknowledge', async (req: Request, res: Response): Promise<vo
 // DELETE /api/reminders/:id
 router.delete('/:id', async (req: Request, res: Response): Promise<void> => {
   try {
-    const reminder = await Reminder.findOneAndDelete({ _id: req.params.id, userId: req.user!._id });
-    if (!reminder) { res.status(404).json({ message: 'Reminder not found' }); return; }
+    const id = req.params.id as string;
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      res.status(404).json({ message: 'Reminder not found' });
+      return;
+    }
+
+    const existingReminder = await Reminder.findById(id);
+    if (!existingReminder) {
+      res.status(404).json({ message: 'Reminder not found' });
+      return;
+    }
+
+    if (existingReminder.userId.toString() !== req.user!._id.toString()) {
+      res.status(403).json({ message: 'Access denied' });
+      return;
+    }
+
+    await Reminder.findByIdAndDelete(id);
     res.json({ message: 'Reminder deleted' });
   } catch (error) {
+    console.error('Delete reminder error:', error);
     res.status(500).json({ message: 'Failed to delete reminder' });
   }
 });

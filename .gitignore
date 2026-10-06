@@ -1,8 +1,14 @@
 # Environment variables — never commit secrets
 .env
-.env.local
-.env.production
-.env.development
+.env.*
+*.env
+**/.env
+**/.env.*
+server/.env
+server/.env.*
+
+# Local MongoDB data directory
+server/data/
 
 # Dependencies
 node_modules/

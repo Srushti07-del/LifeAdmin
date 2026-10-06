@@ -13,8 +13,6 @@ import {
   Settings,
   User,
   LogOut,
-  Sun,
-  Moon,
   ChevronLeft,
   Menu,
 } from 'lucide-react';
@@ -32,17 +30,10 @@ const navItems = [
 ];
 
 export default function Sidebar() {
-  const { user, logout, setTheme } = useAuth();
+  const { user, logout } = useAuth();
   const navigate = useNavigate();
   const [collapsed, setCollapsed] = useState(false);
-  const [isDark, setIsDark] = useState(document.documentElement.classList.contains('dark'));
   const [showCreateMenu, setShowCreateMenu] = useState(false);
-
-  const toggleTheme = () => {
-    const newTheme = isDark ? 'light' : 'dark';
-    setIsDark(!isDark);
-    setTheme(newTheme);
-  };
 
   const createOptions = [
     { label: 'Task', path: '/tasks/new', icon: CheckSquare },
@@ -58,81 +49,83 @@ export default function Sidebar() {
       {/* Mobile toggle */}
       <button
         onClick={() => setCollapsed(!collapsed)}
-        className="lg:hidden fixed top-4 left-4 z-50 p-2 rounded-xl bg-white dark:bg-surface-800 shadow-elevated"
+        className="lg:hidden fixed top-3 left-3 z-50 p-2 rounded-lg bg-[#383838] shadow-sm border border-[#505050] text-[#F5F3EE]"
         id="sidebar-mobile-toggle"
       >
-        <Menu size={20} />
+        <Menu size={18} />
       </button>
 
       <aside
-        className={`fixed left-0 top-0 h-full z-40 flex flex-col transition-all duration-300 ease-in-out
-          ${collapsed ? '-translate-x-full lg:translate-x-0 lg:w-20' : 'translate-x-0 w-72'}
-          bg-white dark:bg-surface-900 border-r border-surface-200 dark:border-surface-800
+        className={`fixed left-0 top-0 h-full z-40 flex flex-col transition-all duration-200 ease-in-out
+          ${collapsed ? '-translate-x-full lg:translate-x-0 lg:w-16' : 'translate-x-0 w-64'}
+          bg-[#242424] border-r border-[#505050]
         `}
         id="sidebar"
       >
-        {/* Logo / Brand */}
-        <div className={`flex items-center justify-between px-6 h-16 border-b border-surface-100 dark:border-surface-800 ${collapsed ? 'lg:px-4 lg:justify-center' : ''}`}>
+        {/* Logo / Workspace Brand */}
+        <div className={`flex items-center justify-between px-4 h-14 border-b border-[#505050] ${collapsed ? 'lg:px-2 lg:justify-center' : ''}`}>
           {!collapsed && (
-            <div className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-primary-500 to-primary-700 flex items-center justify-center">
-                <span className="text-white font-bold text-sm">L</span>
+            <div className="flex items-center gap-2.5">
+              <div className="w-6 h-6 rounded bg-[#383838] border border-[#505050] flex items-center justify-center text-[#F5F3EE] font-bold text-xs">
+                L
               </div>
-              <span className="font-semibold text-lg text-surface-900 dark:text-surface-100">LifeAdmin</span>
+              <span className="font-semibold text-sm tracking-tight text-[#F5F3EE]">
+                LifeAdmin
+              </span>
             </div>
           )}
           {collapsed && (
-            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-primary-500 to-primary-700 flex items-center justify-center">
-              <span className="text-white font-bold text-sm">L</span>
+            <div className="w-6 h-6 rounded bg-[#383838] border border-[#505050] flex items-center justify-center text-[#F5F3EE] font-bold text-xs">
+              L
             </div>
           )}
           <button
             onClick={() => setCollapsed(!collapsed)}
-            className="hidden lg:flex p-1.5 rounded-lg hover:bg-surface-100 dark:hover:bg-surface-800 text-surface-500 transition-colors"
+            className="hidden lg:flex p-1 rounded hover:bg-[#383838] text-[#85827C] hover:text-[#F5F3EE] transition-colors"
             id="sidebar-collapse-toggle"
           >
-            <ChevronLeft size={18} className={`transition-transform duration-300 ${collapsed ? 'rotate-180' : ''}`} />
+            <ChevronLeft size={16} className={`transition-transform duration-200 ${collapsed ? 'rotate-180' : ''}`} />
           </button>
         </div>
 
         {/* Navigation */}
-        <nav className="flex-1 py-4 px-3 space-y-1 overflow-y-auto">
+        <nav className="flex-1 py-3 px-2 space-y-0.5 overflow-y-auto">
           {navItems.map((item) => (
             <NavLink
               key={item.path}
               to={item.path}
               id={`nav-${item.label.toLowerCase().replace(/\s+/g, '-')}`}
               className={({ isActive }) =>
-                `flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200
+                `flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-colors
                 ${collapsed ? 'lg:justify-center lg:px-0' : ''}
                 ${isActive
-                  ? 'bg-primary-50 dark:bg-primary-900/20 text-primary-600 dark:text-primary-400'
-                  : 'text-surface-600 dark:text-surface-400 hover:bg-surface-100 dark:hover:bg-surface-800 hover:text-surface-900 dark:hover:text-surface-200'
+                  ? 'bg-[#383838] text-[#F5F3EE] font-semibold border border-[#505050]/60'
+                  : 'text-[#B8B5AE] hover:bg-[#383838]/60 hover:text-[#F5F3EE]'
                 }`
               }
             >
-              <item.icon size={20} className="flex-shrink-0" />
+              <item.icon size={16} className="shrink-0" />
               {!collapsed && <span>{item.label}</span>}
             </NavLink>
           ))}
 
-          {/* Create button */}
-          <div className="relative pt-3">
+          {/* Quick Create Button */}
+          <div className="relative pt-2">
             <button
               onClick={() => setShowCreateMenu(!showCreateMenu)}
               id="create-button"
-              className={`flex items-center gap-3 w-full px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200
-                bg-primary-500 hover:bg-primary-600 text-white shadow-sm hover:shadow-md
+              className={`flex items-center gap-2 w-full px-2.5 py-1.5 rounded-lg text-xs font-medium transition-colors
+                bg-[#383838] hover:bg-[#414141] text-[#F5F3EE] border border-[#505050] shadow-sm
                 ${collapsed ? 'lg:justify-center lg:px-0' : ''}
               `}
             >
-              <Plus size={20} className="flex-shrink-0" />
+              <Plus size={15} className="shrink-0" />
               {!collapsed && <span>Create</span>}
             </button>
 
-            {/* Create dropdown */}
+            {/* Create Dropdown */}
             {showCreateMenu && (
-              <div className="absolute left-0 right-0 mt-2 py-2 bg-white dark:bg-surface-800 rounded-xl shadow-modal border border-surface-200 dark:border-surface-700 z-50 animate-scale-in">
+              <div className="absolute left-0 right-0 mt-1 py-1 bg-[#383838] rounded-xl shadow-lg border border-[#505050] z-50 animate-scale-in">
                 {createOptions.map((option) => (
                   <button
                     key={option.path}
@@ -140,9 +133,9 @@ export default function Sidebar() {
                       navigate(option.path);
                       setShowCreateMenu(false);
                     }}
-                    className="flex items-center gap-3 w-full px-4 py-2.5 text-sm text-surface-700 dark:text-surface-300 hover:bg-surface-50 dark:hover:bg-surface-700 transition-colors"
+                    className="flex items-center gap-2.5 w-full px-3 py-1.5 text-xs text-[#B8B5AE] hover:text-[#F5F3EE] hover:bg-[#414141] transition-colors"
                   >
-                    <option.icon size={16} />
+                    <option.icon size={14} className="text-[#85827C]" />
                     <span>{option.label}</span>
                   </button>
                 ))}
@@ -151,34 +144,22 @@ export default function Sidebar() {
           </div>
         </nav>
 
-        {/* Bottom section */}
-        <div className="px-3 py-4 border-t border-surface-100 dark:border-surface-800 space-y-1">
-          {/* Theme toggle */}
-          <button
-            onClick={toggleTheme}
-            id="theme-toggle"
-            className={`flex items-center gap-3 w-full px-3 py-2.5 rounded-xl text-sm text-surface-600 dark:text-surface-400 hover:bg-surface-100 dark:hover:bg-surface-800 transition-colors
-              ${collapsed ? 'lg:justify-center lg:px-0' : ''}
-            `}
-          >
-            {isDark ? <Sun size={20} /> : <Moon size={20} />}
-            {!collapsed && <span>{isDark ? 'Light Mode' : 'Dark Mode'}</span>}
-          </button>
-
+        {/* Bottom Section */}
+        <div className="px-2 py-3 border-t border-[#505050] space-y-0.5">
           {/* Profile */}
           <NavLink
             to="/profile"
             id="nav-profile"
             className={({ isActive }) =>
-              `flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors
+              `flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-colors
               ${collapsed ? 'lg:justify-center lg:px-0' : ''}
               ${isActive
-                ? 'bg-primary-50 dark:bg-primary-900/20 text-primary-600 dark:text-primary-400'
-                : 'text-surface-600 dark:text-surface-400 hover:bg-surface-100 dark:hover:bg-surface-800'
+                ? 'bg-[#383838] text-[#F5F3EE] font-semibold border border-[#505050]/60'
+                : 'text-[#B8B5AE] hover:bg-[#383838]/60 hover:text-[#F5F3EE]'
               }`
             }
           >
-            <User size={20} />
+            <User size={15} />
             {!collapsed && <span>Profile</span>}
           </NavLink>
 
@@ -187,47 +168,47 @@ export default function Sidebar() {
             to="/settings"
             id="nav-settings"
             className={({ isActive }) =>
-              `flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors
+              `flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-colors
               ${collapsed ? 'lg:justify-center lg:px-0' : ''}
               ${isActive
-                ? 'bg-primary-50 dark:bg-primary-900/20 text-primary-600 dark:text-primary-400'
-                : 'text-surface-600 dark:text-surface-400 hover:bg-surface-100 dark:hover:bg-surface-800'
+                ? 'bg-[#383838] text-[#F5F3EE] font-semibold border border-[#505050]/60'
+                : 'text-[#B8B5AE] hover:bg-[#383838]/60 hover:text-[#F5F3EE]'
               }`
             }
           >
-            <Settings size={20} />
+            <Settings size={15} />
             {!collapsed && <span>Settings</span>}
           </NavLink>
 
-          {/* User info + Logout */}
-          <div className={`flex items-center gap-3 px-3 py-2.5 mt-2 ${collapsed ? 'lg:justify-center' : ''}`}>
-            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-primary-400 to-primary-600 flex items-center justify-center text-white text-sm font-semibold flex-shrink-0">
+          {/* User Account & Sign Out */}
+          <div className={`flex items-center gap-2 px-2.5 py-2 mt-1 border-t border-[#505050] ${collapsed ? 'lg:justify-center' : ''}`}>
+            <div className="w-6 h-6 rounded-full bg-[#414141] border border-[#505050] flex items-center justify-center text-[#F5F3EE] text-xs font-medium shrink-0">
               {user?.name?.charAt(0).toUpperCase() || 'U'}
             </div>
             {!collapsed && (
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-surface-900 dark:text-surface-100 truncate">{user?.name}</p>
-                <p className="text-xs text-surface-500 truncate">{user?.email}</p>
+                <p className="text-xs font-medium text-[#F5F3EE] truncate">{user?.name}</p>
+                <p className="text-[11px] text-[#85827C] truncate">{user?.email}</p>
               </div>
             )}
             {!collapsed && (
               <button
                 onClick={logout}
                 id="logout-button"
-                className="p-1.5 rounded-lg hover:bg-surface-100 dark:hover:bg-surface-800 text-surface-500 transition-colors"
+                className="p-1 rounded hover:bg-[#414141] text-[#85827C] hover:text-[#F5F3EE] transition-colors"
                 title="Sign out"
               >
-                <LogOut size={16} />
+                <LogOut size={14} />
               </button>
             )}
           </div>
         </div>
       </aside>
 
-      {/* Overlay for mobile */}
+      {/* Mobile overlay */}
       {!collapsed && (
         <div
-          className="lg:hidden fixed inset-0 bg-black/30 z-30"
+          className="lg:hidden fixed inset-0 bg-black/20 z-30"
           onClick={() => setCollapsed(true)}
         />
       )}

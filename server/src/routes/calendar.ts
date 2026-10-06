@@ -1,10 +1,12 @@
 import { Router, Request, Response } from 'express';
 import { body, validationResult } from 'express-validator';
+import mongoose from 'mongoose';
 import CalendarEvent from '../models/CalendarEvent';
 import Task from '../models/Task';
 import Bill from '../models/Bill';
 import Appointment from '../models/Appointment';
 import Reminder from '../models/Reminder';
+import DocumentModel from '../models/Document';
 import { authenticate } from '../middleware/auth';
 
 const router = Router();
@@ -20,7 +22,7 @@ router.get('/events', async (req: Request, res: Response): Promise<void> => {
     const startDate = start ? new Date(start as string) : new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
     const endDate = end ? new Date(end as string) : new Date(Date.now() + 60 * 24 * 60 * 60 * 1000);
 
-    const [customEvents, tasks, bills, appointments, reminders] = await Promise.all([
+    const [customEvents, tasks, bills, appointments, reminders, expiringDocs] = await Promise.all([
       // 1. Custom calendar events
       CalendarEvent.find({
         userId,
@@ -45,6 +47,11 @@ router.get('/events', async (req: Request, res: Response): Promise<void> => {
       Reminder.find({
         userId,
         dueDate: { $gte: startDate, $lte: endDate },
+      }),
+      // 6. Expiring Documents
+      DocumentModel.find({
+        userId,
+        'aiExtracted.expiryDate': { $gte: startDate, $lte: endDate },
       }),
     ]);
 
@@ -123,6 +130,19 @@ router.get('/events', async (req: Request, res: Response): Promise<void> => {
         color: rem.status === 'acknowledged' ? '#868e96' : '#fab005',
         details: rem.description,
       })),
+      ...expiringDocs.map((doc) => ({
+        id: `doc-${doc._id}`,
+        originalId: doc._id.toString(),
+        title: `Expiry: ${doc.originalName}`,
+        date: doc.aiExtracted.expiryDate!,
+        allDay: true,
+        type: 'reminder' as const,
+        source: 'document',
+        status: 'pending',
+        category: doc.category || 'Documents',
+        color: '#e03131',
+        details: `Document type: ${doc.documentType || 'Document'}`,
+      })),
     ];
 
     // Sort chronologically
@@ -174,18 +194,31 @@ router.post(
 );
 
 // PUT /api/calendar/events/:id — Update manual event
-router.put('/:id', async (req: Request, res: Response): Promise<void> => {
+router.put(['/events/:id', '/:id'], async (req: Request, res: Response): Promise<void> => {
   try {
-    const event = await CalendarEvent.findOneAndUpdate(
-      { _id: req.params.id, userId: req.user!._id },
-      { $set: req.body },
-      { new: true, runValidators: true }
-    );
-
-    if (!event) {
+    const id = req.params.id as string;
+    if (!mongoose.Types.ObjectId.isValid(id)) {
       res.status(404).json({ message: 'Calendar event not found' });
       return;
     }
+
+    const existingEvent = await CalendarEvent.findById(id);
+    if (!existingEvent) {
+      res.status(404).json({ message: 'Calendar event not found' });
+      return;
+    }
+
+    if (existingEvent.userId.toString() !== req.user!._id.toString()) {
+      res.status(403).json({ message: 'Access denied' });
+      return;
+    }
+
+    const { _id, userId, createdAt, updatedAt, ...updateData } = req.body;
+    const event = await CalendarEvent.findByIdAndUpdate(
+      id,
+      { $set: updateData },
+      { new: true, runValidators: true }
+    );
 
     res.json({ message: 'Event updated successfully', event });
   } catch (error) {
@@ -195,14 +228,26 @@ router.put('/:id', async (req: Request, res: Response): Promise<void> => {
 });
 
 // DELETE /api/calendar/events/:id — Delete manual event
-router.delete('/:id', async (req: Request, res: Response): Promise<void> => {
+router.delete(['/events/:id', '/:id'], async (req: Request, res: Response): Promise<void> => {
   try {
-    const event = await CalendarEvent.findOneAndDelete({ _id: req.params.id, userId: req.user!._id });
-    if (!event) {
+    const id = req.params.id as string;
+    if (!mongoose.Types.ObjectId.isValid(id)) {
       res.status(404).json({ message: 'Calendar event not found' });
       return;
     }
 
+    const existingEvent = await CalendarEvent.findById(id);
+    if (!existingEvent) {
+      res.status(404).json({ message: 'Calendar event not found' });
+      return;
+    }
+
+    if (existingEvent.userId.toString() !== req.user!._id.toString()) {
+      res.status(403).json({ message: 'Access denied' });
+      return;
+    }
+
+    await CalendarEvent.findByIdAndDelete(id);
     res.json({ message: 'Event deleted successfully' });
   } catch (error) {
     console.error('Delete calendar event error:', error);
