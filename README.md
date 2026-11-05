@@ -1,12 +1,12 @@
-# LifeAdmin
-Project Idea
 # 🧠 LifeAdmin
 
-### Your Personal Life Management Platform
+### *Your life, organised. Your mind, uncluttered.*
 
-**LifeAdmin** is a personal management platform designed to help users organize and manage everyday responsibilities in one place. From bills and deadlines to appointments, important documents, and personal tasks, LifeAdmin brings scattered life-admin work into a single, organized dashboard.
+**LifeAdmin** is an editorial personal management workspace designed to help users organize and manage everyday responsibilities in one place. From bills and deadlines to appointments, important documents, and personal tasks, LifeAdmin brings scattered life-admin work into a calm, intelligent, and customizable command center.
 
 The goal is simple: **less forgetting, less searching, less mental clutter.**
+
+LifeAdmin is a **100% free product** built for everyone — students, young professionals, and individuals seeking to conquer daily life administration without subscription paywalls or guilt.
 
 ---
 
@@ -169,14 +169,16 @@ LifeAdmin
 
 | Module       | Purpose                               |
 | ------------ | ------------------------------------- |
-| Dashboard    | Overview of personal responsibilities |
-| Tasks        | Create and track everyday tasks       |
-| Bills        | Track payments and recurring bills    |
-| Appointments | Manage upcoming appointments          |
-| Documents    | Organize important documents          |
-| Reminders    | Notify users before important events  |
-| AI Assistant | Provide intelligent suggestions       |
-| Profile      | Manage user preferences and settings  |
+| Dashboard    | Spacious, editorial, customizable command center |
+| Tasks        | Create and track tasks in List and Board views   |
+| Calendar     | Aggregated schedule of all dated responsibilities|
+| Bills        | Track payments, INR currency-aware and subscriptions|
+| Appointments | Detailed records for professional/medical visits  |
+| Documents    | Organize important documents with AI metadata    |
+| Reminders    | Actionable alert timeline and notifications      |
+| LifeBuddy    | Original 3D stylised companion collection        |
+| AI Assistant | Floating drawer and dedicated planning workspace |
+| Settings     | Manage user preferences, categories and themes   |
 
 ---
 

@@ -33,4 +33,5 @@ export interface UserSummary {
   profilePicture?: string;
   theme: 'light' | 'dark' | 'system';
   subscriptionTier: 'free' | 'premium' | 'premium_ai';
+  isDemo?: boolean;
 }

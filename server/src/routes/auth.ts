@@ -1,8 +1,16 @@
 import { Router, Request, Response } from 'express';
 import { body, validationResult } from 'express-validator';
+import { randomUUID } from 'crypto';
 import User from '../models/User';
+import Task from '../models/Task';
+import Bill from '../models/Bill';
+import Appointment from '../models/Appointment';
+import Reminder from '../models/Reminder';
+import CalendarEvent from '../models/CalendarEvent';
+import DocumentModel from '../models/Document';
 import { authenticate, generateToken } from '../middleware/auth';
 import config from '../config';
+import { seedDemoData } from '../utils/demoSeed';
 
 const router = Router();
 
@@ -151,6 +159,7 @@ router.get('/me', authenticate, async (req: Request, res: Response): Promise<voi
         categories: user.categories,
         aiPreferences: user.aiPreferences,
         subscriptionTier: user.subscriptionTier,
+        isDemo: user.isDemo,
         createdAt: user.createdAt,
       },
     });
@@ -222,5 +231,95 @@ router.put(
     }
   }
 );
+
+// DELETE /api/auth/account — Delete account
+router.delete('/account', authenticate, async (req: Request, res: Response): Promise<void> => {
+  try {
+    await User.findByIdAndDelete(req.user!._id);
+    // TODO: Delete all user's data (tasks, bills, etc.)
+    res.json({ message: 'Account deleted successfully' });
+  } catch (error) {
+    console.error('Delete account error:', error);
+    res.status(500).json({ message: 'Failed to delete account' });
+  }
+});
+
+// POST /api/auth/guest — Start a demo/guest session (ephemeral user + seeded data)
+router.post('/guest', async (_req: Request, res: Response): Promise<void> => {
+  try {
+    const guestEmail = `guest_${randomUUID()}@lifeadmin.demo`;
+    const demoExpiresAt = new Date(Date.now() + 2 * 60 * 60 * 1000); // 2 hours
+
+    const user = await User.create({
+      name: 'Demo Guest',
+      email: guestEmail,
+      authProvider: 'local',
+      isDemo: true,
+      demoExpiresAt,
+      categories: ['Personal', 'Work', 'Finance', 'Health', 'Education', 'Home'],
+    });
+
+    // Seed all demo data under this user's isolated userId
+    await seedDemoData(user._id);
+
+    // Short-lived 2-hour token — same JWT format as normal login
+    const token = generateToken(user._id.toString(), '2h');
+
+    res.status(201).json({
+      message: 'Demo session started',
+      token,
+      user: {
+        id: user._id,
+        name: user.name,
+        email: user.email,
+        profilePicture: user.profilePicture,
+        theme: user.theme,
+        notificationsEnabled: user.notificationsEnabled,
+        defaultReminderTiming: user.defaultReminderTiming,
+        categories: user.categories,
+        aiPreferences: user.aiPreferences,
+        subscriptionTier: user.subscriptionTier,
+        isDemo: true,
+      },
+    });
+  } catch (error: any) {
+    console.error('Guest session error:', error);
+    const isDev = config.nodeEnv === 'development';
+    res.status(500).json({
+      message: isDev
+        ? (error?.message || 'Failed to start demo session')
+        : 'Failed to start demo session',
+    });
+  }
+});
+
+// DELETE /api/auth/guest — End a demo/guest session and purge ephemeral data
+router.delete('/guest', authenticate, async (req: Request, res: Response): Promise<void> => {
+  try {
+    const user = req.user!;
+    if (!user.isDemo) {
+      res.status(403).json({ message: 'Not a demo session' });
+      return;
+    }
+
+    const userId = user._id;
+
+    // Delete all data scoped to this demo user (in parallel for speed)
+    await Promise.all([
+      Task.deleteMany({ userId }),
+      Bill.deleteMany({ userId }),
+      Appointment.deleteMany({ userId }),
+      Reminder.deleteMany({ userId }),
+      CalendarEvent.deleteMany({ userId }),
+      DocumentModel.deleteMany({ userId }),
+      User.findByIdAndDelete(userId),
+    ]);
+
+    res.json({ message: 'Demo session ended and data purged' });
+  } catch (error) {
+    console.error('Guest cleanup error:', error);
+    res.status(500).json({ message: 'Failed to end demo session' });
+  }
+});
 
 export default router;

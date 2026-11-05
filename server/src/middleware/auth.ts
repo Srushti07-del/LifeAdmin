@@ -90,8 +90,8 @@ export const optionalAuth = async (
 };
 
 // Generate JWT token
-export const generateToken = (userId: string): string => {
+export const generateToken = (userId: string, expiresIn?: string | number): string => {
   return jwt.sign({ userId }, config.jwtSecret, {
-    expiresIn: config.jwtExpiresIn,
-  } as jwt.SignOptions);
+    expiresIn: (expiresIn || config.jwtExpiresIn) as any,
+  });
 };

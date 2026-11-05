@@ -2,7 +2,7 @@
 
 ## 1. Product Overview
 
-**LifeAdmin** is a personal life-management platform for **college students and young professionals**.
+**LifeAdmin** is a personal life-management platform for **everyone** — college students, young professionals, and anyone seeking to unclutter their daily responsibilities.
 
 It brings everyday administrative responsibilities into one place so users can understand what needs attention without checking multiple disconnected apps.
 
@@ -13,6 +13,15 @@ It brings everyday administrative responsibilities into one place so users can u
 ### Product north star
 
 > **Tell the user what needs their attention next.**
+
+### Design & Brand Identity
+- **Visual Direction**: Editorial + Modern Productivity SaaS (inspired by Motion, calm personal workspace).
+- **Brand Colors**: Ocean Teal-Blue (`#087E83` light, `#35B8B2` dark).
+- **Typography**: DM Serif Display for expressive editorial headlines, Inter for functional UI.
+- **Atmosphere**: Calm, intelligent, personal, trustworthy, approachable.
+- **Experience**: Direct application experience (no public marketing landing page in initial release; direct login/register to dashboard).
+- **Business Model**: 100% Free Product for everyone. No subscription paywalls or artificial feature limits.
+- **Companionship**: LifeBuddy collection — original stylised 3D companions growing through positive reinforcement without guilt.
 
 ---
 
@@ -78,18 +87,20 @@ AI should extract useful information and assist with planning rather than existi
 
 ## Core modules
 
-- Dashboard
-- Tasks
-- Bills
-- Appointments
-- Documents
-- Reminders
-- Calendar
-- AI Assistant
-- Profile
-- Settings
-- Authentication
-- Pricing/subscription functionality
+- Dashboard (Customizable widget matrix & presets)
+- Tasks (List & Kanban views)
+- Bills & Payments (INR default currency-aware tracking)
+- Appointments (Distinct appointment record management)
+- Documents (Secure storage & metadata)
+- Reminders (Actionable alert management)
+- Calendar (Unified chronological aggregation)
+- LifeBuddy (Original 3D stylised virtual companions)
+- AI Assistant (Persistent floating entry point + dedicated workspace)
+- Profile & Settings (Preferences, categories, themes)
+- Authentication (Login, Register & Guided Onboarding)
+- Adaptive Navigation (Collapsible sidebar, tablet drawer, mobile bottom bar)
+
+*(Note: LifeAdmin is completely free. Outdated subscription/pricing paywall requirements have been deprecated.)*
 
 ---
 
@@ -539,29 +550,13 @@ Every personal resource must be associated with and accessible only by the corre
 
 ---
 
-# 21. Monetization
+# 21. Monetization & Product Access
 
-Pricing functionality is part of V1.
+LifeAdmin is a **100% Free Product**.
 
-Business direction:
+There are no paid subscription tiers, feature paywalls, or artificial limits on tasks, documents, or reminders. The full capability of LifeAdmin is available to every user.
 
-### Free
-
-Basic life-management features.
-
-### Premium
-
-Advanced functionality.
-
-### Premium AI
-
-Advanced AI capabilities.
-
-### Future
-
-Institutional/college partnerships.
-
-Exact prices and feature limits should be configurable rather than scattered through application code.
+Historical note: Initial planning considered tiered monetization (`free`, `premium`, `premium_ai`). These models have been reconciled into a universal free offering. The `subscriptionTier` field in the database schema is preserved solely for backwards compatibility.
 
 ---
 

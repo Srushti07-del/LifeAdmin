@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { Mail, Lock, Eye, EyeOff, ArrowRight, Loader2, UserPlus } from 'lucide-react';
+import { Mail, Lock, Eye, EyeOff, ArrowRight, Loader2, User, Sparkles } from 'lucide-react';
 
 export default function RegisterPage() {
   const { register } = useAuth();
@@ -22,21 +22,21 @@ export default function RegisterPage() {
       setError('Passwords do not match');
       return;
     }
-    if (password.length < 8) {
-      setError('Password must be at least 8 characters');
+    if (password.length < 6) {
+      setError('Password must be at least 6 characters');
       return;
     }
 
     setLoading(true);
     try {
-      await register(name, email, password);
+      await register(name.trim(), email.trim(), password);
+      // Trigger onboarding for new user
+      localStorage.setItem('lifeadmin_show_onboarding', 'true');
       navigate('/dashboard');
     } catch (err: any) {
-      // Surface detailed errors for debugging; keep production clean
       const isDev = import.meta.env.DEV;
       const message =
         err?.response?.data?.message ||
-        err?.response?.data?.stack ||
         (err?.code === 'ERR_NETWORK' ? 'Cannot reach server. Is the backend running?' : null) ||
         'Registration failed. Please try again.';
       setError(isDev ? `[DEV] ${message}` : message);
@@ -46,51 +46,66 @@ export default function RegisterPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-[#2F2F2F] px-4">
-      <div className="w-full max-w-md animate-fade-in">
-        {/* Logo */}
+    <div className="min-h-screen flex items-center justify-center bg-app px-4 relative overflow-hidden py-8">
+      {/* Soft Ambient Radial Accents */}
+      <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-primary-100/40 dark:bg-primary-950/20 rounded-full blur-3xl pointer-events-none" />
+      <div className="absolute bottom-1/4 right-1/4 w-80 h-80 bg-teal-100/30 dark:bg-teal-950/20 rounded-full blur-3xl pointer-events-none" />
+
+      <div className="w-full max-w-md animate-fade-in relative z-10">
+        {/* Brand Header */}
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-[#383838] border border-[#505050] shadow-lg mb-4">
-            <span className="text-[#F5F3EE] font-bold text-xl">L</span>
+          <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-primary-500 text-white font-bold text-xl shadow-elevated mb-4">
+            L
           </div>
-          <h1 className="text-2xl font-bold text-[#F5F3EE]">Create your account</h1>
-          <p className="text-[#85827C] mt-1">Start managing your life responsibilities</p>
+          <h1 className="text-3xl font-bold font-editorial text-surface-900 dark:text-surface-100 tracking-tight">
+            Create your workspace
+          </h1>
+          <p className="text-xs text-surface-500 dark:text-surface-400 mt-1.5 max-w-xs mx-auto">
+            Organize bills, deadlines, appointments and files in one calm place.
+          </p>
         </div>
 
-        <form onSubmit={handleSubmit} className="bg-[#383838] rounded-2xl p-8 shadow-elevated border border-[#505050]">
+        {/* Card Form */}
+        <div className="bg-white dark:bg-surface-0 rounded-3xl p-7 sm:p-8 shadow-card border border-surface-200 dark:border-surface-700">
           {error && (
-            <div className="mb-4 p-3 bg-rose-950/40 border border-rose-800 rounded-xl text-rose-300 text-sm animate-scale-in">
+            <div className="mb-5 p-3.5 bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800/40 rounded-xl text-rose-700 dark:text-rose-300 text-xs animate-scale-in">
               {error}
             </div>
           )}
 
-          <div className="space-y-4">
-            {/* Name */}
+          <form onSubmit={handleSubmit} className="space-y-4">
+            {/* Full Name */}
             <div>
-              <label htmlFor="register-name" className="block text-sm font-medium text-[#85827C] mb-1.5">
+              <label
+                htmlFor="register-name"
+                className="block text-xs font-semibold text-surface-700 dark:text-surface-300 mb-1.5"
+              >
                 Full name
               </label>
-              <div className="relative">
-                <UserPlus size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#85827C]" />
+              <div className="relative flex items-center">
+                <User size={16} className="absolute left-3.5 text-surface-400 pointer-events-none" />
                 <input
                   id="register-name"
                   type="text"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   required
-                  placeholder="Your name"
-                  className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-[#505050] bg-[#323232] text-[#F5F3EE] placeholder-[#85827C] focus:outline-none focus:ring-2 focus:ring-[#505050] transition-all"
+                  placeholder="e.g. Maya Chen"
+                  className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-surface-200 dark:border-surface-700 bg-white dark:bg-surface-0 text-surface-900 dark:text-surface-100 placeholder-surface-400 text-xs focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition-all"
                 />
               </div>
             </div>
 
-            {/* Email */}
+            {/* Email Address */}
             <div>
-              <label htmlFor="register-email" className="block text-sm font-medium text-[#85827C] mb-1.5">
-                Email
+              <label
+                htmlFor="register-email"
+                className="block text-xs font-semibold text-surface-700 dark:text-surface-300 mb-1.5"
+              >
+                Email address
               </label>
-              <div className="relative">
-                <Mail size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#85827C]" />
+              <div className="relative flex items-center">
+                <Mail size={16} className="absolute left-3.5 text-surface-400 pointer-events-none" />
                 <input
                   id="register-email"
                   type="email"
@@ -98,44 +113,50 @@ export default function RegisterPage() {
                   onChange={(e) => setEmail(e.target.value)}
                   required
                   placeholder="you@example.com"
-                  className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-[#505050] bg-[#323232] text-[#F5F3EE] placeholder-[#85827C] focus:outline-none focus:ring-2 focus:ring-[#505050] transition-all"
+                  className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-surface-200 dark:border-surface-700 bg-white dark:bg-surface-0 text-surface-900 dark:text-surface-100 placeholder-surface-400 text-xs focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition-all"
                 />
               </div>
             </div>
 
             {/* Password */}
             <div>
-              <label htmlFor="register-password" className="block text-sm font-medium text-[#85827C] mb-1.5">
+              <label
+                htmlFor="register-password"
+                className="block text-xs font-semibold text-surface-700 dark:text-surface-300 mb-1.5"
+              >
                 Password
               </label>
-              <div className="relative">
-                <Lock size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#85827C]" />
+              <div className="relative flex items-center">
+                <Lock size={16} className="absolute left-3.5 text-surface-400 pointer-events-none" />
                 <input
                   id="register-password"
                   type={showPassword ? 'text' : 'password'}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   required
-                  placeholder="At least 8 characters"
-                  className="w-full pl-10 pr-12 py-2.5 rounded-xl border border-[#505050] bg-[#323232] text-[#F5F3EE] placeholder-[#85827C] focus:outline-none focus:ring-2 focus:ring-[#505050] transition-all"
+                  placeholder="At least 6 characters"
+                  className="w-full pl-10 pr-11 py-2.5 rounded-xl border border-surface-200 dark:border-surface-700 bg-white dark:bg-surface-0 text-surface-900 dark:text-surface-100 placeholder-surface-400 text-xs focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition-all"
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-[#85827C] hover:text-[#F5F3EE] transition-colors"
+                  className="absolute right-3 text-surface-400 hover:text-surface-600 dark:hover:text-surface-200 transition-colors p-1"
                 >
-                  {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                  {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
                 </button>
               </div>
             </div>
 
-            {/* Confirm password */}
+            {/* Confirm Password */}
             <div>
-              <label htmlFor="register-confirm-password" className="block text-sm font-medium text-[#85827C] mb-1.5">
+              <label
+                htmlFor="register-confirm-password"
+                className="block text-xs font-semibold text-surface-700 dark:text-surface-300 mb-1.5"
+              >
                 Confirm password
               </label>
-              <div className="relative">
-                <Lock size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#85827C]" />
+              <div className="relative flex items-center">
+                <Lock size={16} className="absolute left-3.5 text-surface-400 pointer-events-none" />
                 <input
                   id="register-confirm-password"
                   type={showPassword ? 'text' : 'password'}
@@ -143,34 +164,45 @@ export default function RegisterPage() {
                   onChange={(e) => setConfirmPassword(e.target.value)}
                   required
                   placeholder="Repeat your password"
-                  className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-[#505050] bg-[#323232] text-[#F5F3EE] placeholder-[#85827C] focus:outline-none focus:ring-2 focus:ring-[#505050] transition-all"
+                  className="w-full pl-10 pr-11 py-2.5 rounded-xl border border-surface-200 dark:border-surface-700 bg-white dark:bg-surface-0 text-surface-900 dark:text-surface-100 placeholder-surface-400 text-xs focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition-all"
                 />
               </div>
             </div>
-          </div>
 
-          <button
-            type="submit"
-            disabled={loading}
-            id="register-submit"
-            className="w-full mt-6 flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl bg-[#414141] hover:bg-[#505050] text-[#F5F3EE] border border-[#505050] disabled:opacity-60 disabled:cursor-not-allowed font-medium transition-all duration-200 shadow-sm"
-          >
-            {loading ? (
-              <Loader2 size={20} className="animate-spin" />
-            ) : (
-              <>
-                Create account <ArrowRight size={18} />
-              </>
-            )}
-          </button>
-        </form>
+            {/* Submit */}
+            <button
+              type="submit"
+              disabled={loading}
+              id="register-submit"
+              className="w-full mt-2 flex items-center justify-center gap-2 py-3 px-4 rounded-xl bg-primary-500 hover:bg-primary-600 active:scale-[0.99] disabled:opacity-60 disabled:cursor-not-allowed text-white text-xs font-semibold tracking-wide transition-all duration-150 shadow-sm"
+            >
+              {loading ? (
+                <Loader2 size={16} className="animate-spin" />
+              ) : (
+                <>
+                  Create Account <ArrowRight size={15} />
+                </>
+              )}
+            </button>
+          </form>
+        </div>
 
-        <p className="text-center mt-6 text-sm text-[#85827C]">
+        {/* Footer */}
+        <p className="text-center mt-6 text-xs text-surface-500">
           Already have an account?{' '}
-          <Link to="/login" className="text-[#F5F3EE] hover:underline font-medium transition-colors">
+          <Link
+            to="/login"
+            className="text-primary-600 dark:text-primary-400 hover:underline font-semibold"
+          >
             Sign in
           </Link>
         </p>
+
+        {/* Brand Assurance */}
+        <div className="mt-8 text-center flex items-center justify-center gap-1.5 text-[11px] text-surface-400">
+          <Sparkles size={12} className="text-primary-500" />
+          <span>No credit card required · Free forever · Private</span>
+        </div>
       </div>
     </div>
   );

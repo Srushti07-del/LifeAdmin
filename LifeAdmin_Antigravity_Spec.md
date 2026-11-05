@@ -33,19 +33,20 @@ The architecture should allow future household/member functionality without requ
 
 The following modules are part of V1:
 
-1. Dashboard
-2. Tasks
-3. Bills
-4. Appointments
-5. Documents
-6. Reminders
-7. AI Assistant
-8. Calendar
-9. Profile / Settings
-10. Authentication
-11. Pricing / subscription functionality
+1. Dashboard (Spacious, editorial, customizable layout)
+2. Tasks (List & Kanban board, priorities, subtasks)
+3. Bills & Payments (INR currency-aware, recurrence periods)
+4. Appointments (Dedicated appointment records, distinct from calendar)
+5. Documents (Secure file vault, AI metadata extraction)
+6. Reminders (Timeline, snooze, completion)
+7. AI Assistant (Floating quick drawer + dedicated workspace)
+8. Calendar (Unified aggregation of all dated responsibilities)
+9. LifeBuddy (Original 3D stylised companion collection)
+10. Profile / Settings (Preferences, categories, themes)
+11. Authentication & Onboarding (Direct app experience, 6-step setup)
+12. Adaptive Navigation (Desktop sidebar, tablet drawer, mobile bottom bar)
 
-Do not remove these from the V1 scope unless a later product decision explicitly changes it.
+*(Note: LifeAdmin is completely free for all users. Pricing and subscription paywall requirements have been deprecated.)*
 
 ---
 
@@ -564,25 +565,13 @@ Do not expose one user's personal documents/data to another user.
 
 ---
 
-# 20. Monetization
+# 20. Monetization & Universal Access
 
-Pricing functionality should be implemented in V1.
+LifeAdmin is designed as a **100% Free Product** for everyone.
 
-Business model direction:
+There are no subscription paywalls, hidden tiers, or artificial limits on tasks, documents, or reminders. The full power of LifeAdmin is unlocked for all users.
 
-### Free / Freemium
-Basic life-management functionality.
-
-### Premium
-Advanced functionality.
-
-### Premium AI
-Advanced AI capabilities.
-
-### Future
-Institutional/college partnerships.
-
-The exact pricing amounts and limits are still a product decision and should remain configurable rather than hard-coded throughout the application.
+*(Historical note: Early specs referenced a tiered freemium/premium/premium_ai split. These assumptions have been replaced by a unified, free product strategy. Legacy schema fields such as `subscriptionTier` are retained solely for backward compatibility with existing databases.)*
 
 ---
 

@@ -2,16 +2,17 @@
 
 ## 1. Customer Overview
 
-LifeAdmin is designed primarily for people who have many small administrative responsibilities but do not have a single place to manage them.
+LifeAdmin is designed for **everyone** who has many small administrative responsibilities but lacks a calm, centralized place to manage them.
 
-### Primary V1 segments
+### Target Audience
+1. **College students**: Managing assignments, semester fees, hostel rent, exam schedules, and certificates.
+2. **Young professionals**: Balancing career deadlines, rent, utility bills, vehicle maintenance, and official records.
+3. **General individuals & households**: Anyone seeking to declutter personal life administration.
 
-1. College students
-2. Young professionals
+LifeAdmin is a **100% free product** with zero subscription barriers or feature locks, making thoughtful life management accessible to all.
 
-### Future segment
-
-3. Families / households
+### Emotional Experience & LifeBuddy
+Beyond utility, users crave an emotional experience that is calm, reassuring, and guilt-free. With LifeAdmin's **LifeBuddy** companions, users enjoy gentle, positive-reinforcement growth that celebrates everyday organization without punishing breaks or inactivity.
 
 ---
 

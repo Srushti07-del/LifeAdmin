@@ -1,16 +1,17 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { Mail, Lock, Eye, EyeOff, ArrowRight, Loader2 } from 'lucide-react';
+import { Mail, Lock, Eye, EyeOff, ArrowRight, Loader2, Sparkles } from 'lucide-react';
 
 export default function LoginPage() {
-  const { login } = useAuth();
+  const { login, loginAsGuest } = useAuth();
   const navigate = useNavigate();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [guestLoading, setGuestLoading] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -24,41 +25,70 @@ export default function LoginPage() {
       const message =
         err?.response?.data?.message ||
         (err?.code === 'ERR_NETWORK' ? 'Cannot reach server. Is the backend running?' : null) ||
-        'Login failed. Please try again.';
+        'Login failed. Please check your credentials.';
       setError(isDev ? `[DEV] ${message}` : message);
     } finally {
       setLoading(false);
     }
   };
 
+  const handleGuestLogin = async () => {
+    setError('');
+    setGuestLoading(true);
+    try {
+      await loginAsGuest();
+      navigate('/dashboard');
+    } catch (err: any) {
+      const isDev = import.meta.env.DEV;
+      const message =
+        err?.response?.data?.message ||
+        (err?.code === 'ERR_NETWORK' ? 'Cannot reach server. Is the backend running?' : null) ||
+        'Failed to start guest demo session.';
+      setError(isDev ? `[DEV] ${message}` : message);
+    } finally {
+      setGuestLoading(false);
+    }
+  };
+
   return (
-    <div className="min-h-screen flex items-center justify-center bg-[#2F2F2F] px-4">
-      <div className="w-full max-w-md animate-fade-in">
-        {/* Logo */}
+    <div className="min-h-screen flex items-center justify-center bg-app px-4 relative overflow-hidden">
+      {/* Soft Ambient Radial Accents */}
+      <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-primary-200/40 dark:bg-primary-900/20 rounded-full blur-3xl pointer-events-none" />
+      <div className="absolute bottom-1/4 right-1/4 w-80 h-80 bg-teal-200/30 dark:bg-teal-900/20 rounded-full blur-3xl pointer-events-none" />
+
+      <div className="w-full max-w-md animate-fade-in relative z-10">
+        {/* Brand Header */}
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-[#383838] border border-[#505050] shadow-lg mb-4">
-            <span className="text-[#F5F3EE] font-bold text-xl">L</span>
+          <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-primary-600 text-white font-bold text-xl shadow-elevated mb-4">
+            L
           </div>
-          <h1 className="text-2xl font-bold text-[#F5F3EE]">Welcome back</h1>
-          <p className="text-[#85827C] mt-1">Sign in to your LifeAdmin account</p>
+          <h1 className="text-3xl font-bold font-editorial text-surface-900 dark:text-surface-100 tracking-tight">
+            Welcome back
+          </h1>
+          <p className="text-sm text-surface-600 dark:text-surface-300 mt-1.5 max-w-xs mx-auto">
+            Your life, organised. Your mind, uncluttered.
+          </p>
         </div>
 
-        {/* Form */}
-        <form onSubmit={handleSubmit} className="bg-[#383838] rounded-2xl p-8 shadow-elevated border border-[#505050]">
+        {/* Card Form */}
+        <div className="bg-white dark:bg-surface-0 rounded-3xl p-7 sm:p-8 shadow-card border border-surface-200 dark:border-surface-700">
           {error && (
-            <div className="mb-4 p-3 bg-rose-950/40 border border-rose-800 rounded-xl text-rose-300 text-sm animate-scale-in">
+            <div className="mb-5 p-3.5 bg-rose-50 dark:bg-[#5C2828] border border-rose-200 dark:border-rose-700/60 rounded-xl text-rose-800 dark:text-[#FFD2D2] text-xs animate-scale-in">
               {error}
             </div>
           )}
 
-          <div className="space-y-4">
+          <form onSubmit={handleSubmit} className="space-y-4">
             {/* Email */}
             <div>
-              <label htmlFor="login-email" className="block text-sm font-medium text-[#85827C] mb-1.5">
-                Email
+              <label
+                htmlFor="login-email"
+                className="block text-xs font-semibold text-surface-800 dark:text-surface-100 mb-1.5"
+              >
+                Email address
               </label>
-              <div className="relative">
-                <Mail size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#85827C]" />
+              <div className="relative flex items-center">
+                <Mail size={16} className="absolute left-3.5 text-surface-500 dark:text-surface-400 pointer-events-none" />
                 <input
                   id="login-email"
                   type="email"
@@ -66,18 +96,23 @@ export default function LoginPage() {
                   onChange={(e) => setEmail(e.target.value)}
                   required
                   placeholder="you@example.com"
-                  className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-[#505050] bg-[#323232] text-[#F5F3EE] placeholder-[#85827C] focus:outline-none focus:ring-2 focus:ring-[#505050] transition-all"
+                  className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-surface-200 dark:border-surface-700 bg-white dark:bg-surface-0 text-surface-900 dark:text-surface-100 placeholder:text-surface-400 dark:placeholder:text-surface-400 text-xs focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition-all"
                 />
               </div>
             </div>
 
             {/* Password */}
             <div>
-              <label htmlFor="login-password" className="block text-sm font-medium text-[#85827C] mb-1.5">
-                Password
-              </label>
-              <div className="relative">
-                <Lock size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#85827C]" />
+              <div className="flex items-center justify-between mb-1.5">
+                <label
+                  htmlFor="login-password"
+                  className="block text-xs font-semibold text-surface-800 dark:text-surface-100"
+                >
+                  Password
+                </label>
+              </div>
+              <div className="relative flex items-center">
+                <Lock size={16} className="absolute left-3.5 text-surface-500 dark:text-surface-400 pointer-events-none" />
                 <input
                   id="login-password"
                   type={showPassword ? 'text' : 'password'}
@@ -85,43 +120,83 @@ export default function LoginPage() {
                   onChange={(e) => setPassword(e.target.value)}
                   required
                   placeholder="Enter your password"
-                  className="w-full pl-10 pr-12 py-2.5 rounded-xl border border-[#505050] bg-[#323232] text-[#F5F3EE] placeholder-[#85827C] focus:outline-none focus:ring-2 focus:ring-[#505050] transition-all"
+                  className="w-full pl-10 pr-11 py-2.5 rounded-xl border border-surface-200 dark:border-surface-700 bg-white dark:bg-surface-0 text-surface-900 dark:text-surface-100 placeholder:text-surface-400 dark:placeholder:text-surface-400 text-xs focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition-all"
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-[#85827C] hover:text-[#F5F3EE] transition-colors"
+                  className="absolute right-3 text-surface-500 dark:text-surface-300 hover:text-surface-700 dark:hover:text-surface-100 transition-colors p-1"
                 >
-                  {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                  {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
                 </button>
               </div>
             </div>
+
+            {/* Submit */}
+            <button
+              type="submit"
+              disabled={loading}
+              id="login-submit"
+              className="w-full mt-2 flex items-center justify-center gap-2 py-3 px-4 rounded-xl bg-primary-600 hover:bg-primary-700 dark:bg-primary-500 dark:hover:bg-primary-400 active:scale-[0.99] disabled:opacity-60 disabled:cursor-not-allowed text-white dark:text-[#183B4A] text-xs font-semibold tracking-wide transition-all duration-150 shadow-sm"
+            >
+              {loading ? (
+                <Loader2 size={16} className="animate-spin" />
+              ) : (
+                <>
+                  Sign In <ArrowRight size={15} />
+                </>
+              )}
+            </button>
+          </form>
+
+          {/* Divider */}
+          <div className="relative my-5">
+            <div className="absolute inset-0 flex items-center">
+              <div className="w-full border-t border-surface-200 dark:border-surface-700" />
+            </div>
+            <div className="relative flex justify-center text-[11px] uppercase tracking-wider">
+              <span className="bg-white dark:bg-surface-0 px-3 text-surface-500 dark:text-surface-400">or explore first</span>
+            </div>
           </div>
 
-          {/* Submit */}
+          {/* Explore as Guest Button */}
           <button
-            type="submit"
-            disabled={loading}
-            id="login-submit"
-            className="w-full mt-6 flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl bg-[#414141] hover:bg-[#505050] text-[#F5F3EE] border border-[#505050] disabled:opacity-60 disabled:cursor-not-allowed font-medium transition-all duration-200 shadow-sm"
+            type="button"
+            onClick={handleGuestLogin}
+            disabled={loading || guestLoading}
+            id="explore-guest-btn"
+            className="w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl border border-primary-300 dark:border-primary-600/60 bg-primary-50 hover:bg-primary-100 dark:bg-surface-800 dark:hover:bg-surface-700 text-primary-800 dark:text-primary-200 font-semibold text-xs transition-all duration-150 disabled:opacity-60 disabled:cursor-not-allowed group hover:shadow-card cursor-pointer"
           >
-            {loading ? (
-              <Loader2 size={20} className="animate-spin" />
+            {guestLoading ? (
+              <Loader2 size={15} className="animate-spin text-primary-700 dark:text-primary-300" />
             ) : (
               <>
-                Sign in <ArrowRight size={18} />
+                <Sparkles size={15} className="text-primary-600 dark:text-primary-300 group-hover:scale-110 transition-transform duration-150" />
+                <span>Explore LifeAdmin as Guest</span>
+                <span className="ml-1 text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-primary-100 dark:bg-surface-700 text-primary-700 dark:text-primary-200 border border-primary-200 dark:border-primary-600/40">
+                  Instant Access
+                </span>
               </>
             )}
           </button>
-        </form>
+        </div>
 
         {/* Footer */}
-        <p className="text-center mt-6 text-sm text-[#85827C]">
-          Don't have an account?{' '}
-          <Link to="/register" className="text-[#F5F3EE] hover:underline font-medium transition-colors">
-            Create one
+        <p className="text-center mt-6 text-xs text-surface-600 dark:text-surface-300">
+          Don&apos;t have an account yet?{' '}
+          <Link
+            to="/register"
+            className="text-primary-700 dark:text-primary-200 hover:underline font-semibold"
+          >
+            Create free account
           </Link>
         </p>
+
+        {/* Brand Assurance */}
+        <div className="mt-8 text-center flex items-center justify-center gap-1.5 text-[11px] text-surface-500 dark:text-surface-400">
+          <Sparkles size={12} className="text-primary-600 dark:text-primary-300" />
+          <span>100% Free · Editorial Workspace · Privacy-focused</span>
+        </div>
       </div>
     </div>
   );

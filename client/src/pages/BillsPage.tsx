@@ -1,18 +1,18 @@
 import { useState, useEffect } from 'react';
-import { useLocation, useParams, useNavigate } from 'react-router-dom';
 import api from '../lib/api';
+import Modal from '../components/ui/Modal';
 import {
   Plus,
   Receipt,
   Loader2,
   Calendar,
   Trash2,
-  X,
   CheckCircle2,
   Clock,
   AlertCircle,
-  Pencil,
-  Repeat,
+  IndianRupee,
+  RefreshCw,
+  Search,
 } from 'lucide-react';
 
 interface Bill {
@@ -24,36 +24,23 @@ interface Bill {
   dueDate: string;
   paymentStatus: 'pending' | 'paid' | 'overdue' | 'upcoming';
   category: string;
-  recurrence: {
-    type: 'none' | 'daily' | 'weekly' | 'monthly' | 'yearly' | 'custom';
-    interval?: number;
-    unit?: 'days' | 'weeks' | 'months' | 'years';
-    endDate?: string;
-    durationMonths?: number;
-  };
+  recurrence: { type: string; interval?: number; unit?: string };
   notes?: string;
 }
 
 const statusConfig = {
-  pending: { icon: Clock, color: 'text-amber-400', bg: 'bg-amber-950/50 border border-amber-800/60', label: 'Pending' },
-  paid: { icon: CheckCircle2, color: 'text-emerald-400', bg: 'bg-emerald-950/50 border border-emerald-800/60', label: 'Paid' },
-  overdue: { icon: AlertCircle, color: 'text-rose-400', bg: 'bg-rose-950/50 border border-rose-800/60', label: 'Overdue' },
-  upcoming: { icon: Calendar, color: 'text-primary-400', bg: 'bg-primary-950/50 border border-primary-800/60', label: 'Upcoming' },
+  pending: { icon: Clock, color: 'text-amber-700 dark:text-[#FFE8AD]', bg: 'bg-amber-50 dark:bg-[#54390E]', border: 'border-amber-200 dark:border-amber-700/60', label: 'Pending' },
+  paid: { icon: CheckCircle2, color: 'text-emerald-700 dark:text-emerald-200', bg: 'bg-emerald-50 dark:bg-[#1b4332]', border: 'border-emerald-200 dark:border-emerald-700/60', label: 'Paid' },
+  overdue: { icon: AlertCircle, color: 'text-rose-700 dark:text-[#FFD2D2]', bg: 'bg-rose-50 dark:bg-[#5C2828]', border: 'border-rose-200 dark:border-rose-700/60', label: 'Overdue' },
+  upcoming: { icon: Calendar, color: 'text-teal-700 dark:text-primary-200', bg: 'bg-teal-50 dark:bg-surface-800', border: 'border-teal-200 dark:border-surface-700', label: 'Upcoming' },
 };
 
 export default function BillsPage() {
-  const location = useLocation();
-  const navigate = useNavigate();
-  const { id } = useParams<{ id?: string }>();
-
   const [bills, setBills] = useState<Bill[]>([]);
   const [loading, setLoading] = useState(true);
-  const [showForm, setShowForm] = useState(location.pathname.endsWith('/new'));
+  const [showModal, setShowModal] = useState(false);
   const [filter, setFilter] = useState('all');
-  const [submitting, setSubmitting] = useState(false);
-  const [feedback, setFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
-
-  // Create form state
+  const [searchQuery, setSearchQuery] = useState('');
   const [formData, setFormData] = useState({
     name: '',
     provider: '',
@@ -62,42 +49,9 @@ export default function BillsPage() {
     category: 'Finance',
     currency: '₹',
     notes: '',
-    recurrence: {
-      type: 'none' as Bill['recurrence']['type'],
-      interval: 1,
-      unit: 'months' as const,
-      endDate: '',
-      durationMonths: undefined as number | undefined,
-    },
+    recurrence: { type: 'none' },
   });
-
-  // Edit modal state
-  const [editingBill, setEditingBill] = useState<Bill | null>(null);
-  const [editFormData, setEditFormData] = useState({
-    name: '',
-    provider: '',
-    amount: '',
-    dueDate: '',
-    paymentStatus: 'pending' as Bill['paymentStatus'],
-    category: 'Finance',
-    currency: '₹',
-    notes: '',
-    recurrence: {
-      type: 'none' as Bill['recurrence']['type'],
-      interval: 1,
-      unit: 'months' as const,
-      endDate: '',
-      durationMonths: undefined as number | undefined,
-    },
-  });
-  const [savingEdit, setSavingEdit] = useState(false);
-
-  // Sync /new path with showForm
-  useEffect(() => {
-    if (location.pathname.endsWith('/new')) {
-      setShowForm(true);
-    }
-  }, [location.pathname]);
+  const [submitting, setSubmitting] = useState(false);
 
   const fetchBills = async () => {
     try {
@@ -105,10 +59,8 @@ export default function BillsPage() {
       if (filter !== 'all') params.paymentStatus = filter;
       const res = await api.get('/bills', { params });
       setBills(res.data.bills);
-      return res.data.bills as Bill[];
     } catch (err) {
       console.error('Failed to fetch bills:', err);
-      return [];
     } finally {
       setLoading(false);
     }
@@ -118,74 +70,12 @@ export default function BillsPage() {
     fetchBills();
   }, [filter]);
 
-  // Handle direct navigation to /bills/:id
-  useEffect(() => {
-    if (!id || id === 'new') return;
-
-    const openBillById = async () => {
-      const found = bills.find((b) => b._id === id);
-      if (found) {
-        startEditing(found);
-      } else {
-        try {
-          const res = await api.get(`/bills/${id}`);
-          if (res.data.bill) {
-            startEditing(res.data.bill);
-          }
-        } catch (err) {
-          console.error('Bill not found:', err);
-        }
-      }
-    };
-
-    openBillById();
-  }, [id, bills.length]);
-
-  const startEditing = (bill: Bill) => {
-    setEditingBill(bill);
-    setEditFormData({
-      name: bill.name,
-      provider: bill.provider || '',
-      amount: bill.amount.toString(),
-      dueDate: bill.dueDate ? new Date(bill.dueDate).toISOString().split('T')[0] : '',
-      paymentStatus: bill.paymentStatus,
-      category: bill.category || 'Finance',
-      currency: bill.currency || '₹',
-      notes: bill.notes || '',
-      recurrence: {
-        type: bill.recurrence?.type || 'none',
-        interval: bill.recurrence?.interval || 1,
-        unit: (bill.recurrence?.unit as any) || 'months',
-        endDate: bill.recurrence?.endDate ? new Date(bill.recurrence.endDate).toISOString().split('T')[0] : '',
-        durationMonths: bill.recurrence?.durationMonths,
-      },
-    });
-  };
-
-  const closeEditModal = () => {
-    setEditingBill(null);
-    if (id && id !== 'new') {
-      navigate('/bills', { replace: true });
-    }
-  };
-
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formData.name.trim() || !formData.amount || !formData.dueDate) return;
+    if (!formData.name.trim() || !formData.amount) return;
     setSubmitting(true);
-    setFeedback(null);
     try {
-      await api.post('/bills', {
-        ...formData,
-        amount: parseFloat(formData.amount),
-        recurrence: {
-          ...formData.recurrence,
-          interval: Number(formData.recurrence.interval) || 1,
-          endDate: formData.recurrence.endDate || undefined,
-          durationMonths: formData.recurrence.durationMonths ? Number(formData.recurrence.durationMonths) : undefined,
-        },
-      });
-
+      await api.post('/bills', { ...formData, amount: parseFloat(formData.amount) });
       setFormData({
         name: '',
         provider: '',
@@ -194,711 +84,357 @@ export default function BillsPage() {
         category: 'Finance',
         currency: '₹',
         notes: '',
-        recurrence: { type: 'none', interval: 1, unit: 'months', endDate: '', durationMonths: undefined },
+        recurrence: { type: 'none' },
       });
-      setShowForm(false);
-      if (location.pathname.endsWith('/new')) {
-        navigate('/bills', { replace: true });
-      }
-      setFeedback({ type: 'success', message: 'Bill created successfully' });
+      setShowModal(false);
       fetchBills();
-    } catch (err: any) {
+    } catch (err) {
       console.error('Failed to create bill:', err);
-      setFeedback({ type: 'error', message: err.response?.data?.message || 'Failed to create bill' });
     } finally {
       setSubmitting(false);
     }
   };
 
-  const handleSaveEdit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!editingBill || !editFormData.name.trim() || !editFormData.amount) return;
-    setSavingEdit(true);
-    setFeedback(null);
+  const markPaid = async (id: string) => {
     try {
-      await api.put(`/bills/${editingBill._id}`, {
-        ...editFormData,
-        amount: parseFloat(editFormData.amount),
-        recurrence: {
-          ...editFormData.recurrence,
-          interval: Number(editFormData.recurrence.interval) || 1,
-          endDate: editFormData.recurrence.endDate || undefined,
-          durationMonths: editFormData.recurrence.durationMonths ? Number(editFormData.recurrence.durationMonths) : undefined,
-        },
-      });
-      closeEditModal();
-      setFeedback({ type: 'success', message: 'Bill updated successfully' });
+      await api.put(`/bills/${id}`, { paymentStatus: 'paid' });
       fetchBills();
-    } catch (err: any) {
+    } catch (err) {
       console.error('Failed to update bill:', err);
-      setFeedback({ type: 'error', message: err.response?.data?.message || 'Failed to update bill' });
-    } finally {
-      setSavingEdit(false);
     }
   };
 
-  const markPaid = async (billId: string) => {
+  const deleteBill = async (id: string) => {
     try {
-      const res = await api.patch(`/bills/${billId}/pay`);
-      if (res.data.nextOccurrence) {
-        setFeedback({
-          type: 'success',
-          message: `Bill marked paid! Next occurrence generated for ${new Date(res.data.nextOccurrence.dueDate).toLocaleDateString()}.`,
-        });
-      } else {
-        setFeedback({ type: 'success', message: 'Bill marked as paid.' });
-      }
-      fetchBills();
-    } catch (err) {
-      console.error('Failed to mark bill paid:', err);
-    }
-  };
-
-  const markUnpaid = async (billId: string) => {
-    try {
-      await api.put(`/bills/${billId}`, { paymentStatus: 'pending' });
-      setFeedback({ type: 'success', message: 'Bill marked as pending.' });
-      fetchBills();
-    } catch (err) {
-      console.error('Failed to update bill status:', err);
-    }
-  };
-
-  const deleteBill = async (billId: string) => {
-    if (!confirm('Are you sure you want to delete this bill?')) return;
-    try {
-      await api.delete(`/bills/${billId}`);
-      if (editingBill?._id === billId) {
-        closeEditModal();
-      }
+      await api.delete(`/bills/${id}`);
       fetchBills();
     } catch (err) {
       console.error('Failed to delete bill:', err);
     }
   };
 
+  // Monthly Overview calculations
+  const totalDue = bills
+    .filter((b) => b.paymentStatus !== 'paid')
+    .reduce((sum, b) => sum + (b.amount || 0), 0);
+
+  const totalPaid = bills
+    .filter((b) => b.paymentStatus === 'paid')
+    .reduce((sum, b) => sum + (b.amount || 0), 0);
+
+  const overdueCount = bills.filter((b) => b.paymentStatus === 'overdue').length;
+
+  const filteredBills = bills.filter((b) =>
+    b.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    (b.provider && b.provider.toLowerCase().includes(searchQuery.toLowerCase()))
+  );
+
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-[60vh]">
+      <div className="flex flex-col items-center justify-center min-h-[60vh] gap-3">
         <Loader2 size={32} className="animate-spin text-primary-500" />
+        <p className="text-xs text-surface-400">Loading your bills & payments...</p>
       </div>
     );
   }
 
   return (
-    <div className="space-y-6 animate-fade-in max-w-4xl">
+    <div className="space-y-6 animate-fade-in pb-12">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 pb-3 border-b border-surface-100 dark:border-[#355966]">
         <div>
-          <h1 className="text-2xl font-bold text-[#F5F3EE]">Bills & Subscriptions</h1>
-          <p className="text-[#85827C] text-sm mt-1">{bills.length} bill{bills.length !== 1 ? 's' : ''}</p>
+          <h1 className="text-3xl font-bold font-editorial text-surface-900 dark:text-surface-100 tracking-tight">
+            Bills & Payments
+          </h1>
+          <p className="text-xs text-surface-500 mt-1">
+            Track expenses, subscriptions, and renewal deadlines in ₹ (INR)
+          </p>
         </div>
+
         <button
-          onClick={() => setShowForm(!showForm)}
+          onClick={() => setShowModal(true)}
           id="new-bill-button"
-          className="flex items-center gap-2 px-4 py-2 rounded-xl bg-[#383838] hover:bg-[#414141] text-[#F5F3EE] border border-[#505050] text-sm font-medium transition-all shadow-sm"
+          className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-primary-500 hover:bg-primary-600 text-white text-xs font-semibold shadow-xs transition-all"
         >
-          <Plus size={18} />
+          <Plus size={16} />
           <span>New Bill</span>
         </button>
       </div>
 
-      {/* Feedback banner */}
-      {feedback && (
-        <div
-          className={`p-3 rounded-xl text-sm flex items-center justify-between ${
-            feedback.type === 'success'
-              ? 'bg-emerald-950/40 text-emerald-300 border border-emerald-800/80'
-              : 'bg-rose-950/40 text-rose-300 border border-rose-800/80'
-          }`}
-        >
-          <span>{feedback.message}</span>
-          <button onClick={() => setFeedback(null)} className="p-1 hover:opacity-75">
-            <X size={14} />
-          </button>
+      {/* Financial Summary Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
+        <div className="bg-white dark:bg-surface-0 rounded-2xl p-4 border border-surface-200 dark:border-surface-700 shadow-card">
+          <p className="text-[11px] font-semibold text-amber-700 dark:text-[#FFE8AD] uppercase tracking-wider">
+            Total Pending
+          </p>
+          <p className="text-2xl font-bold font-editorial text-surface-900 dark:text-surface-100 mt-1">
+            ₹{totalDue.toLocaleString('en-IN')}
+          </p>
+          <p className="text-[11px] text-surface-600 dark:text-surface-300 mt-0.5">Awaiting settlement</p>
         </div>
-      )}
 
-      {/* Filters */}
-      <div className="flex items-center gap-2 overflow-x-auto pb-1">
-        {[
-          { value: 'all', label: 'All' },
-          { value: 'pending', label: 'Pending' },
-          { value: 'overdue', label: 'Overdue' },
-          { value: 'paid', label: 'Paid' },
-        ].map((f) => (
-          <button
-            key={f.value}
-            onClick={() => setFilter(f.value)}
-            className={`px-3.5 py-1.5 rounded-xl text-xs font-medium transition-all whitespace-nowrap ${
-              filter === f.value
-                ? 'bg-[#414141] text-[#F5F3EE] border border-[#505050] shadow-sm'
-                : 'bg-[#383838] text-[#85827C] border border-[#505050] hover:text-[#B8B5AE] hover:bg-[#414141]'
-            }`}
-          >
-            {f.label}
-          </button>
-        ))}
+        <div className="bg-white dark:bg-surface-0 rounded-2xl p-4 border border-surface-200 dark:border-surface-700 shadow-card">
+          <p className="text-[11px] font-semibold text-emerald-700 dark:text-emerald-200 uppercase tracking-wider">
+            Total Settled
+          </p>
+          <p className="text-2xl font-bold font-editorial text-surface-900 dark:text-surface-100 mt-1">
+            ₹{totalPaid.toLocaleString('en-IN')}
+          </p>
+          <p className="text-[11px] text-surface-600 dark:text-surface-300 mt-0.5">Paid on time</p>
+        </div>
+
+        <div className="bg-white dark:bg-surface-0 rounded-2xl p-4 border border-surface-200 dark:border-surface-700 shadow-card">
+          <p className="text-[11px] font-semibold text-rose-700 dark:text-[#FFD2D2] uppercase tracking-wider">
+            Overdue Count
+          </p>
+          <p className="text-2xl font-bold font-editorial text-surface-900 dark:text-surface-100 mt-1">
+            {overdueCount}
+          </p>
+          <p className="text-[11px] text-surface-600 dark:text-surface-300 mt-0.5">Past due date</p>
+        </div>
       </div>
 
-      {/* Create form */}
-      {showForm && (
-        <form
-          onSubmit={handleCreate}
-          className="bg-[#383838] rounded-2xl p-6 border border-[#505050] shadow-sm space-y-4 animate-scale-in"
-        >
-          <div className="flex items-center justify-between border-b border-[#505050] pb-3">
-            <h3 className="font-semibold text-[#F5F3EE] text-sm">Add New Bill</h3>
+      {/* Search & Filters */}
+      <div className="flex flex-col sm:flex-row gap-3">
+        <div className="relative flex-1">
+          <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-surface-400 pointer-events-none" />
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Search bills by name or provider..."
+            className="w-full pl-10 pr-4 py-2 text-xs rounded-xl border border-surface-200 dark:border-surface-700 bg-white dark:bg-surface-0 text-surface-900 dark:text-surface-100 placeholder:text-surface-400 focus:outline-none focus:ring-1 focus:ring-primary-500"
+          />
+        </div>
+
+        <div className="flex items-center gap-1.5 overflow-x-auto pb-1">
+          {[
+            { value: 'all', label: 'All Bills' },
+            { value: 'pending', label: 'Pending' },
+            { value: 'overdue', label: 'Overdue' },
+            { value: 'paid', label: 'Paid' },
+          ].map((f) => (
             <button
-              type="button"
-              onClick={() => {
-                setShowForm(false);
-                if (location.pathname.endsWith('/new')) navigate('/bills', { replace: true });
-              }}
-              className="text-[#85827C] hover:text-[#F5F3EE]"
+              key={f.value}
+              onClick={() => setFilter(f.value)}
+              className={`px-3 py-1.5 rounded-xl text-xs font-medium whitespace-nowrap transition-colors ${
+                filter === f.value
+                  ? 'bg-primary-600 dark:bg-primary-500 text-white dark:text-[#183B4A] font-semibold shadow-xs'
+                  : 'bg-surface-100 dark:bg-surface-800 text-surface-700 dark:text-surface-200 hover:bg-surface-200 dark:hover:bg-surface-700'
+              }`}
             >
-              <X size={18} />
+              {f.label}
             </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Bills Grid / Cards */}
+      <div className="space-y-3">
+        {filteredBills.length > 0 ? (
+          filteredBills.map((bill) => {
+            const config = statusConfig[bill.paymentStatus] || statusConfig.pending;
+            const isPaid = bill.paymentStatus === 'paid';
+            const isRecurring = bill.recurrence?.type && bill.recurrence.type !== 'none';
+
+            return (
+              <div
+                key={bill._id}
+                className="bg-white dark:bg-surface-0 p-4 rounded-2xl border border-surface-200 dark:border-surface-700 shadow-xs hover:shadow-card transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-4"
+              >
+                <div className="flex items-start gap-3.5 min-w-0">
+                  <div className={`w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 mt-0.5 ${config.bg} ${config.color}`}>
+                    <Receipt size={18} />
+                  </div>
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <p className="text-xs font-bold text-surface-900 dark:text-surface-100">
+                        {bill.name}
+                      </p>
+                      {bill.provider && (
+                        <span className="text-[10px] text-surface-500 dark:text-surface-400">· {bill.provider}</span>
+                      )}
+                      {isRecurring && (
+                        <span className="inline-flex items-center gap-1 text-[10px] font-medium px-2 py-0.5 rounded-full bg-teal-50 dark:bg-teal-950/40 text-teal-700 dark:text-teal-300">
+                          <RefreshCw size={10} /> {bill.recurrence.type}
+                        </span>
+                      )}
+                    </div>
+
+                    <div className="flex items-center gap-3 mt-1 text-[11px] text-surface-500 flex-wrap">
+                      <span>Due: {new Date(bill.dueDate).toLocaleDateString('en-IN', { month: 'short', day: 'numeric', year: 'numeric' })}</span>
+                      <span>·</span>
+                      <span>Category: {bill.category}</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between sm:justify-end gap-3 flex-shrink-0 pt-2 sm:pt-0 border-t sm:border-t-0 border-surface-100 dark:border-[#355966]">
+                  <div className="text-left sm:text-right">
+                    <span className="text-sm font-bold font-editorial text-surface-900 dark:text-surface-100 block">
+                      {bill.currency || '₹'}{bill.amount?.toLocaleString('en-IN')}
+                    </span>
+                    <span className={`inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full border mt-0.5 ${config.bg} ${config.color} ${config.border}`}>
+                      <config.icon size={11} /> {config.label}
+                    </span>
+                  </div>
+
+                  <div className="flex items-center gap-1.5">
+                    {!isPaid && (
+                      <button
+                        onClick={() => markPaid(bill._id)}
+                        className="px-2.5 py-1.5 rounded-lg bg-emerald-50 hover:bg-emerald-100 dark:bg-emerald-950/40 dark:hover:bg-emerald-900/40 text-emerald-700 dark:text-emerald-300 text-xs font-semibold transition-colors"
+                        title="Mark bill as paid"
+                      >
+                        Mark Paid
+                      </button>
+                    )}
+                    <button
+                      onClick={() => deleteBill(bill._id)}
+                      className="p-1.5 rounded-lg text-surface-400 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors"
+                      title="Delete bill"
+                    >
+                      <Trash2 size={14} />
+                    </button>
+                  </div>
+                </div>
+              </div>
+            );
+          })
+        ) : (
+          <div className="text-center py-12 bg-white dark:bg-surface-0 rounded-3xl border border-dashed border-surface-200 dark:border-[#355966]">
+            <Receipt size={32} className="mx-auto text-surface-300 dark:text-surface-700 mb-2" />
+            <h3 className="text-sm font-bold font-editorial text-surface-900 dark:text-surface-100">
+              No bills match this filter
+            </h3>
+            <p className="text-xs text-surface-400 mt-0.5">
+              Keep your financial obligations stress-free by adding upcoming utility or subscription bills.
+            </p>
+          </div>
+        )}
+      </div>
+
+      {/* Modal: New Bill */}
+      <Modal
+        isOpen={showModal}
+        onClose={() => setShowModal(false)}
+        title="New Bill / Expense"
+        maxWidth="md"
+        panelClassName="rounded-3xl dark:border-[#355966]"
+        headerClassName="pb-3 border-surface-100 dark:border-[#355966]"
+        contentClassName="pt-4 pb-0"
+        titleClassName="text-base font-bold font-editorial text-surface-900 dark:text-surface-100"
+      >
+        <form onSubmit={handleCreate} className="space-y-3.5">
+          <div>
+            <label className="block text-xs font-semibold text-surface-700 dark:text-surface-300 mb-1">
+              Bill Name *
+            </label>
+            <input
+              type="text"
+              required
+              value={formData.name}
+              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+              placeholder="e.g. Electricity Bill, Cloud Storage"
+              className="w-full px-3.5 py-2 text-xs rounded-xl border border-surface-200 dark:border-surface-700 bg-white dark:bg-surface-0 focus:outline-none focus:ring-1 focus:ring-primary-500"
+            />
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-[11px] font-medium text-[#85827C] uppercase tracking-wider mb-1">Bill Name</label>
-              <input
-                type="text"
-                value={formData.name}
-                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                placeholder="e.g. WiFi, Electricity, Rent"
-                required
-                className="w-full px-3.5 py-2 rounded-xl border border-[#505050] bg-[#323232] text-[#F5F3EE] placeholder-[#85827C] text-sm focus:outline-none focus:ring-2 focus:ring-primary-500/20"
-              />
-            </div>
-
-            <div>
-              <label className="block text-[11px] font-medium text-[#85827C] uppercase tracking-wider mb-1">Provider / Vendor</label>
+              <label className="block text-xs font-semibold text-surface-700 dark:text-surface-300 mb-1">
+                Provider / Merchant
+              </label>
               <input
                 type="text"
                 value={formData.provider}
                 onChange={(e) => setFormData({ ...formData, provider: e.target.value })}
-                placeholder="e.g. Airtel, PG Owner"
-                className="w-full px-3.5 py-2 rounded-xl border border-[#505050] bg-[#323232] text-[#F5F3EE] placeholder-[#85827C] text-sm focus:outline-none focus:ring-2 focus:ring-primary-500/20"
+                placeholder="e.g. Power Corp, Google"
+                className="w-full px-3 py-2 text-xs rounded-xl border border-surface-200 dark:border-surface-700 bg-white dark:bg-surface-0 focus:outline-none focus:ring-1 focus:ring-primary-500"
               />
             </div>
-
             <div>
-              <label className="block text-[11px] font-medium text-[#85827C] uppercase tracking-wider mb-1">Amount</label>
-              <div className="flex gap-2">
-                <input
-                  type="text"
-                  value={formData.currency}
-                  onChange={(e) => setFormData({ ...formData, currency: e.target.value })}
-                  className="w-14 px-2 py-2 rounded-xl border border-[#505050] bg-[#323232] text-center text-sm font-semibold text-[#F5F3EE]"
-                />
+              <label className="block text-xs font-semibold text-surface-700 dark:text-surface-300 mb-1">
+                Amount (₹) *
+              </label>
+              <div className="relative flex items-center">
+                <IndianRupee size={14} className="absolute left-3 text-surface-400 pointer-events-none" />
                 <input
                   type="number"
-                  step="0.01"
                   required
+                  step="0.01"
                   value={formData.amount}
                   onChange={(e) => setFormData({ ...formData, amount: e.target.value })}
                   placeholder="0.00"
-                  className="flex-1 px-3.5 py-2 rounded-xl border border-[#505050] bg-[#323232] text-[#F5F3EE] placeholder-[#85827C] text-sm focus:outline-none focus:ring-2 focus:ring-primary-500/20"
+                  className="w-full pl-8 pr-3 py-2 text-xs rounded-xl border border-surface-200 dark:border-surface-700 bg-white dark:bg-surface-0 focus:outline-none focus:ring-1 focus:ring-primary-500"
                 />
               </div>
-            </div>
-
-            <div>
-              <label className="block text-[11px] font-medium text-[#85827C] uppercase tracking-wider mb-1">Due Date</label>
-              <input
-                type="date"
-                required
-                value={formData.dueDate}
-                onChange={(e) => setFormData({ ...formData, dueDate: e.target.value })}
-                className="w-full px-3.5 py-2 rounded-xl border border-[#505050] bg-[#323232] text-[#F5F3EE] text-sm focus:outline-none focus:ring-2 focus:ring-primary-500/20"
-              />
             </div>
           </div>
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-[11px] font-medium text-[#85827C] uppercase tracking-wider mb-1">Category</label>
-              <select
-                value={formData.category}
-                onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-                className="w-full px-3 py-1.5 rounded-xl border border-[#505050] bg-[#323232] text-[#F5F3EE] text-xs focus:outline-none focus:ring-2 focus:ring-primary-500/20"
-              >
-                {['Finance', 'Utilities', 'Rent', 'Insurance', 'Subscription', 'Education', 'Other'].map((c) => (
-                  <option key={c} value={c}>{c}</option>
-                ))}
-              </select>
+              <label className="block text-xs font-semibold text-surface-700 dark:text-surface-300 mb-1">
+                Due Date *
+              </label>
+              <input
+                type="date"
+                required
+                value={formData.dueDate}
+                onChange={(e) => setFormData({ ...formData, dueDate: e.target.value })}
+                className="w-full px-3 py-2 text-xs rounded-xl border border-surface-200 dark:border-surface-700 bg-white dark:bg-surface-0 focus:outline-none focus:ring-1 focus:ring-primary-500"
+              />
             </div>
-
             <div>
-              <label className="block text-[11px] font-medium text-[#85827C] uppercase tracking-wider mb-1">Recurrence</label>
+              <label className="block text-xs font-semibold text-surface-700 dark:text-surface-300 mb-1">
+                Recurrence
+              </label>
               <select
                 value={formData.recurrence.type}
-                onChange={(e) =>
-                  setFormData({
-                    ...formData,
-                    recurrence: { ...formData.recurrence, type: e.target.value as Bill['recurrence']['type'] },
-                  })
-                }
-                className="w-full px-3 py-1.5 rounded-xl border border-[#505050] bg-[#323232] text-[#F5F3EE] text-xs focus:outline-none focus:ring-2 focus:ring-primary-500/20"
+                onChange={(e) => setFormData({ ...formData, recurrence: { type: e.target.value } })}
+                className="w-full px-3 py-2 text-xs rounded-xl border border-surface-200 dark:border-surface-700 bg-white dark:bg-surface-0 focus:outline-none focus:ring-1 focus:ring-primary-500"
               >
-                <option value="none">One-time (No Recurrence)</option>
-                <option value="daily">Daily</option>
+                <option value="none">One-time payment</option>
+                <option value="monthly">Monthly subscription</option>
                 <option value="weekly">Weekly</option>
-                <option value="monthly">Monthly</option>
-                <option value="yearly">Yearly</option>
-                <option value="custom">Custom Interval</option>
+                <option value="yearly">Annual renewal</option>
               </select>
             </div>
           </div>
 
-          {/* Recurrence Sub-fields */}
-          {formData.recurrence.type !== 'none' && (
-            <div className="p-3 rounded-xl bg-[#2F2F2F] border border-[#505050] space-y-3">
-              <div className="flex items-center gap-2 text-xs font-semibold text-primary-400">
-                <Repeat size={14} />
-                <span>Recurrence Rules</span>
-              </div>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-xs">
-                <div>
-                  <label className="block text-[11px] text-[#85827C] mb-1">Repeat Every</label>
-                  <input
-                    type="number"
-                    min="1"
-                    value={formData.recurrence.interval}
-                    onChange={(e) =>
-                      setFormData({
-                        ...formData,
-                        recurrence: { ...formData.recurrence, interval: parseInt(e.target.value, 10) || 1 },
-                      })
-                    }
-                    className="w-full px-2.5 py-1.5 rounded-lg border border-[#505050] bg-[#323232] text-[#F5F3EE]"
-                  />
-                </div>
-                <div>
-                  <label className="block text-[11px] text-[#85827C] mb-1">Unit</label>
-                  <select
-                    value={formData.recurrence.unit}
-                    onChange={(e) =>
-                      setFormData({
-                        ...formData,
-                        recurrence: { ...formData.recurrence, unit: e.target.value as any },
-                      })
-                    }
-                    className="w-full px-2.5 py-1.5 rounded-lg border border-[#505050] bg-[#323232] text-[#F5F3EE]"
-                  >
-                    <option value="days">Days</option>
-                    <option value="weeks">Weeks</option>
-                    <option value="months">Months</option>
-                    <option value="years">Years</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-[11px] text-[#85827C] mb-1">End Date (optional)</label>
-                  <input
-                    type="date"
-                    value={formData.recurrence.endDate}
-                    onChange={(e) =>
-                      setFormData({
-                        ...formData,
-                        recurrence: { ...formData.recurrence, endDate: e.target.value },
-                      })
-                    }
-                    className="w-full px-2.5 py-1.5 rounded-lg border border-[#505050] bg-[#323232] text-[#F5F3EE]"
-                  />
-                </div>
-                <div>
-                  <label className="block text-[11px] text-[#85827C] mb-1">Duration (Months)</label>
-                  <input
-                    type="number"
-                    min="1"
-                    placeholder="e.g. 12"
-                    value={formData.recurrence.durationMonths || ''}
-                    onChange={(e) =>
-                      setFormData({
-                        ...formData,
-                        recurrence: {
-                          ...formData.recurrence,
-                          durationMonths: e.target.value ? parseInt(e.target.value, 10) : undefined,
-                        },
-                      })
-                    }
-                    className="w-full px-2.5 py-1.5 rounded-lg border border-[#505050] bg-[#323232] text-[#F5F3EE]"
-                  />
-                </div>
-              </div>
-            </div>
-          )}
+          <div>
+            <label className="block text-xs font-semibold text-surface-700 dark:text-surface-300 mb-1">
+              Category
+            </label>
+            <select
+              value={formData.category}
+              onChange={(e) => setFormData({ ...formData, category: e.target.value })}
+              className="w-full px-3 py-2 text-xs rounded-xl border border-surface-200 dark:border-surface-700 bg-white dark:bg-surface-0 focus:outline-none focus:ring-1 focus:ring-primary-500"
+            >
+              {['Finance', 'Utilities', 'Rent', 'Insurance', 'Subscription', 'Education', 'Personal'].map((c) => (
+                <option key={c} value={c}>{c}</option>
+              ))}
+            </select>
+          </div>
 
-          <div className="flex justify-end gap-2 pt-2 border-t border-[#505050]">
+          <div className="pt-3 border-t border-surface-100 dark:border-[#355966] flex justify-end gap-2">
             <button
               type="button"
-              onClick={() => {
-                setShowForm(false);
-                if (location.pathname.endsWith('/new')) navigate('/bills', { replace: true });
-              }}
-              className="px-4 py-1.5 rounded-xl text-xs font-medium text-[#85827C] hover:text-[#F5F3EE] hover:bg-[#414141] transition-colors"
+              onClick={() => setShowModal(false)}
+              className="px-4 py-2 text-xs rounded-xl border border-surface-200 dark:border-surface-700 hover:bg-surface-100"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={submitting}
-              id="bill-submit"
-              className="px-5 py-1.5 rounded-xl bg-primary-600 hover:bg-primary-500 disabled:opacity-60 text-[#F5F3EE] text-xs font-medium transition-all flex items-center gap-1.5"
+              className="px-4 py-2 text-xs rounded-xl bg-primary-500 hover:bg-primary-600 text-white font-semibold disabled:opacity-50"
             >
-              {submitting ? <Loader2 size={14} className="animate-spin" /> : 'Create Bill'}
+              {submitting ? 'Saving...' : 'Add Bill'}
             </button>
           </div>
         </form>
-      )}
-
-      {/* Edit Bill Modal */}
-      {editingBill && (
-        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-[#383838] rounded-2xl max-w-lg w-full p-6 shadow-xl border border-[#505050] animate-scale-in space-y-4 max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between border-b border-[#505050] pb-3">
-              <h3 className="font-semibold text-[#F5F3EE] text-base">Edit Bill</h3>
-              <button onClick={closeEditModal} className="text-[#85827C] hover:text-[#F5F3EE]">
-                <X size={18} />
-              </button>
-            </div>
-
-            <form onSubmit={handleSaveEdit} className="space-y-4">
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-medium text-[#85827C] mb-1">Bill Name</label>
-                  <input
-                    type="text"
-                    required
-                    value={editFormData.name}
-                    onChange={(e) => setEditFormData({ ...editFormData, name: e.target.value })}
-                    className="w-full px-3.5 py-2 rounded-xl border border-[#505050] bg-[#323232] text-[#F5F3EE] placeholder-[#85827C] text-sm focus:outline-none focus:ring-2 focus:ring-primary-500/20"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-medium text-[#85827C] mb-1">Provider</label>
-                  <input
-                    type="text"
-                    value={editFormData.provider}
-                    onChange={(e) => setEditFormData({ ...editFormData, provider: e.target.value })}
-                    className="w-full px-3.5 py-2 rounded-xl border border-[#505050] bg-[#323232] text-[#F5F3EE] placeholder-[#85827C] text-sm focus:outline-none focus:ring-2 focus:ring-primary-500/20"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-medium text-[#85827C] mb-1">Amount</label>
-                  <div className="flex gap-2">
-                    <input
-                      type="text"
-                      value={editFormData.currency}
-                      onChange={(e) => setEditFormData({ ...editFormData, currency: e.target.value })}
-                      className="w-12 px-2 py-1.5 rounded-xl border border-[#505050] bg-[#323232] text-center text-xs font-bold text-[#F5F3EE]"
-                    />
-                    <input
-                      type="number"
-                      step="0.01"
-                      required
-                      value={editFormData.amount}
-                      onChange={(e) => setEditFormData({ ...editFormData, amount: e.target.value })}
-                      className="flex-1 px-3 py-1.5 rounded-xl border border-[#505050] bg-[#323232] text-[#F5F3EE] text-xs focus:outline-none focus:ring-2 focus:ring-primary-500/20"
-                    />
-                  </div>
-                </div>
-                <div>
-                  <label className="block text-xs font-medium text-[#85827C] mb-1">Due Date</label>
-                  <input
-                    type="date"
-                    required
-                    value={editFormData.dueDate}
-                    onChange={(e) => setEditFormData({ ...editFormData, dueDate: e.target.value })}
-                    className="w-full px-3 py-1.5 rounded-xl border border-[#505050] bg-[#323232] text-[#F5F3EE] text-xs focus:outline-none focus:ring-2 focus:ring-primary-500/20"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-medium text-[#85827C] mb-1">Status</label>
-                  <select
-                    value={editFormData.paymentStatus}
-                    onChange={(e) => setEditFormData({ ...editFormData, paymentStatus: e.target.value as Bill['paymentStatus'] })}
-                    className="w-full px-3 py-1.5 rounded-xl border border-[#505050] bg-[#323232] text-[#F5F3EE] text-xs focus:outline-none focus:ring-2 focus:ring-primary-500/20"
-                  >
-                    <option value="pending">Pending</option>
-                    <option value="paid">Paid</option>
-                    <option value="overdue">Overdue</option>
-                    <option value="upcoming">Upcoming</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-xs font-medium text-[#85827C] mb-1">Category</label>
-                  <select
-                    value={editFormData.category}
-                    onChange={(e) => setEditFormData({ ...editFormData, category: e.target.value })}
-                    className="w-full px-3 py-1.5 rounded-xl border border-[#505050] bg-[#323232] text-[#F5F3EE] text-xs focus:outline-none focus:ring-2 focus:ring-primary-500/20"
-                  >
-                    {['Finance', 'Utilities', 'Rent', 'Insurance', 'Subscription', 'Education', 'Other'].map((c) => (
-                      <option key={c} value={c}>{c}</option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-xs font-medium text-[#85827C] mb-1">Recurrence</label>
-                <select
-                  value={editFormData.recurrence.type}
-                  onChange={(e) =>
-                    setEditFormData({
-                      ...editFormData,
-                      recurrence: { ...editFormData.recurrence, type: e.target.value as any },
-                    })
-                  }
-                  className="w-full px-3 py-1.5 rounded-xl border border-[#505050] bg-[#323232] text-[#F5F3EE] text-xs focus:outline-none focus:ring-2 focus:ring-primary-500/20"
-                >
-                  <option value="none">One-time (No Recurrence)</option>
-                  <option value="daily">Daily</option>
-                  <option value="weekly">Weekly</option>
-                  <option value="monthly">Monthly</option>
-                  <option value="yearly">Yearly</option>
-                  <option value="custom">Custom</option>
-                </select>
-              </div>
-
-              {editFormData.recurrence.type !== 'none' && (
-                <div className="p-3 rounded-xl bg-[#2F2F2F] border border-[#505050] space-y-2 text-xs">
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-                    <div>
-                      <label className="block text-[11px] text-[#85827C] mb-1">Repeat Every</label>
-                      <input
-                        type="number"
-                        min="1"
-                        value={editFormData.recurrence.interval}
-                        onChange={(e) =>
-                          setEditFormData({
-                            ...editFormData,
-                            recurrence: { ...editFormData.recurrence, interval: parseInt(e.target.value, 10) || 1 },
-                          })
-                        }
-                        className="w-full px-2 py-1 rounded-lg border border-[#505050] bg-[#323232] text-[#F5F3EE]"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-[11px] text-[#85827C] mb-1">Unit</label>
-                      <select
-                        value={editFormData.recurrence.unit}
-                        onChange={(e) =>
-                          setEditFormData({
-                            ...editFormData,
-                            recurrence: { ...editFormData.recurrence, unit: e.target.value as any },
-                          })
-                        }
-                        className="w-full px-2 py-1 rounded-lg border border-[#505050] bg-[#323232] text-[#F5F3EE]"
-                      >
-                        <option value="days">Days</option>
-                        <option value="weeks">Weeks</option>
-                        <option value="months">Months</option>
-                        <option value="years">Years</option>
-                      </select>
-                    </div>
-                    <div>
-                      <label className="block text-[11px] text-[#85827C] mb-1">End Date</label>
-                      <input
-                        type="date"
-                        value={editFormData.recurrence.endDate}
-                        onChange={(e) =>
-                          setEditFormData({
-                            ...editFormData,
-                            recurrence: { ...editFormData.recurrence, endDate: e.target.value },
-                          })
-                        }
-                        className="w-full px-2 py-1 rounded-lg border border-[#505050] bg-[#323232] text-[#F5F3EE]"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-[11px] text-[#85827C] mb-1">Duration (Months)</label>
-                      <input
-                        type="number"
-                        min="1"
-                        value={editFormData.recurrence.durationMonths || ''}
-                        onChange={(e) =>
-                          setEditFormData({
-                            ...editFormData,
-                            recurrence: {
-                              ...editFormData.recurrence,
-                              durationMonths: e.target.value ? parseInt(e.target.value, 10) : undefined,
-                            },
-                          })
-                        }
-                        className="w-full px-2 py-1 rounded-lg border border-[#505050] bg-[#323232] text-[#F5F3EE]"
-                      />
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              <div>
-                <label className="block text-xs font-medium text-[#85827C] mb-1">Notes</label>
-                <textarea
-                  rows={2}
-                  value={editFormData.notes}
-                  onChange={(e) => setEditFormData({ ...editFormData, notes: e.target.value })}
-                  className="w-full px-3 py-1.5 rounded-xl border border-[#505050] bg-[#323232] text-[#F5F3EE] placeholder-[#85827C] text-xs focus:outline-none focus:ring-2 focus:ring-primary-500/20 resize-none"
-                />
-              </div>
-
-              <div className="flex justify-between items-center pt-4 border-t border-[#505050]">
-                <button
-                  type="button"
-                  onClick={() => deleteBill(editingBill._id)}
-                  className="inline-flex items-center gap-1.5 text-xs text-rose-400 hover:text-rose-300 font-medium"
-                >
-                  <Trash2 size={14} />
-                  <span>Delete Bill</span>
-                </button>
-                <div className="flex gap-2">
-                  <button
-                    type="button"
-                    onClick={closeEditModal}
-                    className="px-4 py-1.5 rounded-xl text-xs font-medium text-[#85827C] hover:text-[#F5F3EE] hover:bg-[#414141] transition-colors"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="submit"
-                    disabled={savingEdit}
-                    className="px-5 py-1.5 rounded-xl bg-primary-600 hover:bg-primary-500 disabled:opacity-60 text-[#F5F3EE] text-xs font-medium transition-all flex items-center gap-1.5"
-                  >
-                    {savingEdit ? <Loader2 size={14} className="animate-spin" /> : 'Save Changes'}
-                  </button>
-                </div>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* Bills list */}
-      {bills.length > 0 ? (
-        <div className="space-y-1.5">
-          {bills.map((bill) => {
-            const cfg = statusConfig[bill.paymentStatus] || statusConfig.pending;
-            const StatusIcon = cfg.icon;
-            const today = new Date();
-            today.setHours(0, 0, 0, 0);
-            const billDate = new Date(bill.dueDate);
-            billDate.setHours(0, 0, 0, 0);
-            const daysUntil = Math.round((billDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
-
-            return (
-              <div
-                key={bill._id}
-                className="flex items-center gap-3 p-3.5 rounded-xl bg-[#383838] border border-[#505050] hover:bg-[#414141] hover:border-[#606060] transition-all group"
-              >
-                <div className={`shrink-0 p-2 rounded-lg ${cfg.bg}`}>
-                  <StatusIcon size={18} className={cfg.color} />
-                </div>
-
-                {/* Info — click opens edit modal */}
-                <div
-                  onClick={() => startEditing(bill)}
-                  className="flex-1 min-w-0 cursor-pointer"
-                >
-                  <div className="flex items-center gap-2">
-                    <p className="text-sm font-medium text-[#F5F3EE]">{bill.name}</p>
-                    {bill.recurrence?.type && bill.recurrence.type !== 'none' && (
-                      <span className="inline-flex items-center gap-1 text-[10px] font-medium px-1.5 py-0.5 rounded bg-[#2F2F2F] text-primary-400 border border-[#505050]">
-                        <Repeat size={10} />
-                        {bill.recurrence.type}
-                      </span>
-                    )}
-                  </div>
-                  <div className="flex items-center gap-2 mt-0.5 flex-wrap">
-                    {bill.provider && <span className="text-xs text-[#85827C]">{bill.provider}</span>}
-                    <span className="text-[#505050]">·</span>
-                    <span className={`text-xs font-medium ${cfg.color}`}>{cfg.label}</span>
-                    {bill.paymentStatus !== 'paid' && (
-                      <>
-                        <span className="text-[#505050]">·</span>
-                        <span
-                          className={`text-xs ${
-                            daysUntil < 0
-                              ? 'text-rose-400 font-semibold'
-                              : daysUntil <= 3
-                              ? 'text-amber-400 font-semibold'
-                              : 'text-[#85827C]'
-                          }`}
-                        >
-                          {daysUntil < 0 ? `${Math.abs(daysUntil)}d overdue` : daysUntil === 0 ? 'Due today' : `${daysUntil}d left`}
-                        </span>
-                      </>
-                    )}
-                  </div>
-                </div>
-
-                {/* Amount */}
-                <div className="text-right shrink-0 pr-1">
-                  <p className="text-sm font-bold text-[#F5F3EE]">
-                    {bill.currency}{bill.amount.toLocaleString()}
-                  </p>
-                </div>
-
-                {/* Actions */}
-                <div className="flex items-center gap-1">
-                  {bill.paymentStatus !== 'paid' ? (
-                    <button
-                      onClick={() => markPaid(bill._id)}
-                      className="p-1.5 rounded-lg hover:bg-[#2F2F2F] text-[#85827C] hover:text-emerald-400 transition-colors"
-                      title="Mark as paid (will generate next recurring cycle if applicable)"
-                    >
-                      <CheckCircle2 size={17} />
-                    </button>
-                  ) : (
-                    <button
-                      onClick={() => markUnpaid(bill._id)}
-                      className="p-1.5 rounded-lg hover:bg-[#2F2F2F] text-emerald-400 hover:text-amber-400 transition-colors"
-                      title="Mark as unpaid"
-                    >
-                      <CheckCircle2 size={17} />
-                    </button>
-                  )}
-                  <button
-                    onClick={() => startEditing(bill)}
-                    className="p-1.5 rounded-lg hover:bg-[#2F2F2F] text-[#85827C] hover:text-[#F5F3EE] transition-colors"
-                    title="Edit bill"
-                  >
-                    <Pencil size={15} />
-                  </button>
-                  <button
-                    onClick={() => deleteBill(bill._id)}
-                    className="p-1.5 rounded-lg hover:bg-[#2F2F2F] text-[#85827C] hover:text-rose-400 transition-colors"
-                    title="Delete bill"
-                  >
-                    <Trash2 size={15} />
-                  </button>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      ) : (
-        <div className="text-center py-16 bg-[#383838] rounded-2xl border border-[#505050]">
-          <Receipt size={36} className="mx-auto text-[#85827C] mb-3" />
-          <p className="text-[#F5F3EE] font-medium text-sm">No bills tracked yet</p>
-          <p className="text-xs text-[#85827C] mt-1">Start tracking your bills, payments, and subscriptions.</p>
-          <button
-            onClick={() => setShowForm(true)}
-            className="mt-4 inline-flex items-center gap-2 px-4 py-1.5 rounded-xl bg-primary-600 hover:bg-primary-500 text-[#F5F3EE] text-xs font-medium transition-all"
-          >
-            <Plus size={14} /> Add Bill
-          </button>
-        </div>
-      )}
+      </Modal>
     </div>
   );
 }
