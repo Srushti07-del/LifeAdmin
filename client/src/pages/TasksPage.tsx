@@ -349,13 +349,13 @@ export default function TasksPage() {
                     >
                       <Edit2 size={14} />
                     </button>
-                    <button
-                      onClick={() => deleteTask(task._id)}
-                      className="p-1.5 rounded-lg text-surface-400 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors"
-                      title="Delete task"
-                    >
-                      <Trash2 size={14} />
-                    </button>
+                  <button
+                    onClick={() => deleteTask(task._id)}
+                    className="opacity-0 group-hover:opacity-100 p-1.5 rounded-lg text-surface-400 hover:text-danger-500 dark:hover:text-danger-400 hover:bg-danger-50 dark:hover:bg-danger-900/20 transition-all"
+                    title="Delete task"
+                  >
+                    <Trash2 size={14} />
+                  </button>
                   </div>
                 </div>
               );
@@ -418,7 +418,8 @@ export default function TasksPage() {
                           <div className="flex items-center gap-1">
                             <button
                               onClick={() => handleOpenEdit(task)}
-                              className="text-surface-400 hover:text-surface-700 p-0.5"
+                              className="text-surface-400 hover:text-surface-700 dark:hover:text-surface-200 p-0.5"
+                              aria-label="Remove subtask"
                             >
                               <Edit2 size={12} />
                             </button>

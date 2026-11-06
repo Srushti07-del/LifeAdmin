@@ -174,12 +174,25 @@ describe('Core Entity End-to-End CRUD Flows Tests', () => {
       assert.equal(res.status, 200);
       const data: any = await res.json();
       assert.equal(data.bill.paymentStatus, 'paid');
+      assert.ok(data.bill.paidAt, 'paidAt should be set');
       assert.ok(data.nextOccurrence, 'Next occurrence should be returned');
       assert.equal(data.nextOccurrence.name, 'Home Broadband');
       assert.equal(data.nextOccurrence.paymentStatus, 'pending');
 
       const nextDate = new Date(data.nextOccurrence.dueDate).toISOString().split('T')[0];
       assert.equal(nextDate, '2026-06-01');
+    });
+
+    it('marks bill unpaid via PATCH /api/bills/:id/unpay', async () => {
+      const res = await fetch(`${baseUrl}/bills/${createdBillId}/unpay`, {
+        method: 'PATCH',
+        headers: { Authorization: `Bearer ${authToken}` },
+      });
+
+      assert.equal(res.status, 200);
+      const data: any = await res.json();
+      assert.equal(data.bill.paymentStatus, 'pending');
+      assert.ok(data.bill.paidAt == null, 'paidAt should be cleared');
     });
 
     it('deletes bill via DELETE /api/bills/:id', async () => {

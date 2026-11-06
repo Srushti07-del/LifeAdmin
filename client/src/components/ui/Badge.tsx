@@ -30,7 +30,7 @@ export function Badge({
 
   const dotColors = {
     primary: 'bg-primary-600 dark:bg-primary-300',
-    secondary: 'bg-surface-500 dark:text-surface-300',
+    secondary: 'bg-surface-500 dark:bg-surface-300',
     success: 'bg-emerald-600 dark:bg-emerald-400',
     warning: 'bg-amber-600 dark:bg-amber-400',
     danger: 'bg-rose-600 dark:bg-rose-400',

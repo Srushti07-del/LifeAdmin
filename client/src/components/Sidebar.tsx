@@ -20,6 +20,7 @@ import {
   Menu,
   X,
 } from 'lucide-react';
+import NotificationCenter from './NotificationCenter';
 
 interface SidebarProps {
   collapsed: boolean;
@@ -91,7 +92,8 @@ export default function Sidebar({ collapsed, onToggleCollapse, onOpenAI }: Sideb
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1 sm:gap-2">
+          <NotificationCenter onNavigate={() => setMobileOpen(false)} />
           <button
             type="button"
             onClick={onOpenAI}
@@ -218,6 +220,16 @@ export default function Sidebar({ collapsed, onToggleCollapse, onOpenAI }: Sideb
 
         {/* Bottom Section */}
         <div className="p-3 border-t border-surface-200 dark:border-[#355966] space-y-1">
+          {!collapsed && (
+            <div className="px-1 pb-1">
+              <NotificationCenter />
+            </div>
+          )}
+          {collapsed && (
+            <div className="flex justify-center pb-1">
+              <NotificationCenter />
+            </div>
+          )}
           {/* Theme switch */}
           <button
             onClick={toggleTheme}

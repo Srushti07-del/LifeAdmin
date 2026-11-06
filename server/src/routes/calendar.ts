@@ -91,7 +91,7 @@ router.get('/events', async (req: Request, res: Response): Promise<void> => {
       ...bills.map((bill) => ({
         id: `bill-${bill._id}`,
         originalId: bill._id.toString(),
-        title: `Bill: ${bill.name} ($${bill.amount})`,
+        title: `Bill: ${bill.name} (${bill.currency || '₹'}${bill.amount})`,
         date: bill.dueDate,
         allDay: true,
         type: 'bill' as const,
@@ -99,7 +99,7 @@ router.get('/events', async (req: Request, res: Response): Promise<void> => {
         status: bill.paymentStatus === 'paid' ? 'paid' : 'due',
         category: bill.category || 'Utilities',
         color: bill.paymentStatus === 'paid' ? '#40c057' : '#fd7e14',
-        details: `Provider: ${bill.provider || ''} | Amount: $${bill.amount}`,
+        details: [bill.provider ? `Provider: ${bill.provider}` : null, `Amount: ${bill.currency || '₹'}${bill.amount}`].filter(Boolean).join(' | '),
       })),
       ...appointments.map((appt) => ({
         id: `appt-${appt._id}`,
@@ -107,6 +107,7 @@ router.get('/events', async (req: Request, res: Response): Promise<void> => {
         title: `Appt: ${appt.title}`,
         date: appt.date,
         startTime: appt.time,
+        endTime: appt.endTime,
         allDay: !appt.time,
         type: 'appointment' as const,
         source: 'appointment',

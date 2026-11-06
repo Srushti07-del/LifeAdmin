@@ -10,7 +10,7 @@ export type TaskStatus = 'todo' | 'in_progress' | 'completed';
 
 export type PaymentStatus = 'pending' | 'paid' | 'overdue' | 'upcoming';
 
-export type RecurrenceType = 'none' | 'daily' | 'weekly' | 'monthly' | 'yearly' | 'custom';
+export type RecurrenceType = 'none' | 'daily' | 'weekly' | 'monthly' | 'quarterly' | 'yearly' | 'custom';
 
 export interface RecurrenceConfig {
   type: RecurrenceType;

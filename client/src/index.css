@@ -185,6 +185,49 @@
   --shadow-modal:    0 24px 40px -8px rgba(0, 0, 0, 0.45);
 }
 
+/* ── Login: always light regardless of global .dark ── */
+.dark .login-force-light,
+.login-force-light {
+  color-scheme: light;
+  /* Light theme variables (override .dark inheritance) */
+  --bg-main: #F5F7F5;
+  --bg-surface: #FFFFFF;
+  --bg-surface-secondary: #E8F2F0;
+  --bg-surface-elevated: #FFFFFF;
+  --color-primary: #087E83;
+  --color-primary-deep: #066568;
+  --color-primary-soft: #DDF1EF;
+  --text-main: #1D3032;
+  --text-secondary: #526967;
+  --text-muted: #687F7D;
+  --border-subtle: #E1E9E6;
+  /* Tailwind theme token overrides used by utilities */
+  --color-primary-50:  #f0f8f7;
+  --color-primary-100: #ddf1ef;
+  --color-primary-200: #b8e3df;
+  --color-primary-300: #7ccfca;
+  --color-primary-400: #2fa8a8;
+  --color-primary-500: #087e83;
+  --color-primary-600: #066568;
+  --color-primary-700: #075e63;
+  --color-primary-800: #0a4d50;
+  --color-primary-900: #093738;
+  --color-surface-0:   #ffffff;
+  --color-surface-50:  #f5f7f5;
+  --color-surface-100: #e8f2f0;
+  --color-surface-200: #e1e9e6;
+  --color-surface-300: #c5d4d1;
+  --color-surface-400: #687f7d;
+  --color-surface-500: #526967;
+  --color-surface-600: #3d5250;
+  --color-surface-700: #2d4040;
+  --color-surface-800: #243535;
+  --color-surface-900: #1d3032;
+  --color-surface-950: #142324;
+  background-color: var(--bg-main);
+  color: var(--text-main);
+}
+
 /* ── Editorial Utility Classes ── */
 .font-editorial {
   font-family: 'DM Serif Display', Georgia, serif;

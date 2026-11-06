@@ -399,7 +399,7 @@ export default function DocumentsPage() {
               <h3 className="text-lg font-bold text-surface-900 dark:text-surface-100">Upload New Document</h3>
               <button
                 onClick={() => setShowUploadModal(false)}
-                className="p-1 rounded-lg text-surface-400 hover:text-surface-600"
+                className="p-1 rounded-lg text-surface-400 hover:text-surface-600 dark:hover:text-surface-200"
               >
                 <X size={20} />
               </button>
@@ -491,7 +491,8 @@ export default function DocumentsPage() {
               </h3>
               <button
                 onClick={() => setEntityModalDoc(null)}
-                className="p-1 rounded-lg text-surface-400 hover:text-surface-600"
+                className="p-1 rounded-lg text-surface-400 hover:text-surface-600 dark:hover:text-surface-200"
+                aria-label="Close"
               >
                 <X size={20} />
               </button>

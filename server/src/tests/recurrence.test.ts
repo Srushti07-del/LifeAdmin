@@ -56,6 +56,13 @@ describe('Recurrence Service Tests', () => {
       assert.equal(next.getUTCDate(), 28);
     });
 
+    it('calculates quarterly recurrence', () => {
+      const base = new Date(Date.UTC(2026, 0, 15));
+      const next = calculateNextOccurrence(base, { type: 'quarterly', interval: 1 });
+      assert.ok(next);
+      assert.equal(next.toISOString().split('T')[0], '2026-04-15');
+    });
+
     it('calculates yearly recurrence', () => {
       const base = new Date('2026-05-15T00:00:00Z');
       const next = calculateNextOccurrence(base, { type: 'yearly', interval: 1 });

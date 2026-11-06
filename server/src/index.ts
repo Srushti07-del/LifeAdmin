@@ -1,11 +1,13 @@
 import app from './app';
 import config from './config';
 import connectDB from './config/database';
+import { startReminderScheduler } from './services/reminderScheduler';
 
 // Start server
 const startServer = async () => {
   try {
     await connectDB();
+    startReminderScheduler();
     app.listen(config.port, () => {
       console.log(`\n🚀 LifeAdmin server running on http://localhost:${config.port}`);
       console.log(`📊 Environment: ${config.nodeEnv}`);

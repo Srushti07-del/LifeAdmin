@@ -1,529 +1,299 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useMemo } from 'react';
+import { useLocation } from 'react-router-dom';
 import api from '../lib/api';
 import {
-  Bot,
-  Send,
-  Sparkles,
-  Loader2,
-  FileSearch,
-  ListTodo,
-  Plus,
+  Bot, Send, Sparkles, Loader2, FileSearch, ListTodo, Plus, History,
+  AlertTriangle, CheckCircle2, CalendarClock, Receipt, Bell, FileText, X,
 } from 'lucide-react';
+import { Card } from '../components/ui/Card';
+import Badge from '../components/ui/Badge';
+import Modal from '../components/ui/Modal';
 
-interface SuggestedItem {
-  type: 'task' | 'bill' | 'appointment' | 'reminder';
-  title: string;
-  dueDate?: string;
-  priority?: string;
-  amount?: number;
-  provider?: string;
-  selected?: boolean;
+type ActionType = 'task' | 'bill' | 'appointment' | 'reminder';
+interface ProposedAction {
+  type: ActionType; title: string; description?: string; dueDate?: string; dueTime?: string;
+  date?: string; time?: string; amount?: number; currency?: string; priority?: string;
+  requiresConfirmation?: boolean; confirmationText?: string; status?: string;
 }
-
 interface Message {
-  role: 'user' | 'assistant';
-  content: string;
-  suggestions?: SuggestedItem[];
-  timestamp: string;
+  role: 'user' | 'assistant'; content: string; suggestions?: ProposedAction[];
+  proposedActions?: ProposedAction[]; timestamp: string; source?: string;
+}
+interface ConversationSummary { id: string; updatedAt: string; preview: string; }
+
+const SUGGESTED_PROMPTS = [
+  'What should I focus on today?',
+  'What deadlines are approaching this week?',
+  'What bills are overdue?',
+  'What do I have scheduled this week?',
+  'Create a reminder to review my bills tomorrow at 10:00',
+];
+
+function fmtTime(d?: string | Date) {
+  const dt = d ? new Date(d) : new Date();
+  return dt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+}
+function typeIcon(type?: string) {
+  if (type === 'bill') return Receipt;
+  if (type === 'appointment') return CalendarClock;
+  if (type === 'reminder') return Bell;
+  if (type === 'document') return FileText;
+  return ListTodo;
 }
 
 export default function AIAssistantPage() {
+  const location = useLocation();
   const [activeTab, setActiveTab] = useState<'chat' | 'plan' | 'detect'>('chat');
-  const [messages, setMessages] = useState<Message[]>([
-    {
-      role: 'assistant',
-      content:
-        'Hello! I am your LifeAdmin AI Assistant. I have live access to your tasks, upcoming bills, appointments, documents, and reminders. How can I help you organize your life today?',
-      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-    },
-  ]);
+  const [messages, setMessages] = useState<Message[]>([{
+    role: 'assistant',
+    content: "Hi - I'm LifeBuddy. I can answer using your real tasks, bills, appointments, reminders, and documents, help you prioritize, and prepare actions (with your confirmation before saving anything).",
+    timestamp: fmtTime(),
+  }]);
   const [inputMessage, setInputMessage] = useState('');
   const [loading, setLoading] = useState(false);
   const [conversationId, setConversationId] = useState<string | null>(null);
+  const [conversations, setConversations] = useState<ConversationSummary[]>([]);
+  const [historyOpen, setHistoryOpen] = useState(false);
+  const [historyLoading, setHistoryLoading] = useState(false);
+  const [confirmAction, setConfirmAction] = useState<ProposedAction | null>(null);
+  const [actionBusy, setActionBusy] = useState(false);
+  const [chatError, setChatError] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  // Planning Tab State
   const [planGoal, setPlanGoal] = useState('');
   const [planDate, setPlanDate] = useState('');
   const [planLoading, setPlanLoading] = useState(false);
-  const [planResult, setPlanResult] = useState<{ plan: string; tasks: any[] } | null>(null);
+  const [planResult, setPlanResult] = useState<{ plan: string; tasks: ProposedAction[]; source?: string } | null>(null);
 
-  // Responsibility Detection Tab State
   const [detectText, setDetectText] = useState('');
   const [detectLoading, setDetectLoading] = useState(false);
-  const [detectResult, setDetectResult] = useState<{ summary: string; detectedItems: any[] } | null>(null);
+  const [detectResult, setDetectResult] = useState<{ summary: string; detectedItems: ProposedAction[]; source?: string } | null>(null);
 
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  };
-
+  useEffect(() => { messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages, loading]);
   useEffect(() => {
-    scrollToBottom();
-  }, [messages]);
+    const prompt = (location.state as any)?.prompt;
+    if (typeof prompt === 'string' && prompt.trim()) {
+      handleSendMessage(prompt);
+      window.history.replaceState({}, document.title);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const loadConversations = async () => {
+    setHistoryLoading(true);
+    try { const res = await api.get('/ai/conversations'); setConversations(res.data.conversations || []); }
+    catch { /* history optional */ }
+    finally { setHistoryLoading(false); }
+  };
+  const openConversation = async (id: string) => {
+    setHistoryLoading(true);
+    try {
+      const res = await api.get(`/ai/conversations/${id}`);
+      const c = res.data.conversation;
+      setConversationId(c.id);
+      setMessages((c.messages || []).map((m: any) => ({ role: m.role, content: m.content, timestamp: fmtTime(m.timestamp) })));
+      setHistoryOpen(false); setChatError('');
+    } catch (e: any) { setChatError(e?.response?.data?.message || 'Failed to load conversation.'); }
+    finally { setHistoryLoading(false); }
+  };
+  const startNewChat = () => {
+    setConversationId(null); setChatError('');
+    setMessages([{ role: 'assistant', content: "Starting fresh. Ask about your schedule, overdue items, bills, or ask me to prepare a reminder/task/appointment (I'll confirm before saving).", timestamp: fmtTime() }]);
+  };
 
   const handleSendMessage = async (msgText?: string) => {
-    const textToSend = msgText || inputMessage;
-    if (!textToSend.trim() || loading) return;
-
-    const userMsg: Message = {
-      role: 'user',
-      content: textToSend,
-      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-    };
-
-    setMessages((prev) => [...prev, userMsg]);
-    setInputMessage('');
-    setLoading(true);
-
+    const textToSend = (msgText ?? inputMessage).trim();
+    if (!textToSend || loading) return;
+    setMessages((prev) => [...prev, { role: 'user', content: textToSend, timestamp: fmtTime() }]);
+    setInputMessage(''); setLoading(true); setChatError('');
     try {
-      const res = await api.post('/ai/chat', {
-        message: textToSend,
-        conversationId,
-      });
-
-      const assistantMsg: Message = {
-        role: 'assistant',
-        content: res.data.reply,
-        suggestions: res.data.suggestions?.map((s: any) => ({ ...s, selected: true })),
-        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-      };
-
-      setMessages((prev) => [...prev, assistantMsg]);
+      const res = await api.post('/ai/chat', { message: textToSend, conversationId });
+      const proposed = (res.data.proposedActions || res.data.suggestions || []).map((s: any) => ({ ...s, currency: s.currency || '₹', requiresConfirmation: true }));
+      setMessages((prev) => [...prev, { role: 'assistant', content: res.data.reply || 'I could not generate a response right now.', proposedActions: proposed, suggestions: proposed, timestamp: fmtTime(), source: res.data.source }]);
       if (res.data.conversationId) setConversationId(res.data.conversationId);
-    } catch (err) {
-      console.error('AI chat error:', err);
-      setMessages((prev) => [
-        ...prev,
-        {
-          role: 'assistant',
-          content: 'Sorry, I encountered an error checking your LifeAdmin data. Please try again.',
-          timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-        },
-      ]);
-    } finally {
-      setLoading(false);
-    }
+    } catch (err: any) {
+      setChatError(err?.response?.data?.message || 'LifeBuddy is unavailable right now. Please try again.');
+      setMessages((prev) => [...prev, { role: 'assistant', content: 'I could not reach the assistant service just now. Your data is still safe; please try again in a moment.', timestamp: fmtTime() }]);
+    } finally { setLoading(false); }
   };
 
-  const handleAcceptSuggestions = async (items: SuggestedItem[]) => {
+  const executeAction = async (action: ProposedAction) => {
+    setActionBusy(true); setChatError('');
     try {
-      await api.post('/ai/accept-suggestions', { items });
-      alert(`Added ${items.length} items to your LifeAdmin workspace!`);
-    } catch (err) {
-      console.error('Accept suggestions error:', err);
-      alert('Failed to save suggested items.');
-    }
+      const res = await api.post('/ai/actions/execute', { confirmed: true, action });
+      setMessages((prev) => [...prev, { role: 'assistant', content: `Done - ${res.data.message || `created ${action.type}`}.`, timestamp: fmtTime() }]);
+      setConfirmAction(null);
+    } catch (err: any) { setChatError(err?.response?.data?.message || 'Failed to create the item. No data was changed.'); }
+    finally { setActionBusy(false); }
   };
 
   const handleGeneratePlan = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!planGoal.trim()) return;
-
-    setPlanLoading(true);
-    try {
-      const res = await api.post('/ai/plan', {
-        goal: planGoal,
-        targetDate: planDate || undefined,
-      });
-      setPlanResult(res.data);
-    } catch (err) {
-      console.error('Planning error:', err);
-      alert('Failed to generate plan.');
-    } finally {
-      setPlanLoading(false);
-    }
+    e.preventDefault(); if (!planGoal.trim()) return;
+    setPlanLoading(true); setChatError('');
+    try { const res = await api.post('/ai/plan', { goal: planGoal, targetDate: planDate || undefined }); setPlanResult({ ...res.data, tasks: (res.data.tasks || []).map((t: any) => ({ ...t, requiresConfirmation: true })) }); }
+    catch (err: any) { setChatError(err?.response?.data?.message || 'Failed to generate plan.'); }
+    finally { setPlanLoading(false); }
   };
-
   const handleDetectResponsibilities = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!detectText.trim()) return;
-
-    setDetectLoading(true);
-    try {
-      const res = await api.post('/ai/detect', { text: detectText });
-      setDetectResult(res.data);
-    } catch (err) {
-      console.error('Detection error:', err);
-      alert('Failed to detect responsibilities.');
-    } finally {
-      setDetectLoading(false);
-    }
+    e.preventDefault(); if (!detectText.trim()) return;
+    setDetectLoading(true); setChatError('');
+    try { const res = await api.post('/ai/detect', { text: detectText }); setDetectResult({ ...res.data, detectedItems: (res.data.detectedItems || []).map((t: any) => ({ ...t, requiresConfirmation: true })) }); }
+    catch (err: any) { setChatError(err?.response?.data?.message || 'Failed to detect items.'); }
+    finally { setDetectLoading(false); }
+  };
+  const acceptSuggestionsBulk = async (items: ProposedAction[]) => {
+    if (!items.length) return;
+    setActionBusy(true); setChatError('');
+    try { const res = await api.post('/ai/accept-suggestions', { confirmed: true, items }); setMessages((prev) => [...prev, { role: 'assistant', content: res.data.message || `Created ${items.length} item(s).`, timestamp: fmtTime() }]); }
+    catch (err: any) { setChatError(err?.response?.data?.message || 'Failed to create suggested items.'); }
+    finally { setActionBusy(false); }
   };
 
-  const quickPrompts = [
-    'What do I need to do this week?',
-    'What bills are due soon?',
-    'Summarize my life admin status',
-    'Help me plan exam preparation',
-  ];
+  const showEmptyPrompts = useMemo(() => messages.length <= 1 && !loading, [messages.length, loading]);
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+    <div className="space-y-5 pb-8 animate-fade-in">
+      <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 pb-3 border-b border-surface-100 dark:border-[#355966]">
         <div>
-          <h1 className="text-2xl font-bold text-surface-900 dark:text-surface-100 flex items-center gap-2.5">
-            <span className="w-8 h-8 rounded-xl bg-gradient-to-br from-primary-500 to-indigo-600 flex items-center justify-center text-white">
-              <Bot size={20} />
-            </span>
-            AI Copilot
+          <h1 className="text-3xl font-bold font-editorial text-surface-900 dark:text-surface-100 tracking-tight flex items-center gap-2.5">
+            <span className="w-9 h-9 rounded-xl bg-gradient-to-br from-primary-500 to-indigo-600 flex items-center justify-center text-white shadow-xs"><Bot size={18} /></span>
+            LifeBuddy Assistant
           </h1>
-          <p className="text-surface-500 text-sm mt-1">
-            Query your responsibilities in natural language, generate action plans, and extract tasks from text.
-          </p>
+          <p className="text-xs text-surface-500 dark:text-surface-400 mt-1">Answers use your authenticated LifeAdmin data. Actions require confirmation before saving.</p>
         </div>
-
-        {/* Tab switchers */}
-        <div className="flex items-center bg-surface-100 dark:bg-surface-800 p-1 rounded-xl">
-          <button
-            onClick={() => setActiveTab('chat')}
-            className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
-              activeTab === 'chat'
-                ? 'bg-white dark:bg-[#204B5A] text-primary-600 dark:text-primary-400 shadow-sm'
-                : 'text-surface-600 dark:text-surface-400 hover:text-surface-900'
-            }`}
-          >
-            Chat Copilot
-          </button>
-          <button
-            onClick={() => setActiveTab('plan')}
-            className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
-              activeTab === 'plan'
-                ? 'bg-white dark:bg-[#204B5A] text-primary-600 dark:text-primary-400 shadow-sm'
-                : 'text-surface-600 dark:text-surface-400 hover:text-surface-900'
-            }`}
-          >
-            Planning Assistant
-          </button>
-          <button
-            onClick={() => setActiveTab('detect')}
-            className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
-              activeTab === 'detect'
-                ? 'bg-white dark:bg-[#204B5A] text-primary-600 dark:text-primary-400 shadow-sm'
-                : 'text-surface-600 dark:text-surface-400 hover:text-surface-900'
-            }`}
-          >
-            Text Extractor
-          </button>
+        <div className="flex items-center gap-2 flex-wrap">
+          <button type="button" onClick={() => { setHistoryOpen(true); loadConversations(); }} className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl border border-surface-200 dark:border-surface-700 text-xs font-medium text-surface-700 dark:text-surface-200 hover:bg-surface-50 dark:hover:bg-surface-800"><History size={14} /> History</button>
+          <button type="button" onClick={startNewChat} className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl border border-surface-200 dark:border-surface-700 text-xs font-medium text-surface-700 dark:text-surface-200 hover:bg-surface-50 dark:hover:bg-surface-800"><Plus size={14} /> New chat</button>
         </div>
       </div>
 
-      {/* TAB 1: Chat Assistant */}
+      <div className="flex items-center bg-surface-100 dark:bg-surface-800 p-1 rounded-xl w-full sm:w-fit overflow-x-auto">
+        {([
+          ['chat', 'Chat', Bot], ['plan', 'Planner', ListTodo], ['detect', 'Text Extractor', FileSearch],
+        ] as const).map(([id, label, Icon]) => (
+          <button key={id} onClick={() => setActiveTab(id)} className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap transition-all ${activeTab === id ? 'bg-white dark:bg-[#204B5A] text-primary-700 dark:text-primary-300 shadow-sm' : 'text-surface-600 dark:text-surface-400 hover:text-surface-900 dark:hover:text-surface-100'}`}>
+            <Icon size={14} /> {label}
+          </button>
+        ))}
+      </div>
+
+      {chatError && (
+        <div className="flex items-start gap-2 rounded-2xl border border-amber-200 dark:border-amber-700/50 bg-amber-50 dark:bg-amber-950/20 px-4 py-3 text-xs text-amber-900 dark:text-amber-100">
+          <AlertTriangle size={16} className="mt-0.5 shrink-0" /><div className="flex-1">{chatError}</div>
+          <button type="button" onClick={() => setChatError('')} className="p-1 rounded hover:bg-amber-100 dark:hover:bg-amber-900/30" aria-label="Dismiss error"><X size={14} /></button>
+        </div>
+      )}
+
       {activeTab === 'chat' && (
-        <div className="bg-white dark:bg-[#204B5A] rounded-2xl border border-surface-200 dark:border-[#355966] shadow-sm flex flex-col h-[650px] overflow-hidden">
-          {/* Chat message list */}
-          <div className="flex-1 overflow-y-auto p-6 space-y-5">
-            {messages.map((msg, index) => (
-              <div
-                key={index}
-                className={`flex gap-3 max-w-2xl ${
-                  msg.role === 'user' ? 'ml-auto flex-row-reverse' : 'mr-auto'
-                }`}
-              >
-                <div
-                  className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 text-white text-xs font-semibold ${
-                    msg.role === 'user'
-                      ? 'bg-surface-800 dark:bg-surface-700'
-                      : 'bg-gradient-to-br from-primary-500 to-indigo-600'
-                  }`}
-                >
-                  {msg.role === 'user' ? 'You' : <Bot size={16} />}
+        <Card className="p-0 overflow-hidden flex flex-col h-[min(72vh,680px)]" hover={false}>
+          <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4">
+            {showEmptyPrompts && (
+              <div className="rounded-2xl border border-dashed border-surface-200 dark:border-[#355966] bg-surface-50/60 dark:bg-surface-900/20 p-4">
+                <p className="text-xs font-semibold text-surface-800 dark:text-surface-100 mb-2">Try asking</p>
+                <div className="flex flex-wrap gap-2">
+                  {SUGGESTED_PROMPTS.map((p) => (
+                    <button key={p} type="button" onClick={() => handleSendMessage(p)} className="px-3 py-1.5 rounded-full text-[11px] font-medium bg-white dark:bg-[#204B5A] border border-surface-200 dark:border-surface-700 text-surface-700 dark:text-surface-200 hover:border-primary-500 transition-colors text-left">{p}</button>
+                  ))}
                 </div>
-
-                <div className="space-y-3 min-w-0">
-                  <div
-                    className={`p-4 rounded-2xl text-sm leading-relaxed ${
-                      msg.role === 'user'
-                        ? 'bg-primary-600 text-white rounded-tr-none'
-                        : 'bg-surface-50 dark:bg-surface-800/80 text-surface-900 dark:text-surface-100 rounded-tl-none border border-surface-200/60 dark:border-surface-700/60 whitespace-pre-wrap'
-                    }`}
-                  >
-                    {msg.content}
-                  </div>
-
-                  {/* Render suggestions if any */}
-                  {msg.suggestions && msg.suggestions.length > 0 && (
-                    <div className="bg-surface-50 dark:bg-surface-800 rounded-xl p-3.5 border border-surface-200 dark:border-surface-700 space-y-2">
-                      <div className="flex items-center justify-between text-xs font-semibold text-primary-600 dark:text-primary-400">
-                        <span className="inline-flex items-center gap-1.5">
-                          <Sparkles size={13} />
-                          Recommended Items to Add
-                        </span>
-                      </div>
-
-                      <div className="space-y-1.5">
-                        {msg.suggestions.map((item, idx) => (
-                          <div
-                            key={idx}
-                            className="flex items-center justify-between p-2 rounded-lg bg-white dark:bg-[#204B5A] border border-surface-200 dark:border-surface-700 text-xs"
-                          >
-                            <div className="min-w-0 flex-1 pr-2">
-                              <span className="font-medium text-surface-900 dark:text-surface-100">
-                                {item.title}
-                              </span>
-                              <div className="text-surface-400 text-[11px] mt-0.5">
-                                {item.type} {item.dueDate && `• Due: ${item.dueDate}`}{' '}
-                                {item.priority && `• Priority: ${item.priority}`}
+              </div>
+            )}
+            {messages.map((msg, index) => {
+              const actions = msg.proposedActions || msg.suggestions || [];
+              return (
+                <div key={index} className={`flex gap-3 ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                  {msg.role === 'assistant' && <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-primary-500 to-indigo-600 flex items-center justify-center text-white shrink-0 mt-0.5"><Bot size={15} /></div>}
+                  <div className={`max-w-[92%] sm:max-w-[78%] space-y-2 ${msg.role === 'user' ? 'items-end' : ''}`}>
+                    <div className={`px-4 py-3 rounded-2xl text-sm leading-relaxed whitespace-pre-wrap ${msg.role === 'user' ? 'bg-primary-600 text-white rounded-br-sm' : 'bg-surface-50 dark:bg-surface-800/70 text-surface-900 dark:text-surface-100 rounded-bl-sm border border-surface-200/70 dark:border-surface-700/60'}`}>{msg.content}</div>
+                    {actions.length > 0 && (
+                      <div className="rounded-2xl border border-surface-200 dark:border-surface-700 bg-white dark:bg-[#204B5A] p-3 space-y-2">
+                        <div className="flex items-center gap-1.5 text-[11px] font-semibold text-primary-700 dark:text-primary-300"><Sparkles size={13} /> Proposed actions (confirmation required)</div>
+                        {actions.map((item, idx) => {
+                          const Icon = typeIcon(item.type);
+                          return (
+                            <div key={idx} className="flex items-start justify-between gap-2 p-2.5 rounded-xl bg-surface-50 dark:bg-surface-800/60 border border-surface-100 dark:border-surface-700">
+                              <div className="min-w-0">
+                                <div className="flex items-center gap-1.5"><Icon size={13} className="text-surface-500 shrink-0" /><span className="text-xs font-semibold text-surface-900 dark:text-surface-100">{item.title}</span></div>
+                                <p className="text-[11px] text-surface-500 dark:text-surface-400 mt-0.5">{item.type}{item.dueDate ? ` · ${item.dueDate}` : item.date ? ` · ${item.date}` : ''}{item.dueTime ? ` ${item.dueTime}` : item.time ? ` ${item.time}` : ''}{item.amount != null ? ` · ${item.currency || '₹'}${item.amount}` : ''}</p>
                               </div>
+                              <button type="button" onClick={() => setConfirmAction(item)} className="shrink-0 px-2.5 py-1.5 rounded-lg bg-primary-600 hover:bg-primary-700 text-white text-[11px] font-semibold">Review & confirm</button>
                             </div>
-                          </div>
-                        ))}
+                          );
+                        })}
+                        {actions.length > 1 && <p className="text-[10px] text-surface-500 dark:text-surface-400">To keep actions safe, confirm each item individually.</p>}
                       </div>
-
-                      <button
-                        onClick={() => handleAcceptSuggestions(msg.suggestions!)}
-                        className="w-full mt-2 py-2 rounded-lg bg-primary-600 hover:bg-primary-700 text-white text-xs font-semibold transition-colors flex items-center justify-center gap-1.5"
-                      >
-                        <Plus size={14} />
-                        <span>Add All Suggested Items to Workspace</span>
-                      </button>
-                    </div>
-                  )}
-
-                  <span className="text-[10px] text-surface-400 px-1">{msg.timestamp}</span>
+                    )}
+                    <span className="block text-[10px] text-surface-400 px-1">{msg.timestamp}{msg.source === 'fallback' ? ' · local summary' : ''}</span>
+                  </div>
                 </div>
-              </div>
-            ))}
-
+              );
+            })}
             {loading && (
-              <div className="flex gap-3 max-w-2xl mr-auto">
-                <div className="w-8 h-8 rounded-full bg-gradient-to-br from-primary-500 to-indigo-600 flex items-center justify-center text-white">
-                  <Bot size={16} />
-                </div>
-                <div className="p-4 rounded-2xl bg-surface-50 dark:bg-surface-800 rounded-tl-none border border-surface-200 dark:border-surface-700 flex items-center gap-2 text-surface-500 text-sm">
-                  <Loader2 size={16} className="animate-spin text-primary-500" />
-                  <span>Thinking & querying your LifeAdmin data...</span>
-                </div>
-              </div>
+              <div className="flex gap-3"><div className="w-8 h-8 rounded-xl bg-gradient-to-br from-primary-500 to-indigo-600 flex items-center justify-center text-white shrink-0"><Bot size={15} /></div><div className="px-4 py-3 rounded-2xl bg-surface-50 dark:bg-surface-800/70 border border-surface-200 dark:border-surface-700 text-xs text-surface-600 dark:text-surface-300 inline-flex items-center gap-2"><Loader2 size={14} className="animate-spin text-primary-500" /> Checking your LifeAdmin data...</div></div>
             )}
             <div ref={messagesEndRef} />
           </div>
-
-          {/* Quick Prompts */}
-          <div className="px-6 py-2 border-t border-surface-100 dark:border-[#355966] bg-surface-50/50 dark:bg-surface-800/30 flex items-center gap-2 overflow-x-auto">
-            <span className="text-[11px] text-surface-400 font-medium whitespace-nowrap">Suggested:</span>
-            {quickPrompts.map((prompt, i) => (
-              <button
-                key={i}
-                onClick={() => handleSendMessage(prompt)}
-                className="px-3 py-1 rounded-full text-xs font-medium bg-white dark:bg-[#204B5A] border border-surface-200 dark:border-surface-700 text-surface-600 dark:text-surface-300 hover:border-primary-500 whitespace-nowrap transition-colors"
-              >
-                {prompt}
-              </button>
-            ))}
+          <div className="p-3 sm:p-4 border-t border-surface-100 dark:border-[#355966] bg-white dark:bg-[#204B5A]">
+            <form onSubmit={(e) => { e.preventDefault(); handleSendMessage(); }} className="flex gap-2">
+              <input type="text" value={inputMessage} onChange={(e) => setInputMessage(e.target.value)} placeholder="Ask about tasks, bills, appointments, reminders, documents..." className="flex-1 min-w-0 px-4 py-2.5 rounded-xl bg-surface-50 dark:bg-surface-800 border border-surface-200 dark:border-surface-700 text-sm text-surface-900 dark:text-surface-100 placeholder:text-surface-400 focus:outline-none focus:ring-2 focus:ring-primary-500" aria-label="Message LifeBuddy" />
+              <button type="submit" disabled={loading || !inputMessage.trim()} className="px-3.5 py-2.5 rounded-xl bg-primary-600 hover:bg-primary-700 text-white disabled:opacity-40 transition-colors" aria-label="Send message"><Send size={18} /></button>
+            </form>
           </div>
-
-          {/* Input Box */}
-          <div className="p-4 border-t border-surface-200 dark:border-[#355966] bg-white dark:bg-[#204B5A] flex items-center gap-2">
-            <input
-              type="text"
-              value={inputMessage}
-              onChange={(e) => setInputMessage(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()}
-              placeholder="Ask anything about your tasks, bills, schedule, or life admin..."
-              className="flex-1 px-4 py-2.5 rounded-xl bg-surface-50 dark:bg-surface-800 border border-surface-200 dark:border-surface-700 text-sm text-surface-900 dark:text-surface-100 focus:outline-none focus:ring-2 focus:ring-primary-500"
-            />
-            <button
-              onClick={() => handleSendMessage()}
-              disabled={loading || !inputMessage.trim()}
-              className="p-2.5 rounded-xl bg-primary-600 hover:bg-primary-700 text-white disabled:opacity-40 transition-colors"
-            >
-              <Send size={18} />
-            </button>
-          </div>
-        </div>
+        </Card>
       )}
 
-      {/* TAB 2: Planning Assistant */}
       {activeTab === 'plan' && (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <div className="bg-white dark:bg-[#204B5A] rounded-2xl border border-surface-200 dark:border-[#355966] p-6">
-            <h3 className="text-lg font-bold text-surface-900 dark:text-surface-100 flex items-center gap-2 mb-2">
-              <ListTodo size={20} className="text-primary-500" />
-              Goal & Milestone Breakdown
-            </h3>
-            <p className="text-surface-500 text-xs mb-5">
-              Enter any upcoming goal, exam, assignment set, or move. The assistant will structure a paced step-by-step task breakdown.
-            </p>
-
-            <form onSubmit={handleGeneratePlan} className="space-y-4">
-              <div>
-                <label className="block text-xs font-semibold text-surface-700 dark:text-surface-300 mb-1">
-                  What are you preparing for?
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={planGoal}
-                  onChange={(e) => setPlanGoal(e.target.value)}
-                  placeholder="e.g. Final Exams in Computer Science, Apartment Move-out, Tax Filing"
-                  className="w-full px-3.5 py-2.5 rounded-xl bg-surface-50 dark:bg-surface-800 border border-surface-200 dark:border-surface-700 text-sm text-surface-900 dark:text-surface-100"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-surface-700 dark:text-surface-300 mb-1">
-                  Target Deadline or Event Date
-                </label>
-                <input
-                  type="date"
-                  value={planDate}
-                  onChange={(e) => setPlanDate(e.target.value)}
-                  className="w-full px-3.5 py-2.5 rounded-xl bg-surface-50 dark:bg-surface-800 border border-surface-200 dark:border-surface-700 text-sm text-surface-900 dark:text-surface-100"
-                />
-              </div>
-
-              <button
-                type="submit"
-                disabled={planLoading || !planGoal.trim()}
-                className="w-full py-2.5 rounded-xl bg-primary-600 hover:bg-primary-700 text-white font-medium text-sm transition-colors flex items-center justify-center gap-2"
-              >
-                {planLoading ? <Loader2 size={16} className="animate-spin" /> : <Sparkles size={16} />}
-                <span>{planLoading ? 'Generating Roadmap...' : 'Generate Action Roadmap'}</span>
-              </button>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+          <Card hover={false}><h3 className="text-base font-bold text-surface-900 dark:text-surface-100 flex items-center gap-2 mb-1"><ListTodo size={18} className="text-primary-500" /> Goal planner</h3><p className="text-xs text-surface-500 dark:text-surface-400 mb-4">Generates suggested tasks only. You confirm before anything is created.</p>
+            <form onSubmit={handleGeneratePlan} className="space-y-3">
+              <label className="block"><span className="block text-xs font-semibold text-surface-700 dark:text-surface-300 mb-1">Goal</span><input type="text" required value={planGoal} onChange={(e) => setPlanGoal(e.target.value)} placeholder="e.g. Prepare for final exams" className="w-full px-3.5 py-2.5 rounded-xl bg-surface-50 dark:bg-surface-800 border border-surface-200 dark:border-surface-700 text-sm text-surface-900 dark:text-surface-100" /></label>
+              <label className="block"><span className="block text-xs font-semibold text-surface-700 dark:text-surface-300 mb-1">Target date (optional)</span><input type="date" value={planDate} onChange={(e) => setPlanDate(e.target.value)} className="w-full px-3.5 py-2.5 rounded-xl bg-surface-50 dark:bg-surface-800 border border-surface-200 dark:border-surface-700 text-sm text-surface-900 dark:text-surface-100" /></label>
+              <button type="submit" disabled={planLoading || !planGoal.trim()} className="w-full py-2.5 rounded-xl bg-primary-600 hover:bg-primary-700 text-white font-medium text-sm transition-colors flex items-center justify-center gap-2 disabled:opacity-50">{planLoading ? <Loader2 size={16} className="animate-spin" /> : <Sparkles size={16} />} {planLoading ? 'Generating...' : 'Generate plan'}</button>
             </form>
-          </div>
-
-          <div className="bg-white dark:bg-[#204B5A] rounded-2xl border border-surface-200 dark:border-[#355966] p-6 flex flex-col">
-            <h3 className="text-base font-bold text-surface-900 dark:text-surface-100 mb-2">
-              Generated Action Plan
-            </h3>
-            {planResult ? (
-              <div className="space-y-4 flex-1 flex flex-col justify-between">
-                <div>
-                  <p className="text-xs text-primary-600 dark:text-primary-400 font-semibold mb-3">
-                    {planResult.plan}
-                  </p>
-                  <div className="space-y-2">
-                    {planResult.tasks.map((task, i) => (
-                      <div
-                        key={i}
-                        className="p-3 rounded-xl bg-surface-50 dark:bg-surface-800 border border-surface-200 dark:border-surface-700 flex items-start justify-between gap-3 text-xs"
-                      >
-                        <div>
-                          <p className="font-semibold text-surface-900 dark:text-surface-100">
-                            {task.title}
-                          </p>
-                          <p className="text-surface-400 mt-1">
-                            Due: {task.dueDate} • Priority: {task.priority}
-                          </p>
-                        </div>
-                        <span className="text-[10px] uppercase font-bold text-primary-600 bg-primary-50 dark:bg-primary-900/30 px-2 py-0.5 rounded">
-                          Step {i + 1}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                <button
-                  onClick={() =>
-                    handleAcceptSuggestions(
-                      planResult.tasks.map((t) => ({ ...t, type: 'task' as const }))
-                    )
-                  }
-                  className="w-full mt-4 py-2.5 rounded-xl bg-primary-600 hover:bg-primary-700 text-white text-xs font-semibold transition-colors flex items-center justify-center gap-2"
-                >
-                  <Plus size={16} />
-                  <span>Add All Tasks to LifeAdmin</span>
-                </button>
-              </div>
-            ) : (
-              <div className="flex-1 flex flex-col items-center justify-center text-center p-8 text-surface-400">
-                <ListTodo size={36} className="mb-2 opacity-50" />
-                <p className="text-sm">Submit your goal on the left to see your personalized schedule breakdown.</p>
-              </div>
-            )}
-          </div>
+          </Card>
+          <Card hover={false} className="flex flex-col"><h3 className="text-base font-bold text-surface-900 dark:text-surface-100 mb-2">Suggested plan</h3>
+            {planResult ? (<div className="space-y-3 flex-1"><p className="text-xs text-surface-600 dark:text-surface-300">{planResult.plan} {planResult.source === 'template' && <Badge variant="neutral" size="sm">template</Badge>}</p><div className="space-y-2">{planResult.tasks.map((t, i) => (<div key={i} className="p-3 rounded-xl bg-surface-50 dark:bg-surface-800 border border-surface-200 dark:border-surface-700 text-xs"><p className="font-semibold text-surface-900 dark:text-surface-100">{t.title}</p><p className="text-surface-500 mt-0.5">{t.dueDate ? `Due ${t.dueDate}` : 'No date'} · {t.priority || 'medium'}</p><button type="button" onClick={() => setConfirmAction(t)} className="mt-2 px-2.5 py-1.5 rounded-lg bg-primary-600 hover:bg-primary-700 text-white text-[11px] font-semibold">Review & confirm</button></div>))}</div>{planResult.tasks.length > 1 && <button type="button" disabled={actionBusy} onClick={() => acceptSuggestionsBulk(planResult.tasks)} className="w-full py-2 rounded-xl border border-primary-300 dark:border-primary-700 text-primary-700 dark:text-primary-300 text-xs font-semibold hover:bg-primary-50 dark:hover:bg-primary-950/30 disabled:opacity-50">{actionBusy ? 'Creating...' : 'Confirm & add all tasks'}</button>}</div>) : <div className="flex-1 flex items-center justify-center text-center text-xs text-surface-500 py-10"><div><ListTodo size={30} className="mx-auto mb-2 opacity-40" />Submit a goal to see suggested steps.</div></div>}
+          </Card>
         </div>
       )}
 
-      {/* TAB 3: Text Responsibility Detection */}
       {activeTab === 'detect' && (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <div className="bg-white dark:bg-[#204B5A] rounded-2xl border border-surface-200 dark:border-[#355966] p-6">
-            <h3 className="text-lg font-bold text-surface-900 dark:text-surface-100 flex items-center gap-2 mb-2">
-              <FileSearch size={20} className="text-primary-500" />
-              Syllabus & Email Extractor
-            </h3>
-            <p className="text-surface-500 text-xs mb-5">
-              Paste email text, syllabus deadlines, lease clauses, or notes. The AI will detect actionable responsibilities, amounts, and dates.
-            </p>
-
-            <form onSubmit={handleDetectResponsibilities} className="space-y-4">
-              <div>
-                <label className="block text-xs font-semibold text-surface-700 dark:text-surface-300 mb-1">
-                  Raw Text or Notes
-                </label>
-                <textarea
-                  rows={8}
-                  required
-                  value={detectText}
-                  onChange={(e) => setDetectText(e.target.value)}
-                  placeholder="Paste syllabus snippet, email from landlord, doctor reminder, or project requirements..."
-                  className="w-full px-3.5 py-2.5 rounded-xl bg-surface-50 dark:bg-surface-800 border border-surface-200 dark:border-surface-700 text-sm text-surface-900 dark:text-surface-100"
-                />
-              </div>
-
-              <button
-                type="submit"
-                disabled={detectLoading || !detectText.trim()}
-                className="w-full py-2.5 rounded-xl bg-primary-600 hover:bg-primary-700 text-white font-medium text-sm transition-colors flex items-center justify-center gap-2"
-              >
-                {detectLoading ? <Loader2 size={16} className="animate-spin" /> : <Sparkles size={16} />}
-                <span>{detectLoading ? 'Detecting...' : 'Detect Actionable Items'}</span>
-              </button>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+          <Card hover={false}><h3 className="text-base font-bold text-surface-900 dark:text-surface-100 flex items-center gap-2 mb-1"><FileSearch size={18} className="text-primary-500" /> Text extractor</h3><p className="text-xs text-surface-500 dark:text-surface-400 mb-4">Paste notes/email/syllabus text. Detected items are suggestions only and must be confirmed before saving.</p>
+            <form onSubmit={handleDetectResponsibilities} className="space-y-3">
+              <label className="block"><span className="block text-xs font-semibold text-surface-700 dark:text-surface-300 mb-1">Text to analyze</span><textarea rows={9} required value={detectText} onChange={(e) => setDetectText(e.target.value)} placeholder="Paste text with dates, deadlines, or amounts..." className="w-full px-3.5 py-2.5 rounded-xl bg-surface-50 dark:bg-surface-800 border border-surface-200 dark:border-surface-700 text-sm text-surface-900 dark:text-surface-100 resize-y" /></label>
+              <button type="submit" disabled={detectLoading || !detectText.trim()} className="w-full py-2.5 rounded-xl bg-primary-600 hover:bg-primary-700 text-white font-medium text-sm transition-colors flex items-center justify-center gap-2 disabled:opacity-50">{detectLoading ? <Loader2 size={16} className="animate-spin" /> : <Sparkles size={16} />} {detectLoading ? 'Analyzing...' : 'Detect items'}</button>
             </form>
-          </div>
-
-          <div className="bg-white dark:bg-[#204B5A] rounded-2xl border border-surface-200 dark:border-[#355966] p-6 flex flex-col">
-            <h3 className="text-base font-bold text-surface-900 dark:text-surface-100 mb-2">
-              Detected Action Items
-            </h3>
-            {detectResult ? (
-              <div className="space-y-4 flex-1 flex flex-col justify-between">
-                <div>
-                  <p className="text-xs text-primary-600 dark:text-primary-400 font-semibold mb-3">
-                    {detectResult.summary}
-                  </p>
-                  <div className="space-y-2">
-                    {detectResult.detectedItems.map((item, i) => (
-                      <div
-                        key={i}
-                        className="p-3 rounded-xl bg-surface-50 dark:bg-surface-800 border border-surface-200 dark:border-surface-700 flex items-start justify-between gap-3 text-xs"
-                      >
-                        <div>
-                          <p className="font-semibold text-surface-900 dark:text-surface-100">
-                            {item.title}
-                          </p>
-                          <p className="text-surface-400 mt-1">
-                            Type: <span className="uppercase font-medium">{item.type}</span>{' '}
-                            {item.dueDate && `• Due: ${item.dueDate}`}{' '}
-                            {item.amount && `• Amount: $${item.amount}`}
-                          </p>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                <button
-                  onClick={() => handleAcceptSuggestions(detectResult.detectedItems)}
-                  className="w-full mt-4 py-2.5 rounded-xl bg-primary-600 hover:bg-primary-700 text-white text-xs font-semibold transition-colors flex items-center justify-center gap-2"
-                >
-                  <Plus size={16} />
-                  <span>Accept & Save All Detected Items</span>
-                </button>
-              </div>
-            ) : (
-              <div className="flex-1 flex flex-col items-center justify-center text-center p-8 text-surface-400">
-                <FileSearch size={36} className="mb-2 opacity-50" />
-                <p className="text-sm">Paste any text snippet on the left to extract structured responsibilities.</p>
-              </div>
-            )}
-          </div>
+          </Card>
+          <Card hover={false} className="flex flex-col"><h3 className="text-base font-bold text-surface-900 dark:text-surface-100 mb-2">Detected suggestions</h3>
+            {detectResult ? (<div className="space-y-3 flex-1"><p className="text-xs text-surface-600 dark:text-surface-300">{detectResult.summary}</p><div className="space-y-2">{detectResult.detectedItems.map((item, i) => (<div key={i} className="p-3 rounded-xl bg-surface-50 dark:bg-surface-800 border border-surface-200 dark:border-surface-700 text-xs"><p className="font-semibold text-surface-900 dark:text-surface-100">{item.title}</p><p className="text-surface-500 mt-0.5">{item.type}{item.dueDate ? ` · ${item.dueDate}` : ''}{item.amount != null ? ` · ${item.currency || '₹'}${item.amount}` : ''}{(item as any).confidence ? ` · ${(item as any).confidence}` : ''}</p><button type="button" onClick={() => setConfirmAction(item)} className="mt-2 px-2.5 py-1.5 rounded-lg bg-primary-600 hover:bg-primary-700 text-white text-[11px] font-semibold">Review & confirm</button></div>))}{detectResult.detectedItems.length === 0 && <p className="text-xs text-surface-500">No items to add.</p>}</div></div>) : <div className="flex-1 flex items-center justify-center text-center text-xs text-surface-500 py-10"><div><FileSearch size={30} className="mx-auto mb-2 opacity-40" />Paste text to extract potential responsibilities.</div></div>}
+          </Card>
         </div>
       )}
+
+      <Modal isOpen={historyOpen} onClose={() => setHistoryOpen(false)} title="Chat history" description="Recent LifeBuddy conversations for this account." maxWidth="md" panelClassName="rounded-3xl dark:border-[#355966]" headerClassName="border-surface-100 dark:border-[#355966]" contentClassName="pt-4 pb-0">
+        {historyLoading ? <div className="py-8 flex justify-center"><Loader2 className="animate-spin text-primary-500" /></div> : conversations.length ? (
+          <div className="space-y-2">{conversations.map((c) => (<button key={c.id} type="button" onClick={() => openConversation(c.id)} className="w-full text-left p-3 rounded-xl border border-surface-200 dark:border-surface-700 hover:bg-surface-50 dark:hover:bg-surface-800"><p className="text-xs font-medium text-surface-900 dark:text-surface-100 line-clamp-2">{c.preview}</p><p className="text-[10px] text-surface-500 mt-1">{new Date(c.updatedAt).toLocaleString()}</p></button>))}</div>
+        ) : <p className="text-xs text-surface-500 py-6 text-center">No saved conversations yet.</p>}
+      </Modal>
+
+      <Modal isOpen={!!confirmAction} onClose={() => !actionBusy && setConfirmAction(null)} title="Confirm action" description="LifeBuddy can prepare actions, but nothing is saved until you confirm." maxWidth="md" panelClassName="rounded-3xl dark:border-[#355966]" headerClassName="border-surface-100 dark:border-[#355966]" contentClassName="pt-4 pb-0">
+        {confirmAction && (
+          <div className="space-y-3 text-sm">
+            <div className="rounded-2xl bg-surface-50 dark:bg-surface-800/60 border border-surface-200 dark:border-surface-700 p-4 space-y-2">
+              <div className="flex items-center justify-between gap-2"><span className="text-xs font-semibold uppercase tracking-wide text-surface-500">Type</span><Badge variant="primary" size="sm">{confirmAction.type}</Badge></div>
+              <div><span className="text-xs font-semibold uppercase tracking-wide text-surface-500">Title</span><p className="text-sm font-semibold text-surface-900 dark:text-surface-100">{confirmAction.title}</p></div>
+              {(confirmAction.dueDate || confirmAction.date) && <div><span className="text-xs font-semibold uppercase tracking-wide text-surface-500">Date</span><p className="text-sm text-surface-800 dark:text-surface-200">{confirmAction.dueDate || confirmAction.date}{confirmAction.dueTime || confirmAction.time ? ` ${confirmAction.dueTime || confirmAction.time}` : ''}</p></div>}
+              {confirmAction.amount != null && <div><span className="text-xs font-semibold uppercase tracking-wide text-surface-500">Amount</span><p className="text-sm text-surface-800 dark:text-surface-200">{confirmAction.currency || '₹'}{confirmAction.amount}</p></div>}
+              {confirmAction.description && <div><span className="text-xs font-semibold uppercase tracking-wide text-surface-500">Details</span><p className="text-sm text-surface-700 dark:text-surface-300">{confirmAction.description}</p></div>}
+            </div>
+            <div className="flex items-start gap-2 text-xs text-amber-800 dark:text-amber-200 bg-amber-50 dark:bg-amber-950/20 border border-amber-200/70 dark:border-amber-800/40 rounded-xl p-3"><AlertTriangle size={14} className="mt-0.5 shrink-0" /><span>Review details carefully. This creates a new {confirmAction.type} in your account. Destructive actions are not auto-executed.</span></div>
+            <div className="pt-2 border-t border-surface-100 dark:border-[#355966] flex justify-end gap-2">
+              <button type="button" onClick={() => setConfirmAction(null)} disabled={actionBusy} className="px-4 py-2 text-xs rounded-xl border border-surface-200 dark:border-surface-700 hover:bg-surface-100 dark:hover:bg-surface-800 text-surface-700 dark:text-surface-200">Cancel</button>
+              <button type="button" onClick={() => executeAction(confirmAction)} disabled={actionBusy} className="inline-flex items-center gap-1.5 px-4 py-2 text-xs rounded-xl bg-primary-600 hover:bg-primary-700 text-white font-semibold disabled:opacity-50">{actionBusy ? <Loader2 size={14} className="animate-spin" /> : <CheckCircle2 size={14} />} Confirm & create</button>
+            </div>
+          </div>
+        )}
+      </Modal>
     </div>
   );
 }

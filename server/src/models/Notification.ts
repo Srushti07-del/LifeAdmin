@@ -6,18 +6,22 @@ export interface INotification extends Document {
   title: string;
   message: string;
   type: 'reminder' | 'deadline' | 'overdue' | 'ai_suggestion' | 'system';
-  
+
   // What triggered this notification
   entityType?: 'task' | 'bill' | 'appointment' | 'document' | 'reminder';
   entityId?: mongoose.Types.ObjectId;
-  
+
+  // Prevent duplicate in-app alerts for the same reminder occurrence/offset.
+  dedupeKey?: string;
+
   read: boolean;
   readAt?: Date;
-  
-  // Push notification tracking
+  dismissedAt?: Date;
+
+  // Push notification tracking (in-app center is implemented; push delivery not claimed)
   pushSent: boolean;
   pushSentAt?: Date;
-  
+
   createdAt: Date;
   updatedAt: Date;
 }
@@ -37,8 +41,10 @@ const notificationSchema = new Schema<INotification>(
       enum: ['task', 'bill', 'appointment', 'document', 'reminder'],
     },
     entityId: { type: Schema.Types.ObjectId },
+    dedupeKey: { type: String, trim: true },
     read: { type: Boolean, default: false },
     readAt: { type: Date },
+    dismissedAt: { type: Date },
     pushSent: { type: Boolean, default: false },
     pushSentAt: { type: Date },
   },
@@ -48,5 +54,10 @@ const notificationSchema = new Schema<INotification>(
 );
 
 notificationSchema.index({ userId: 1, read: 1, createdAt: -1 });
+notificationSchema.index({ userId: 1, dismissedAt: 1, createdAt: -1 });
+notificationSchema.index(
+  { userId: 1, dedupeKey: 1 },
+  { unique: true, partialFilterExpression: { dedupeKey: { $type: 'string' } } }
+);
 
 export default mongoose.model<INotification>('Notification', notificationSchema);

@@ -1,6 +1,12 @@
-import mongoose from 'mongoose';
-import Bill, { IBill, IRecurrence } from '../models/Bill';
-import Reminder, { IReminder } from '../models/Reminder';
+import Bill, { IBill } from '../models/Bill';
+
+export interface IRecurrence {
+  type: 'none' | 'daily' | 'weekly' | 'monthly' | 'quarterly' | 'yearly' | 'custom';
+  interval?: number;
+  unit?: 'days' | 'weeks' | 'months' | 'years';
+  endDate?: Date;
+  durationMonths?: number;
+}
 
 /**
  * Calculates the next occurrence date based on the current due date and recurrence settings.
@@ -43,6 +49,15 @@ export function calculateNextOccurrence(
       // Handle month roll-over (e.g., Jan 31 + 1 month -> Feb 28/29, not March)
       if (nextDate.getDate() !== originalDay) {
         nextDate.setDate(0); // set to last day of previous month
+      }
+      break;
+    }
+
+    case 'quarterly': {
+      const originalDay = baseDate.getDate();
+      nextDate.setMonth(nextDate.getMonth() + interval * 3);
+      if (nextDate.getDate() !== originalDay) {
+        nextDate.setDate(0);
       }
       break;
     }
@@ -134,6 +149,7 @@ export async function handleBillRecurrence(bill: IBill): Promise<IBill | null> {
   const newBill = await Bill.create({
     userId: bill.userId,
     name: bill.name,
+    description: bill.description,
     provider: bill.provider,
     amount: bill.amount,
     currency: bill.currency || '₹',

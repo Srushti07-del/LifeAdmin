@@ -2,7 +2,7 @@ import mongoose, { Schema, Document } from 'mongoose';
 
 // Flexible recurrence system: separates HOW OFTEN from HOW LONG
 export interface IRecurrence {
-  type: 'none' | 'daily' | 'weekly' | 'monthly' | 'yearly' | 'custom';
+  type: 'none' | 'daily' | 'weekly' | 'monthly' | 'quarterly' | 'yearly' | 'custom';
   interval?: number;      // e.g., 2 for "every 2 months"
   unit?: 'days' | 'weeks' | 'months' | 'years';
   endDate?: Date;         // When the recurrence stops
@@ -13,11 +13,13 @@ export interface IBill extends Document {
   _id: mongoose.Types.ObjectId;
   userId: mongoose.Types.ObjectId;
   name: string;
+  description?: string;
   provider?: string;
   amount: number;
   currency: string;
   dueDate: Date;
   paymentStatus: 'pending' | 'paid' | 'overdue' | 'upcoming';
+  paidAt?: Date;
   category: string;
   startDate?: Date;
   endDate?: Date;
@@ -38,7 +40,7 @@ const recurrenceSchema = new Schema<IRecurrence>(
   {
     type: {
       type: String,
-      enum: ['none', 'daily', 'weekly', 'monthly', 'yearly', 'custom'],
+      enum: ['none', 'daily', 'weekly', 'monthly', 'quarterly', 'yearly', 'custom'],
       default: 'none',
     },
     interval: { type: Number, min: 1 },
@@ -53,6 +55,7 @@ const billSchema = new Schema<IBill>(
   {
     userId: { type: Schema.Types.ObjectId, ref: 'User', required: true, index: true },
     name: { type: String, required: true, trim: true },
+    description: { type: String, trim: true },
     provider: { type: String, trim: true },
     amount: { type: Number, required: true },
     currency: { type: String, default: '₹' },
@@ -62,6 +65,7 @@ const billSchema = new Schema<IBill>(
       enum: ['pending', 'paid', 'overdue', 'upcoming'],
       default: 'pending',
     },
+    paidAt: { type: Date },
     category: { type: String, default: 'Finance' },
     startDate: { type: Date },
     endDate: { type: Date },
