@@ -232,17 +232,6 @@ router.put(
   }
 );
 
-// DELETE /api/auth/account — Delete account
-router.delete('/account', authenticate, async (req: Request, res: Response): Promise<void> => {
-  try {
-    await User.findByIdAndDelete(req.user!._id);
-    // TODO: Delete all user's data (tasks, bills, etc.)
-    res.json({ message: 'Account deleted successfully' });
-  } catch (error) {
-    console.error('Delete account error:', error);
-    res.status(500).json({ message: 'Failed to delete account' });
-  }
-});
 
 // POST /api/auth/guest — Start a demo/guest session (ephemeral user + seeded data)
 router.post('/guest', async (_req: Request, res: Response): Promise<void> => {
