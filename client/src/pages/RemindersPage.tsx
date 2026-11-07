@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+﻿import { useCallback, useEffect, useMemo, useState } from 'react';
 import api from '../lib/api';
 import Modal from '../components/ui/Modal';
 import { Card } from '../components/ui/Card';
@@ -218,7 +218,7 @@ export default function RemindersPage() {
 
   return (
     <div className="space-y-6 animate-fade-in pb-12">
-      <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 pb-3 border-b border-surface-100 dark:border-[#355966]">
+      <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 pb-3 border-b border-surface-100 dark:border-[#304247]">
         <div>
           <h1 className="text-3xl font-bold font-editorial text-surface-900 dark:text-surface-100 tracking-tight">Smart Reminders</h1>
           <p className="text-xs text-surface-500 dark:text-surface-400 mt-1">Scheduled cues and in-app alerts while LifeAdmin is running</p>
@@ -257,8 +257,8 @@ export default function RemindersPage() {
       </div>
 
       {filtered.length === 0 ? (
-        <div className="text-center py-12 bg-white dark:bg-surface-0 rounded-3xl border border-dashed border-surface-200 dark:border-[#355966]">
-          <Bell size={32} className="mx-auto text-surface-300 dark:text-surface-500 mb-2" />
+        <div className="text-center py-12 bg-white dark:bg-surface-0 rounded-3xl border border-dashed border-surface-200 dark:border-[#304247]">
+          <Bell size={32} className="mx-auto text-surface-300 dark:text-surface-400 mb-2" />
           <h3 className="text-sm font-bold font-editorial text-surface-900 dark:text-surface-100">{reminders.length === 0 ? 'No reminders yet' : 'No reminders match your filters'}</h3>
           <p className="text-xs text-surface-500 dark:text-surface-400 mt-0.5 max-w-sm mx-auto">Add reminders with time, offset, and recurrence to get in-app alerts while the server is running.</p>
           {reminders.length === 0 && <button onClick={openCreate} className="mt-4 inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-primary-500 hover:bg-primary-600 text-white text-xs font-semibold"><Plus size={15} /> Add reminder</button>}
@@ -313,7 +313,7 @@ export default function RemindersPage() {
       )}
 
       <Modal isOpen={!!viewing} onClose={() => setViewing(null)} title={viewing?.title || 'Reminder details'} maxWidth="md"
-        panelClassName="rounded-3xl dark:border-[#355966]" headerClassName="pb-3 border-surface-100 dark:border-[#355966]" contentClassName="pt-4 pb-0" titleClassName="text-base font-bold font-editorial text-surface-900 dark:text-surface-100">
+        panelClassName="rounded-3xl dark:border-[#304247]" headerClassName="pb-3 border-surface-100 dark:border-[#304247]" contentClassName="pt-4 pb-0" titleClassName="text-base font-bold font-editorial text-surface-900 dark:text-surface-100">
         {viewing && (
           <div className="space-y-3 text-sm">
             <div className="flex items-center justify-between gap-3"><span className="text-surface-500 dark:text-surface-400 text-xs">Priority</span><Badge variant={priorityVariant[viewing.priority] || 'neutral'} size="sm">{viewing.priority}</Badge></div>
@@ -324,7 +324,7 @@ export default function RemindersPage() {
             <DetailRow label="Recurrence" value={viewing.recurrence?.type && viewing.recurrence.type !== 'none' ? `${viewing.recurrence.type} (every ${viewing.recurrence.interval || 1})` : 'None'} />
             {viewing.description && <DetailRow label="Description" value={viewing.description} />}
             <p className="text-[11px] text-surface-500 dark:text-surface-400">In-app alerts are created while the LifeAdmin server is running. Duplicate alerts for the same occurrence/offset are prevented.</p>
-            <div className="pt-3 border-t border-surface-100 dark:border-[#355966] flex justify-end gap-2">
+            <div className="pt-3 border-t border-surface-100 dark:border-[#304247] flex justify-end gap-2">
               <button type="button" onClick={() => openEdit(viewing)} className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl border border-surface-200 dark:border-surface-700 text-xs font-medium text-surface-700 dark:text-surface-200 hover:bg-surface-100 dark:hover:bg-surface-800"><Pencil size={14} /> Edit</button>
               <button type="button" onClick={() => setViewing(null)} className="px-3 py-2 rounded-xl text-xs font-medium text-surface-600 dark:text-surface-300 hover:bg-surface-100 dark:hover:bg-surface-800">Close</button>
             </div>
@@ -334,7 +334,7 @@ export default function RemindersPage() {
 
       <Modal isOpen={showModal} onClose={closeModal} title={editing ? 'Edit Reminder' : 'New Reminder'}
         description="Set a due time, alert offset, and optional recurrence. Alerts appear in-app while the server is running."
-        maxWidth="lg" panelClassName="rounded-3xl dark:border-[#355966]" headerClassName="pb-3 border-surface-100 dark:border-[#355966]" contentClassName="pt-4 pb-0" titleClassName="text-base font-bold font-editorial text-surface-900 dark:text-surface-100">
+        maxWidth="lg" panelClassName="rounded-3xl dark:border-[#304247]" headerClassName="pb-3 border-surface-100 dark:border-[#304247]" contentClassName="pt-4 pb-0" titleClassName="text-base font-bold font-editorial text-surface-900 dark:text-surface-100">
         <form onSubmit={handleSubmit} className="space-y-3.5">
           <Field label="Title *"><input type="text" required value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} placeholder="e.g. Call pharmacy for refill" className={inputClass} /></Field>
           <Field label="Description"><textarea rows={2} value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} placeholder="Additional context..." className={inputClass} /></Field>
@@ -360,7 +360,7 @@ export default function RemindersPage() {
                 const active = form.reminderOffsetMinutes.includes(opt.value);
                 return (
                   <button key={opt.value} type="button" onClick={() => toggleOffset(opt.value)}
-                    className={`px-3 py-1.5 rounded-xl text-xs font-medium border transition-colors ${active ? 'bg-primary-600 dark:bg-primary-500 text-white dark:text-[#183B4A] border-primary-600 dark:border-primary-500' : 'bg-white dark:bg-surface-0 text-surface-700 dark:text-surface-200 border-surface-200 dark:border-surface-700 hover:bg-surface-50 dark:hover:bg-surface-800'}`}>
+                    className={`px-3 py-1.5 rounded-xl text-xs font-medium border transition-colors ${active ? 'bg-primary-600 dark:bg-primary-500 text-white dark:text-[#101719] border-primary-600 dark:border-primary-500' : 'bg-white dark:bg-surface-0 text-surface-700 dark:text-surface-200 border-surface-200 dark:border-surface-700 hover:bg-surface-50 dark:hover:bg-surface-800'}`}>
                     {opt.label}
                   </button>
                 );
@@ -377,7 +377,7 @@ export default function RemindersPage() {
               <input type="number" min="1" value={form.recurrenceInterval} onChange={(e) => setForm({ ...form, recurrenceInterval: e.target.value })} disabled={form.recurrenceType === 'none'} className={`${inputClass} disabled:opacity-50`} />
             </Field>
           </div>
-          <div className="pt-3 border-t border-surface-100 dark:border-[#355966] flex justify-end gap-2">
+          <div className="pt-3 border-t border-surface-100 dark:border-[#304247] flex justify-end gap-2">
             <button type="button" onClick={closeModal} disabled={submitting} className="px-4 py-2 text-xs rounded-xl border border-surface-200 dark:border-surface-700 hover:bg-surface-100 dark:hover:bg-surface-800 text-surface-700 dark:text-surface-200">Cancel</button>
             <button type="submit" disabled={submitting} className="inline-flex items-center gap-2 px-4 py-2 text-xs rounded-xl bg-primary-500 hover:bg-primary-600 text-white font-semibold disabled:opacity-50">
               {submitting && <Loader2 size={14} className="animate-spin" />}{submitting ? 'Saving...' : editing ? 'Save Changes' : 'Add Reminder'}
@@ -402,3 +402,5 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
 function DetailRow({ label, value }: { label: string; value: string }) {
   return <div className="flex items-start justify-between gap-3"><span className="text-surface-500 dark:text-surface-400 text-xs shrink-0">{label}</span><span className="text-right text-xs text-surface-800 dark:text-surface-200">{value}</span></div>;
 }
+
+

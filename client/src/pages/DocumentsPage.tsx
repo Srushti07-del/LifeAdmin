@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+﻿import { useState, useEffect, useCallback, useRef } from 'react';
 import api from '../lib/api';
 import {
   FileText,
@@ -8,11 +8,11 @@ import {
   ExternalLink,
   CheckCircle2,
   Calendar,
-  IndianRupee,
   Loader2,
   Sparkles,
   X,
 } from 'lucide-react';
+import { formatCurrency, getCurrencyInfo } from '../lib/currency';
 
 interface ExtractedDate {
   label: string;
@@ -22,6 +22,7 @@ interface ExtractedDate {
 interface ExtractedAmount {
   label: string;
   amount: number;
+  currency?: string;
 }
 
 interface DocumentItem {
@@ -129,6 +130,87 @@ export default function DocumentsPage() {
     }
   };
 
+  const blobUrls = useRef<Set<string>>(new Set());
+
+  const revokeBlobUrl = useCallback((url: string) => {
+    try {
+      URL.revokeObjectURL(url);
+      blobUrls.current.delete(url);
+    } catch {
+      // ignore
+    }
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      blobUrls.current.forEach((url) => revokeBlobUrl(url));
+    };
+  }, [revokeBlobUrl]);
+
+  const VIEWABLE_MIME_TYPES = new Set([
+    'application/pdf',
+    'image/jpeg',
+    'image/png',
+    'image/webp',
+    'image/gif',
+    'image/svg+xml',
+  ]);
+
+  const handleOpenDocument = useCallback(async (doc: DocumentItem) => {
+    try {
+      const res = await api.get(`/documents/${doc._id}/download`, {
+        responseType: 'blob',
+      });
+
+      const blob = new Blob([res.data as BlobPart], {
+        type: String(res.headers['content-type'] || doc.mimeType || 'application/octet-stream'),
+      });
+      const url = URL.createObjectURL(blob);
+      blobUrls.current.add(url);
+
+      const contentDisposition = String(res.headers['content-disposition'] || '');
+      let originalName = doc.originalName;
+      if (contentDisposition) {
+        const match = contentDisposition.match(/filename\*?=(?:UTF-8'')?["']?([^"']+)["']?/);
+        if (match) {
+          try {
+            originalName = decodeURIComponent(match[1]);
+          } catch {
+            originalName = match[1];
+          }
+        }
+      }
+
+      const isViewable = VIEWABLE_MIME_TYPES.has(
+        String(res.headers['content-type'] || doc.mimeType || '')
+      );
+
+      if (isViewable) {
+        const newWin = window.open(url, '_blank');
+        if (!newWin) {
+          triggerDownload(url, originalName);
+        }
+      } else {
+        triggerDownload(url, originalName);
+      }
+    } catch (err) {
+      console.error('Open document error:', err);
+      alert('Failed to open document. Please try again.');
+    }
+  }, [revokeBlobUrl]);
+
+  const triggerDownload = useCallback((url: string, filename: string) => {
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    a.style.display = 'none';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(() => revokeBlobUrl(url), 1000);
+  }, [revokeBlobUrl]);
+
+
   const openCreateEntityModal = (doc: DocumentItem, type: 'task' | 'bill' | 'reminder') => {
     setEntityModalDoc(doc);
     setEntityType(type);
@@ -192,7 +274,7 @@ export default function DocumentsPage() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-surface-900 dark:text-surface-100">Documents Vault</h1>
-          <p className="text-surface-500 text-sm mt-1">
+          <p className="text-surface-500 dark:text-surface-200 text-sm mt-1">
             Store essential files with AI-powered deadline extraction and automated task creation.
           </p>
         </div>
@@ -215,7 +297,7 @@ export default function DocumentsPage() {
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Search documents by name, type, or notes..."
-            className="w-full pl-10 pr-4 py-2 rounded-xl bg-white dark:bg-[#204B5A] border border-surface-200 dark:border-[#355966] text-surface-900 dark:text-surface-100 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+            className="w-full pl-10 pr-4 py-2 rounded-xl bg-white dark:bg-[#1C292D] border border-surface-200 dark:border-[#304247] text-surface-900 dark:text-surface-100 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
           />
         </div>
 
@@ -228,7 +310,7 @@ export default function DocumentsPage() {
               className={`px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap transition-colors ${
                 selectedCategory === cat
                   ? 'bg-primary-500 text-white'
-                  : 'bg-white dark:bg-[#204B5A] border border-surface-200 dark:border-[#355966] text-surface-600 dark:text-surface-400 hover:bg-surface-100 dark:hover:bg-surface-800'
+                  : 'bg-white dark:bg-[#1C292D] border border-surface-200 dark:border-[#304247] text-surface-600 dark:text-surface-400 hover:bg-surface-100 dark:hover:bg-surface-800'
               }`}
             >
               {cat}
@@ -243,12 +325,12 @@ export default function DocumentsPage() {
           <Loader2 size={32} className="animate-spin" />
         </div>
       ) : documents.length === 0 ? (
-        <div className="text-center py-16 bg-white dark:bg-[#204B5A] rounded-2xl border border-surface-200 dark:border-[#355966] p-8">
+        <div className="text-center py-16 bg-white dark:bg-[#1C292D] rounded-2xl border border-surface-200 dark:border-[#304247] p-8">
           <div className="w-14 h-14 rounded-2xl bg-primary-50 dark:bg-primary-900/30 text-primary-500 flex items-center justify-center mx-auto mb-4">
             <FileText size={28} />
           </div>
           <h3 className="text-lg font-semibold text-surface-900 dark:text-surface-100">No documents yet</h3>
-          <p className="text-surface-500 text-sm max-w-md mx-auto mt-1 mb-5">
+          <p className="text-surface-500 dark:text-surface-200 text-sm max-w-md mx-auto mt-1 mb-5">
             Upload contracts, bills, IDs, or lease documents. LifeAdmin will extract critical dates, amounts, and providers automatically.
           </p>
           <button
@@ -264,7 +346,7 @@ export default function DocumentsPage() {
           {documents.map((doc) => (
             <div
               key={doc._id}
-              className="bg-white dark:bg-[#204B5A] rounded-2xl border border-surface-200 dark:border-[#355966] p-5 flex flex-col justify-between hover:shadow-md transition-shadow group"
+              className="bg-white dark:bg-[#1C292D] rounded-2xl border border-surface-200 dark:border-[#304247] p-5 flex flex-col justify-between hover:shadow-md transition-shadow group"
             >
               <div>
                 {/* Header row */}
@@ -286,15 +368,13 @@ export default function DocumentsPage() {
                   </div>
 
                   <div className="flex items-center gap-1 opacity-80 group-hover:opacity-100 transition-opacity">
-                    <a
-                      href={doc.filePath}
-                      target="_blank"
-                      rel="noopener noreferrer"
+                    <button
+                      onClick={() => handleOpenDocument(doc)}
                       className="p-1.5 rounded-lg text-surface-400 hover:text-primary-500 hover:bg-surface-100 dark:hover:bg-surface-800 transition-colors"
                       title="Open Document"
                     >
                       <ExternalLink size={16} />
-                    </a>
+                    </button>
                     <button
                       onClick={() => handleDelete(doc._id)}
                       className="p-1.5 rounded-lg text-surface-400 hover:text-rose-600 dark:hover:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/30 transition-colors"
@@ -345,10 +425,10 @@ export default function DocumentsPage() {
 
                     {doc.aiExtracted?.amounts && doc.aiExtracted.amounts.length > 0 && (
                       <div className="flex items-center gap-1.5 text-xs text-surface-600 dark:text-surface-300">
-                        <IndianRupee size={12} className="text-teal-600 dark:text-teal-400 flex-shrink-0" />
+                        <span className="text-teal-600 dark:text-teal-400 flex-shrink-0 text-xs">{getCurrencyInfo(doc.aiExtracted.amounts[0].currency).symbol}</span>
                         <span>{doc.aiExtracted.amounts[0].label}:</span>
                         <span className="font-semibold text-surface-900 dark:text-surface-100">
-                          ₹{doc.aiExtracted.amounts[0].amount}
+                          {formatCurrency(doc.aiExtracted.amounts[0].amount, doc.aiExtracted.amounts[0].currency)}
                         </span>
                       </div>
                     )}
@@ -363,7 +443,7 @@ export default function DocumentsPage() {
               </div>
 
               {/* Action Bar: Create Task / Bill from Doc */}
-              <div className="mt-4 pt-3 border-t border-surface-100 dark:border-[#355966] flex items-center justify-between gap-2">
+              <div className="mt-4 pt-3 border-t border-surface-100 dark:border-[#304247] flex items-center justify-between gap-2">
                 <span className="text-[11px] text-surface-400">Convert to:</span>
                 <div className="flex items-center gap-1.5">
                   <button
@@ -394,7 +474,7 @@ export default function DocumentsPage() {
       {/* Upload Modal */}
       {showUploadModal && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-          <div className="bg-white dark:bg-[#204B5A] rounded-2xl max-w-lg w-full p-6 shadow-modal border border-surface-200 dark:border-[#355966] animate-scale-in">
+          <div className="bg-white dark:bg-[#1C292D] rounded-2xl max-w-lg w-full p-6 shadow-modal border border-surface-200 dark:border-[#304247] animate-scale-in">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-lg font-bold text-surface-900 dark:text-surface-100">Upload New Document</h3>
               <button
@@ -484,7 +564,7 @@ export default function DocumentsPage() {
       {/* Convert to Entity Modal */}
       {entityModalDoc && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-          <div className="bg-white dark:bg-[#204B5A] rounded-2xl max-w-md w-full p-6 shadow-modal border border-surface-200 dark:border-[#355966] animate-scale-in">
+          <div className="bg-white dark:bg-[#1C292D] rounded-2xl max-w-md w-full p-6 shadow-modal border border-surface-200 dark:border-[#304247] animate-scale-in">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-lg font-bold text-surface-900 dark:text-surface-100">
                 Create {entityType === 'task' ? 'Task' : entityType === 'bill' ? 'Bill' : 'Reminder'}
@@ -527,7 +607,7 @@ export default function DocumentsPage() {
               {entityType === 'bill' && (
                 <div>
                   <label className="block text-xs font-medium text-surface-700 dark:text-surface-300 mb-1">
-                    Amount (₹)
+                    Amount (INR)
                   </label>
                   <input
                     type="number"
@@ -581,3 +661,4 @@ export default function DocumentsPage() {
     </div>
   );
 }
+

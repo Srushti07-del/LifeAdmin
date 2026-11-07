@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+﻿import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import AppLayout from './components/AppLayout';
 import LoginPage from './pages/LoginPage';
@@ -10,6 +10,8 @@ import AppointmentsPage from './pages/AppointmentsPage';
 import DocumentsPage from './pages/DocumentsPage';
 import RemindersPage from './pages/RemindersPage';
 import CalendarPage from './pages/CalendarPage';
+import ForgotPasswordPage from './pages/ForgotPasswordPage';
+import ResetPasswordPage from './pages/ResetPasswordPage';
 import AIAssistantPage from './pages/AIAssistantPage';
 import LifeBuddyPage from './pages/LifeBuddyPage';
 import SettingsPage from './pages/SettingsPage';
@@ -20,7 +22,7 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-surface-50 dark:bg-[#183B4A] text-primary-600 dark:text-primary-400">
+      <div className="min-h-screen flex items-center justify-center bg-surface-50 dark:bg-[#101719] text-primary-600 dark:text-primary-400">
         <Loader2 className="w-8 h-8 animate-spin" />
       </div>
     );
@@ -38,7 +40,7 @@ function PublicOnlyRoute({ children }: { children: React.ReactNode }) {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-surface-50 dark:bg-[#183B4A] text-primary-600 dark:text-primary-400">
+      <div className="min-h-screen flex items-center justify-center bg-surface-50 dark:bg-[#101719] text-primary-600 dark:text-primary-400">
         <Loader2 className="w-8 h-8 animate-spin" />
       </div>
     );
@@ -73,6 +75,15 @@ export default function App() {
               </PublicOnlyRoute>
             }
           />
+          <Route
+            path="/forgot-password"
+            element={
+              <PublicOnlyRoute>
+                <ForgotPasswordPage />
+              </PublicOnlyRoute>
+            }
+          />
+          <Route path="/reset-password" element={<ResetPasswordPage />} />
 
           {/* Protected Application Routes */}
           <Route
@@ -109,3 +120,4 @@ export default function App() {
     </BrowserRouter>
   );
 }
+

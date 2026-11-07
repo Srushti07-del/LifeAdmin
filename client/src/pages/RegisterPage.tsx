@@ -11,6 +11,7 @@ export default function RegisterPage() {
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -22,8 +23,8 @@ export default function RegisterPage() {
       setError('Passwords do not match');
       return;
     }
-    if (password.length < 6) {
-      setError('Password must be at least 6 characters');
+    if (password.length < 8) {
+      setError('Password must be at least 8 characters');
       return;
     }
 
@@ -34,16 +35,17 @@ export default function RegisterPage() {
       localStorage.setItem('lifeadmin_show_onboarding', 'true');
       navigate('/dashboard');
     } catch (err: any) {
-      const isDev = import.meta.env.DEV;
       const message =
         err?.response?.data?.message ||
-        (err?.code === 'ERR_NETWORK' ? 'Cannot reach server. Is the backend running?' : null) ||
+        (err?.code === 'ERR_NETWORK' ? 'Cannot reach server. Please try again.' : null) ||
         'Registration failed. Please try again.';
-      setError(isDev ? `[DEV] ${message}` : message);
+      setError(message);
     } finally {
       setLoading(false);
     }
   };
+
+  const isDuplicateEmail = error.toLowerCase().includes('already exists');
 
   return (
     <div className="login-force-light min-h-screen flex items-center justify-center bg-app px-4 relative overflow-hidden py-8">
@@ -69,7 +71,30 @@ export default function RegisterPage() {
         <div className="bg-white rounded-3xl p-7 sm:p-8 shadow-card border border-surface-200">
           {error && (
             <div className="mb-5 p-3.5 bg-rose-50 border border-rose-200 rounded-xl text-rose-800 text-xs animate-scale-in">
-              {error}
+              {isDuplicateEmail ? (
+                <div>
+                  <p className="font-medium text-surface-900 mb-2 leading-relaxed">
+                    An account with this email already exists. Please sign in or reset your password.
+                  </p>
+                  <div className="flex items-center gap-3 pt-1">
+                    <Link
+                      to="/login"
+                      className="inline-flex items-center gap-1 font-semibold text-primary-700 hover:text-primary-800 underline"
+                    >
+                      Sign In &rarr;
+                    </Link>
+                    <span className="text-surface-400">·</span>
+                    <Link
+                      to="/forgot-password"
+                      className="inline-flex items-center gap-1 font-semibold text-primary-700 hover:text-primary-800 underline"
+                    >
+                      Forgot Password?
+                    </Link>
+                  </div>
+                </div>
+              ) : (
+                error
+              )}
             </div>
           )}
 
@@ -134,13 +159,15 @@ export default function RegisterPage() {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   required
-                  placeholder="At least 6 characters"
+                  minLength={8}
+                  placeholder="At least 8 characters"
                   className="w-full pl-10 pr-11 py-2.5 rounded-xl border border-surface-200 bg-white text-surface-900 placeholder:text-surface-400 text-xs focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition-all"
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
                   className="absolute right-3 text-surface-500 hover:text-surface-700 transition-colors p-1"
+                  aria-label={showPassword ? 'Hide password' : 'Show password'}
                 >
                   {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
                 </button>
@@ -159,13 +186,22 @@ export default function RegisterPage() {
                 <Lock size={16} className="absolute left-3.5 text-surface-500 pointer-events-none" />
                 <input
                   id="register-confirm-password"
-                  type={showPassword ? 'text' : 'password'}
+                  type={showConfirmPassword ? 'text' : 'password'}
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
                   required
+                  minLength={8}
                   placeholder="Repeat your password"
                   className="w-full pl-10 pr-11 py-2.5 rounded-xl border border-surface-200 bg-white text-surface-900 placeholder:text-surface-400 text-xs focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition-all"
                 />
+                <button
+                  type="button"
+                  onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                  className="absolute right-3 text-surface-500 hover:text-surface-700 transition-colors p-1"
+                  aria-label={showConfirmPassword ? 'Hide password' : 'Show password'}
+                >
+                  {showConfirmPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                </button>
               </div>
             </div>
 
@@ -174,7 +210,7 @@ export default function RegisterPage() {
               type="submit"
               disabled={loading}
               id="register-submit"
-              className="w-full mt-2 flex items-center justify-center gap-2 py-3 px-4 rounded-xl bg-primary-500 hover:bg-primary-600 active:scale-[0.99] disabled:opacity-60 disabled:cursor-not-allowed text-white text-xs font-semibold tracking-wide transition-all duration-150 shadow-sm"
+              className="w-full mt-2 flex items-center justify-center gap-2 py-3 px-4 rounded-xl bg-primary-600 hover:bg-primary-700 active:scale-[0.99] disabled:opacity-60 disabled:cursor-not-allowed text-white text-xs font-semibold tracking-wide transition-all duration-150 shadow-sm cursor-pointer"
             >
               {loading ? (
                 <Loader2 size={16} className="animate-spin" />

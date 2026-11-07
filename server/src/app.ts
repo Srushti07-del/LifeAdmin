@@ -16,6 +16,7 @@ import calendarRoutes from './routes/calendar';
 import aiRoutes from './routes/ai';
 import notificationRoutes from './routes/notifications';
 import userRoutes from './routes/users';
+import currencyRoutes from './routes/currency';
 
 const app = express();
 
@@ -58,6 +59,7 @@ app.use('/api/calendar', calendarRoutes);
 app.use('/api/ai', aiRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/users', userRoutes);
+app.use('/api/currency', currencyRoutes);
 
 // Health check
 app.get('/api/health', (_req, res) => {

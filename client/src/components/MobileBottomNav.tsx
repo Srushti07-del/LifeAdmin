@@ -1,4 +1,4 @@
-import { useState } from 'react';
+﻿import { useState } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard,
@@ -41,7 +41,7 @@ export default function MobileBottomNav() {
   return (
     <>
       {/* Fixed Bottom Bar on Mobile/Tablet */}
-      <nav className="lg:hidden fixed bottom-0 left-0 right-0 z-40 bg-white/95 dark:bg-[#143440]/95 backdrop-blur-md border-t border-surface-200 dark:border-[#355966] px-3 py-1.5 shadow-elevated">
+      <nav className="lg:hidden fixed bottom-0 left-0 right-0 z-40 bg-white/95 dark:bg-[#141F22]/95 backdrop-blur-md border-t border-surface-200 dark:border-[#304247] px-3 py-1.5 shadow-elevated">
         <div className="flex items-center justify-around max-w-lg mx-auto">
           {/* Overview */}
           <NavLink
@@ -80,7 +80,7 @@ export default function MobileBottomNav() {
                 setShowCreateMenu(true);
                 setShowMoreMenu(false);
               }}
-              className="w-12 h-12 rounded-full bg-primary-600 hover:bg-primary-700 dark:bg-primary-500 dark:hover:bg-primary-400 text-white dark:text-[#183B4A] shadow-elevated flex items-center justify-center transition-transform active:scale-95 focus:outline-none"
+              className="w-12 h-12 rounded-full bg-primary-600 hover:bg-primary-700 dark:bg-primary-500 dark:hover:bg-primary-400 text-white dark:text-[#101719] shadow-elevated flex items-center justify-center transition-transform active:scale-95 focus:outline-none"
               aria-label="Create new item"
             >
               <Plus size={24} />
@@ -169,7 +169,7 @@ export default function MobileBottomNav() {
             className="fixed inset-0 bg-black/40 backdrop-blur-xs animate-fade-in"
             onClick={() => setShowMoreMenu(false)}
           />
-          <div className="relative bg-white dark:bg-[#204B5A] rounded-t-3xl border-t border-surface-200 dark:border-[#355966] p-6 shadow-modal z-10 animate-slide-in-right">
+          <div className="relative bg-white dark:bg-[#1C292D] rounded-t-3xl border-t border-surface-200 dark:border-[#304247] p-6 shadow-modal z-10 animate-slide-in-right">
             <div className="flex items-center justify-between pb-4 border-b border-surface-100 dark:border-surface-800 mb-4">
               <h3 className="text-base font-semibold text-surface-900 dark:text-surface-100 font-editorial">
                 All Modules
@@ -204,3 +204,5 @@ export default function MobileBottomNav() {
     </>
   );
 }
+
+

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+﻿import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Bell, CheckCheck, X, Loader2, AlertCircle, Clock } from 'lucide-react';
 import api from '../lib/api';
@@ -43,6 +43,10 @@ export default function NotificationCenter({ onNavigate }: { onNavigate?: () => 
   const [unreadCount, setUnreadCount] = useState(0);
   const [error, setError] = useState('');
   const ref = useRef<HTMLDivElement>(null);
+  const bellRef = useRef<HTMLButtonElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
+  const [panelPosition, setPanelPosition] = useState<{ top: number; left: number } | null>(null);
+  const [positioned, setPositioned] = useState(false);
 
   const fetchCount = useCallback(async () => {
     try {
@@ -88,6 +92,49 @@ export default function NotificationCenter({ onNavigate }: { onNavigate?: () => 
     return () => { document.removeEventListener('mousedown', onDown); document.removeEventListener('keydown', onKey); };
   }, [open]);
 
+  // Position the panel anchored to the bell button, opening upward to the right of the sidebar.
+  useEffect(() => {
+    if (!open || !bellRef.current || !panelRef.current) return;
+    const bell = bellRef.current;
+    const panel = panelRef.current;
+    const sidebar = document.getElementById('sidebar');
+    const sidebarWidth = sidebar?.offsetWidth ?? 0;
+
+    const bellRect = bell.getBoundingClientRect();
+    const panelHeight = panel.offsetHeight;
+    const panelWidth = panel.offsetWidth;
+    const viewportHeight = window.innerHeight;
+    const viewportWidth = window.innerWidth;
+
+    // Anchor horizontally to the right edge of the sidebar so the panel clears
+    // every sidebar control (including the bell) and opens into the main content.
+    // On mobile the sidebar is hidden, so anchor to the bell's right edge instead.
+    let left = sidebarWidth > 0 ? sidebarWidth + 8 : bellRect.right + 8;
+    // Clamp horizontally so the panel stays within the viewport.
+    left = Math.max(8, Math.min(left, viewportWidth - panelWidth - 8));
+
+    // Open upward: panel bottom edge sits 12px above the bell top edge.
+    // If there is not enough room above the bell, open downward instead so the
+    // bell is never covered and the panel stays in the viewport.
+    let top = bellRect.top - panelHeight - 12;
+    if (top < 8) {
+      top = bellRect.bottom + 12;
+    }
+    // Clamp so the panel never extends above or below the viewport.
+    top = Math.max(8, Math.min(top, viewportHeight - panelHeight - 8));
+
+    setPanelPosition({ top, left });
+    setPositioned(true);
+  }, [open]);
+
+  // Reset positioning when the panel closes so it re-measures on next open.
+  useEffect(() => {
+    if (!open) {
+      setPanelPosition(null);
+      setPositioned(false);
+    }
+  }, [open]);
+
   const markRead = async (id: string) => {
     try {
       await api.put(`/notifications/${id}/read`);
@@ -113,27 +160,39 @@ export default function NotificationCenter({ onNavigate }: { onNavigate?: () => 
   return (
     <div className="relative" ref={ref}>
       <button
+        ref={bellRef}
         type="button"
         onClick={() => setOpen((v) => !v)}
-        className="relative p-2 rounded-xl text-surface-700 dark:text-surface-200 hover:bg-surface-100 dark:hover:bg-[#285968]/70 transition-colors"
+        className="relative p-2 rounded-xl text-surface-700 dark:text-surface-200 hover:bg-surface-100 dark:hover:bg-[#243438]/70 transition-colors"
         aria-label={unreadCount ? `Notifications, ${unreadCount} unread` : 'Notifications'}
         aria-expanded={open}
         aria-haspopup="dialog"
       >
         <Bell size={18} />
         {unreadCount > 0 && (
-          <span className="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] px-1 rounded-full bg-rose-500 text-white text-[10px] font-bold flex items-center justify-center border-2 border-white dark:border-[#143440]">
+          <span className="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] px-1 rounded-full bg-rose-500 text-white text-[10px] font-bold flex items-center justify-center border-2 border-white dark:border-[#304247]">
             {unreadCount > 99 ? '99+' : unreadCount}
           </span>
         )}
       </button>
 
       {open && (
-        <div className="absolute right-0 mt-2 w-[min(92vw,380px)] max-h-[70vh] bg-white dark:bg-[#204B5A] rounded-2xl shadow-elevated border border-surface-200 dark:border-[#355966] z-50 overflow-hidden flex flex-col animate-scale-in" role="dialog" aria-label="Notification center">
-          <div className="flex items-center justify-between px-4 py-3 border-b border-surface-100 dark:border-[#355966]">
+        <div
+          ref={panelRef}
+          className={`fixed w-[min(92vw,380px)] max-h-[80vh] bg-white dark:bg-[#1C292D] rounded-2xl shadow-elevated border border-surface-200 dark:border-[#304247] z-[60] overflow-hidden flex flex-col transition-opacity duration-200 ease-in-out ${
+            positioned ? 'opacity-100' : 'opacity-0 pointer-events-none'
+          }`}
+          style={{
+            top: panelPosition?.top ?? 0,
+            left: panelPosition?.left ?? 0,
+          }}
+          role="dialog"
+          aria-label="Notification center"
+          aria-modal="true"
+        >
+          <div className="flex items-center justify-between px-4 py-3 border-b border-surface-100 dark:border-[#304247]">
             <div>
               <h3 className="text-sm font-bold text-surface-900 dark:text-surface-100">Notifications</h3>
-              <p className="text-[11px] text-surface-500 dark:text-surface-400">In-app alerts (server-running)</p>
             </div>
             {items.some((n) => !n.read) && (
               <button type="button" onClick={markAllRead} className="inline-flex items-center gap-1 text-[11px] font-semibold text-primary-700 dark:text-primary-200 hover:underline">
@@ -151,7 +210,7 @@ export default function NotificationCenter({ onNavigate }: { onNavigate?: () => 
             )}
             {!loading && !error && items.length === 0 && (
               <div className="py-10 text-center text-xs text-surface-500 dark:text-surface-400">
-                <Bell size={24} className="mx-auto mb-2 text-surface-300 dark:text-surface-500" />
+                <Bell size={24} className="mx-auto mb-2 text-surface-300 dark:text-surface-400" />
                 No notifications right now.
               </div>
             )}
@@ -159,7 +218,7 @@ export default function NotificationCenter({ onNavigate }: { onNavigate?: () => 
               const path = entityPath(n);
               const icon = n.type === 'overdue' ? <AlertCircle size={15} className="text-rose-500" /> : <Clock size={15} className="text-primary-600 dark:text-primary-300" />;
               const body = (
-                <div className={`flex gap-2.5 p-3 rounded-xl border transition-colors ${n.read ? 'bg-surface-50/50 dark:bg-[#183B4A]/40 border-transparent' : 'bg-primary-50/60 dark:bg-[#285968]/40 border-primary-100/70 dark:border-primary-500/20'}`}>
+                <div className={`flex gap-2.5 p-3 rounded-xl border transition-colors ${n.read ? 'bg-surface-50/50 dark:bg-[#101719]/40 border-transparent' : 'bg-primary-50/60 dark:bg-[#243438]/40 border-primary-100/70 dark:border-primary-500/20'}`}>
                   <div className="mt-0.5 shrink-0">{icon}</div>
                   <div className="min-w-0 flex-1">
                     <p className="text-xs font-semibold text-surface-900 dark:text-surface-100 leading-snug">{n.title}</p>
@@ -167,8 +226,8 @@ export default function NotificationCenter({ onNavigate }: { onNavigate?: () => 
                     <p className="text-[10px] text-surface-500 dark:text-surface-400 mt-1">{timeAgo(n.createdAt)}</p>
                   </div>
                   <div className="flex flex-col gap-1 shrink-0">
-                    {!n.read && <button type="button" onClick={(e) => { e.preventDefault(); e.stopPropagation(); markRead(n._id); }} className="p-1 rounded-md text-surface-500 hover:text-primary-700 dark:hover:text-primary-200 hover:bg-white dark:hover:bg-[#355966]" aria-label="Mark read" title="Mark read"><CheckCheck size={14} /></button>}
-                    <button type="button" onClick={(e) => { e.preventDefault(); e.stopPropagation(); dismiss(n._id); }} className="p-1 rounded-md text-surface-500 hover:text-rose-600 dark:hover:text-rose-300 hover:bg-white dark:hover:bg-[#355966]" aria-label="Dismiss notification" title="Dismiss"><X size={14} /></button>
+                    {!n.read && <button type="button" onClick={(e) => { e.preventDefault(); e.stopPropagation(); markRead(n._id); }} className="p-1 rounded-md text-surface-500 hover:text-primary-700 dark:hover:text-primary-200 hover:bg-white dark:hover:bg-[#243438]" aria-label="Mark read" title="Mark read"><CheckCheck size={14} /></button>}
+                    <button type="button" onClick={(e) => { e.preventDefault(); e.stopPropagation(); dismiss(n._id); }} className="p-1 rounded-md text-surface-500 hover:text-rose-600 dark:hover:text-rose-300 hover:bg-white dark:hover:bg-[#243438]" aria-label="Dismiss notification" title="Dismiss"><X size={14} /></button>
                   </div>
                 </div>
               );
@@ -182,3 +241,5 @@ export default function NotificationCenter({ onNavigate }: { onNavigate?: () => 
     </div>
   );
 }
+
+

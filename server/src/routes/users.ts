@@ -63,6 +63,7 @@ router.put('/settings', async (req: Request, res: Response): Promise<void> => {
       defaultReminderTiming,
       categories,
       aiPreferences,
+      preferredCurrency,
     } = req.body;
 
     const user = await User.findById(req.user!._id);
@@ -75,6 +76,10 @@ router.put('/settings', async (req: Request, res: Response): Promise<void> => {
     if (typeof notificationsEnabled === 'boolean') user.notificationsEnabled = notificationsEnabled;
     if (Array.isArray(defaultReminderTiming)) user.defaultReminderTiming = defaultReminderTiming;
     if (Array.isArray(categories)) user.categories = categories;
+    if (preferredCurrency && typeof preferredCurrency === 'string') {
+      const valid = ['INR', 'USD', 'EUR', 'GBP', 'AED', 'CAD', 'AUD', 'JPY', 'SGD'];
+      if (valid.includes(preferredCurrency)) user.preferredCurrency = preferredCurrency;
+    }
     if (aiPreferences) {
       user.aiPreferences = {
         ...user.aiPreferences,

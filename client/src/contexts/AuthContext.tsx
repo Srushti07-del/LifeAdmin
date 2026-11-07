@@ -12,6 +12,7 @@ interface User {
   categories: string[];
   aiPreferences: { autoExtract: boolean; suggestionsEnabled: boolean };
   subscriptionTier: 'free' | 'premium' | 'premium_ai';
+  preferredCurrency: string;
   isDemo?: boolean;
 }
 
@@ -104,7 +105,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     localStorage.setItem('lifeadmin_token', newToken);
     setToken(newToken);
     setUser(userData);
-    applyTheme(userData.theme || 'system');
+    // Force light theme on login to avoid a dark-mode flash on the Dashboard.
+    // Users can still switch to Dark Mode manually afterward via Settings.
+    applyTheme('light');
   }, []);
 
   const loginAsGuest = useCallback(async () => {
@@ -126,7 +129,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     );
     setToken(newToken);
     setUser(userData);
-    applyTheme(userData.theme || 'system');
+    // Force light theme on guest login to avoid a dark-mode flash on the Dashboard.
+    applyTheme('light');
   }, []);
 
   const register = useCallback(async (name: string, email: string, password: string) => {
@@ -135,7 +139,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     localStorage.setItem('lifeadmin_token', newToken);
     setToken(newToken);
     setUser(userData);
-    applyTheme(userData.theme || 'system');
+    // Force light theme on register to avoid a dark-mode flash on the Dashboard.
+    applyTheme('light');
   }, []);
 
   const logout = useCallback(() => {

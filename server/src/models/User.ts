@@ -22,6 +22,12 @@ export interface IUser extends Document {
     suggestionsEnabled: boolean;
   };
   
+  preferredCurrency: string; // ISO 4217 currency code, default 'INR'
+  
+  // Password reset
+  resetPasswordToken?: string; // hashed reset token
+  resetPasswordExpires?: Date; // token expiry
+  
   // Subscription
   subscriptionTier: 'free' | 'premium' | 'premium_ai';
   subscriptionExpiresAt?: Date;
@@ -62,6 +68,12 @@ const userSchema = new Schema<IUser>(
       autoExtract: { type: Boolean, default: true },
       suggestionsEnabled: { type: Boolean, default: true },
     },
+    
+    preferredCurrency: { type: String, default: 'INR' },
+    
+    // Password reset
+    resetPasswordToken: { type: String },
+    resetPasswordExpires: { type: Date },
     
     // Subscription
     subscriptionTier: {

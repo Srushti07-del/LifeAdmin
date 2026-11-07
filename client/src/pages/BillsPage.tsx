@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+﻿import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useAuth } from '../contexts/AuthContext';
 import api from '../lib/api';
 import Modal from '../components/ui/Modal';
 import { Card } from '../components/ui/Card';
@@ -12,13 +13,13 @@ import {
   CheckCircle2,
   Clock,
   AlertCircle,
-  IndianRupee,
   Search,
   Pencil,
   RotateCcw,
   ArrowUpDown,
   Eye,
 } from 'lucide-react';
+import { formatCurrency, getCurrencyInfo, CURRENCIES, type CurrencyCode } from '../lib/currency';
 
 type PaymentStatus = 'pending' | 'paid' | 'overdue' | 'upcoming';
 type RecurrenceType = 'none' | 'weekly' | 'monthly' | 'quarterly' | 'yearly';
@@ -58,7 +59,7 @@ const emptyForm = (): BillForm => ({
   description: '',
   provider: '',
   amount: '',
-  currency: '₹',
+  currency: 'INR',
   dueDate: '',
   category: 'Finance',
   recurrenceType: 'none',
@@ -113,6 +114,7 @@ const recurrenceLabels: Record<string, string> = {
 };
 
 export default function BillsPage() {
+  const { user } = useAuth();
   const [bills, setBills] = useState<Bill[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -125,6 +127,24 @@ export default function BillsPage() {
   const [form, setForm] = useState<BillForm>(emptyForm());
   const [submitting, setSubmitting] = useState(false);
   const [actionId, setActionId] = useState<string | null>(null);
+  const [exchangeRates, setExchangeRates] = useState<Record<string, number>>({});
+
+  const preferredCurrency = (user?.preferredCurrency || 'INR') as CurrencyCode;
+
+  const fetchExchangeRates = useCallback(async (fromCurrency: string) => {
+    if (fromCurrency === preferredCurrency) {
+      setExchangeRates({});
+      return;
+    }
+    try {
+      const res = await api.get('/currency/rates', { params: { from: fromCurrency, to: preferredCurrency } });
+      if (res.data.rates && res.data.rates[preferredCurrency]) {
+        setExchangeRates({ [preferredCurrency]: res.data.rates[preferredCurrency] });
+      }
+    } catch {
+      // Graceful degradation — show original currency only
+    }
+  }, [preferredCurrency]);
 
   const fetchBills = useCallback(async () => {
     try {
@@ -142,6 +162,26 @@ export default function BillsPage() {
   useEffect(() => {
     fetchBills();
   }, [fetchBills]);
+
+  useEffect(() => {
+    const currencies = new Set(bills.map((b) => b.currency).filter(Boolean));
+    if (currencies.has(preferredCurrency) || currencies.size === 0) {
+      setExchangeRates({});
+    } else {
+      // Fetch rate from first non-preferred currency to preferred
+      const firstNonPref = [...currencies].find((c) => c !== preferredCurrency);
+      if (firstNonPref) {
+        fetchExchangeRates(firstNonPref);
+      }
+    }
+  }, [bills, preferredCurrency, fetchExchangeRates]);
+
+  const convertAmount = useCallback((amount: number, fromCurrency: string) => {
+    if (fromCurrency === preferredCurrency) return amount;
+    const rate = exchangeRates[preferredCurrency];
+    if (!rate) return amount;
+    return amount * rate;
+  }, [exchangeRates, preferredCurrency]);
 
   const filteredBills = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
@@ -289,10 +329,12 @@ export default function BillsPage() {
 
   return (
     <div className="space-y-6 animate-fade-in pb-12">
-      <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 pb-3 border-b border-surface-100 dark:border-[#355966]">
+      <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 pb-3 border-b border-surface-100 dark:border-[#304247]">
         <div>
           <h1 className="text-3xl font-bold font-editorial text-surface-900 dark:text-surface-100 tracking-tight">Bills & Payments</h1>
-          <p className="text-xs text-surface-500 dark:text-surface-400 mt-1">Track expenses, subscriptions, due dates, and payment history in ₹ (INR)</p>
+          <p className="text-xs text-surface-500 dark:text-surface-400 mt-1">
+            Track expenses, subscriptions, due dates, and payment history in {getCurrencyInfo(preferredCurrency).symbol} ({preferredCurrency})
+          </p>
         </div>
         <button onClick={openCreate} id="new-bill-button" className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-primary-500 hover:bg-primary-600 text-white text-xs font-semibold shadow-xs transition-all">
           <Plus size={16} />
@@ -310,9 +352,9 @@ export default function BillsPage() {
 
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3.5">
         <SummaryCard label="Upcoming Bills" value={String(totals.upcomingCount)} sub="Not paid, not overdue" tone="teal" />
-        <SummaryCard label="Overdue Bills" value={String(totals.overdueCount)} sub={`₹${totals.overdueAmount.toLocaleString('en-IN')} overdue`} tone="rose" />
-        <SummaryCard label="Paid Bills" value={String(totals.paidCount)} sub={`₹${totals.paidAmount.toLocaleString('en-IN')} settled`} tone="emerald" />
-        <SummaryCard label="Due This Month" value={`₹${totals.dueThisMonthAmount.toLocaleString('en-IN')}`} sub="Unpaid amount this month" tone="amber" />
+        <SummaryCard label="Overdue Bills" value={String(totals.overdueCount)} sub={formatCurrency(totals.overdueAmount, preferredCurrency) + ' overdue'} tone="rose" />
+        <SummaryCard label="Paid Bills" value={String(totals.paidCount)} sub={formatCurrency(totals.paidAmount, preferredCurrency) + ' settled'} tone="emerald" />
+        <SummaryCard label="Due This Month" value={formatCurrency(totals.dueThisMonthAmount, preferredCurrency)} sub="Unpaid amount this month" tone="amber" />
       </div>
 
       <div className="flex flex-col lg:flex-row gap-3">
@@ -352,7 +394,7 @@ export default function BillsPage() {
               onClick={() => setFilter(f.value)}
               className={`px-3 py-1.5 rounded-xl text-xs font-medium whitespace-nowrap transition-colors ${
                 filter === f.value
-                  ? 'bg-primary-600 dark:bg-primary-500 text-white dark:text-[#183B4A] font-semibold shadow-xs'
+                  ? 'bg-primary-600 dark:bg-primary-500 text-white dark:text-[#101719] font-semibold shadow-xs'
                   : 'bg-surface-100 dark:bg-surface-800 text-surface-700 dark:text-surface-200 hover:bg-surface-200 dark:hover:bg-surface-700'
               }`}
             >
@@ -391,7 +433,13 @@ export default function BillsPage() {
                 <div className="mt-4 space-y-2 flex-1">
                   <div className="flex items-baseline justify-between gap-2">
                     <span className="text-[11px] font-medium text-surface-500 dark:text-surface-400">Amount</span>
-                    <span className="text-lg font-bold font-editorial text-surface-900 dark:text-surface-100">{bill.currency || '₹'}{(bill.amount || 0).toLocaleString('en-IN')}</span>
+                    <span className="text-lg font-bold font-editorial text-surface-900 dark:text-surface-100">
+                      {formatCurrency(bill.amount || 0, bill.currency)}{bill.currency !== preferredCurrency && exchangeRates[preferredCurrency] ? (
+                        <span className="text-xs text-surface-500 dark:text-surface-400 ml-1">
+                          ≈ {formatCurrency(convertAmount(bill.amount || 0, bill.currency), preferredCurrency)}
+                        </span>
+                      ) : null}
+                    </span>
                   </div>
                   <div className="flex items-center justify-between gap-2 text-[11px]">
                     <span className="text-surface-500 dark:text-surface-400">Due date</span>
@@ -411,7 +459,7 @@ export default function BillsPage() {
                     {isRecurring ? (
                       <Badge variant="primary" size="sm" dot>{recurrenceLabels[bill.recurrence.type] || bill.recurrence.type}</Badge>
                     ) : (
-                      <span className="text-[11px] text-surface-400 dark:text-surface-500">One-time payment</span>
+                      <span className="text-[11px] text-surface-400 dark:text-surface-200">One-time payment</span>
                     )}
                   </div>
                 </div>
@@ -436,8 +484,8 @@ export default function BillsPage() {
           })}
         </div>
       ) : (
-        <div className="text-center py-12 bg-white dark:bg-surface-0 rounded-3xl border border-dashed border-surface-200 dark:border-[#355966]">
-          <Receipt size={32} className="mx-auto text-surface-300 dark:text-surface-500 mb-2" />
+        <div className="text-center py-12 bg-white dark:bg-surface-0 rounded-3xl border border-dashed border-surface-200 dark:border-[#304247]">
+          <Receipt size={32} className="mx-auto text-surface-300 dark:text-surface-400 mb-2" />
           <h3 className="text-sm font-bold font-editorial text-surface-900 dark:text-surface-100">{bills.length === 0 ? 'No bills yet' : 'No bills match your filters'}</h3>
           <p className="text-xs text-surface-500 dark:text-surface-400 mt-0.5 max-w-sm mx-auto">
             {bills.length === 0 ? 'Add utility, subscription, or payment bills to track due dates and payment status.' : 'Try a different filter, search term, or sort order.'}
@@ -456,8 +504,8 @@ export default function BillsPage() {
         title={viewing?.name || 'Bill details'}
         description={viewing?.provider ? `Provider: ${viewing.provider}` : undefined}
         maxWidth="md"
-        panelClassName="rounded-3xl dark:border-[#355966]"
-        headerClassName="pb-3 border-surface-100 dark:border-[#355966]"
+        panelClassName="rounded-3xl dark:border-[#304247]"
+        headerClassName="pb-3 border-surface-100 dark:border-[#304247]"
         contentClassName="pt-4 pb-0"
         titleClassName="text-base font-bold font-editorial text-surface-900 dark:text-surface-100"
       >
@@ -467,14 +515,14 @@ export default function BillsPage() {
               <span className="text-surface-500 dark:text-surface-400 text-xs">Status</span>
               <Badge variant={statusBadgeVariant[displayStatus(viewing).key]} size="sm">{displayStatus(viewing).label}</Badge>
             </div>
-            <DetailRow label="Amount" value={`${viewing.currency || '₹'}${(viewing.amount || 0).toLocaleString('en-IN')}`} prominent />
+            <DetailRow label="Amount" value={formatCurrency(viewing?.amount || 0, viewing?.currency)} prominent />
             <DetailRow label="Due date" value={new Date(viewing.dueDate).toLocaleDateString('en-IN', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })} />
             <DetailRow label="Category" value={viewing.category || '—'} />
             <DetailRow label="Recurrence" value={recurrenceLabels[viewing.recurrence?.type] || viewing.recurrence?.type || 'One-time'} />
             {viewing.paidAt && <DetailRow label="Paid on" value={new Date(viewing.paidAt).toLocaleDateString('en-IN', { month: 'short', day: 'numeric', year: 'numeric' })} />}
             {viewing.description && <DetailRow label="Description" value={viewing.description} />}
             {viewing.notes && <DetailRow label="Notes" value={viewing.notes} />}
-            <div className="pt-3 border-t border-surface-100 dark:border-[#355966] flex flex-wrap justify-end gap-2">
+            <div className="pt-3 border-t border-surface-100 dark:border-[#304247] flex flex-wrap justify-end gap-2">
               <button type="button" onClick={() => openEdit(viewing)} className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl border border-surface-200 dark:border-surface-700 text-xs font-medium text-surface-700 dark:text-surface-200 hover:bg-surface-100 dark:hover:bg-surface-800">
                 <Pencil size={14} /> Edit
               </button>
@@ -490,8 +538,8 @@ export default function BillsPage() {
         title={editing ? 'Edit Bill' : 'New Bill / Expense'}
         description={editing ? 'Update bill details. Marking as paid can generate the next recurring occurrence.' : 'Add a bill with due date, amount, and optional recurrence.'}
         maxWidth="lg"
-        panelClassName="rounded-3xl dark:border-[#355966]"
-        headerClassName="pb-3 border-surface-100 dark:border-[#355966]"
+        panelClassName="rounded-3xl dark:border-[#304247]"
+        headerClassName="pb-3 border-surface-100 dark:border-[#304247]"
         contentClassName="pt-4 pb-0"
         titleClassName="text-base font-bold font-editorial text-surface-900 dark:text-surface-100"
       >
@@ -506,16 +554,22 @@ export default function BillsPage() {
             <Field label="Provider / Merchant">
               <input type="text" value={form.provider} onChange={(e) => setForm({ ...form, provider: e.target.value })} placeholder="e.g. Power Corp" className={inputClass} />
             </Field>
-            <Field label={`Amount (${form.currency || '₹'}) *`}>
+            <Field label={`Amount (${form.currency || 'INR'}) *`}>
               <div className="relative flex items-center">
-                <IndianRupee size={14} className="absolute left-3 text-surface-400 pointer-events-none" />
+                <span className="absolute left-3 text-surface-400 pointer-events-none text-xs">{getCurrencyInfo(form.currency).symbol}</span>
                 <input type="number" required step="0.01" min="0" value={form.amount} onChange={(e) => setForm({ ...form, amount: e.target.value })} placeholder="0.00" className={`${inputClass} pl-8`} />
               </div>
             </Field>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <Field label="Currency">
-              <input type="text" value={form.currency} onChange={(e) => setForm({ ...form, currency: e.target.value })} maxLength={6} className={inputClass} />
+              <select value={form.currency} onChange={(e) => setForm({ ...form, currency: e.target.value })} className={inputClass}>
+                {Object.entries(getCurrencyInfo('INR') === undefined ? {} : CURRENCIES).map(([code, info]) => (
+                  <option key={code} value={code}>
+                    {info.symbol} {code} - {info.name}
+                  </option>
+                ))}
+              </select>
             </Field>
             <Field label="Due date *">
               <input type="date" required value={form.dueDate} onChange={(e) => setForm({ ...form, dueDate: e.target.value })} className={inputClass} />
@@ -540,7 +594,7 @@ export default function BillsPage() {
           <Field label="Notes">
             <textarea rows={2} value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} placeholder="Optional notes..." className={inputClass} />
           </Field>
-          <div className="pt-3 border-t border-surface-100 dark:border-[#355966] flex justify-end gap-2">
+          <div className="pt-3 border-t border-surface-100 dark:border-[#304247] flex justify-end gap-2">
             <button type="button" onClick={closeModal} disabled={submitting} className="px-4 py-2 text-xs rounded-xl border border-surface-200 dark:border-surface-700 hover:bg-surface-100 dark:hover:bg-surface-800 text-surface-700 dark:text-surface-200">Cancel</button>
             <button type="submit" disabled={submitting} className="inline-flex items-center gap-2 px-4 py-2 text-xs rounded-xl bg-primary-500 hover:bg-primary-600 text-white font-semibold disabled:opacity-50">
               {submitting && <Loader2 size={14} className="animate-spin" />}
@@ -588,3 +642,5 @@ function SummaryCard({ label, value, sub, tone }: { label: string; value: string
     </div>
   );
 }
+
+

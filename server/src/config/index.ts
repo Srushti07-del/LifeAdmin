@@ -30,6 +30,20 @@ const config = {
   // File Upload
   maxFileSize: parseInt(process.env.MAX_FILE_SIZE || '10485760', 10),
   uploadDir: process.env.UPLOAD_DIR || 'uploads',
+
+  // SMTP Email Configuration (getter to dynamically reflect environment updates in tests & runtime)
+  get smtp() {
+    return {
+      host: (process.env.SMTP_HOST || '').trim(),
+      port: parseInt(process.env.SMTP_PORT || '587', 10),
+      user: (process.env.SMTP_USER || '').trim(),
+      pass: (process.env.SMTP_PASS || '').trim(),
+      from: (process.env.SMTP_FROM || 'noreply@lifeadmin.local').trim(),
+      secure: process.env.SMTP_SECURE !== undefined
+        ? process.env.SMTP_SECURE === 'true'
+        : parseInt(process.env.SMTP_PORT || '587', 10) === 465,
+    };
+  },
 };
 
 export default config;

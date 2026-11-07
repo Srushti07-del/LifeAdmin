@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+﻿import { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import api from '../lib/api';
 import {
@@ -15,7 +15,10 @@ import {
   Shield,
   X,
   Plus,
+  Search,
+  IndianRupee,
 } from 'lucide-react';
+import { CURRENCIES, DEFAULT_CURRENCY, getCurrencyInfo, type CurrencyCode } from '../lib/currency';
 
 export default function SettingsPage() {
   const { user, updateUser, logout, setTheme: setThemeContext } = useAuth();
@@ -29,6 +32,9 @@ export default function SettingsPage() {
   const [notificationsEnabled, setNotificationsEnabled] = useState(user?.notificationsEnabled ?? true);
   const [autoExtract, setAutoExtract] = useState(user?.aiPreferences?.autoExtract ?? true);
   const [suggestionsEnabled, setSuggestionsEnabled] = useState(user?.aiPreferences?.suggestionsEnabled ?? true);
+  const [preferredCurrency, setPreferredCurrency] = useState<CurrencyCode>((user?.preferredCurrency || DEFAULT_CURRENCY) as CurrencyCode);
+  const [currencySearch, setCurrencySearch] = useState('');
+  const [currencyDropdownOpen, setCurrencyDropdownOpen] = useState(false);
 
   // Categories
   const [categories, setCategories] = useState<string[]>(
@@ -45,6 +51,7 @@ export default function SettingsPage() {
       setAutoExtract(user.aiPreferences?.autoExtract ?? true);
       setSuggestionsEnabled(user.aiPreferences?.suggestionsEnabled ?? true);
       if (user.categories) setCategories(user.categories);
+      if (user.preferredCurrency) setPreferredCurrency(user.preferredCurrency as CurrencyCode);
     }
   }, [user]);
 
@@ -72,6 +79,7 @@ export default function SettingsPage() {
           suggestionsEnabled,
         },
         categories,
+        preferredCurrency,
         ...overrides,
       };
 
@@ -135,7 +143,7 @@ export default function SettingsPage() {
   return (
     <div className="space-y-8 animate-fade-in max-w-4xl pb-16">
       {/* Editorial Header */}
-      <div className="pb-3 border-b border-surface-100 dark:border-[#355966] flex items-center justify-between">
+      <div className="pb-3 border-b border-surface-100 dark:border-[#304247] flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold font-editorial text-surface-900 dark:text-surface-100 tracking-tight">
             Settings & Preferences
@@ -154,7 +162,7 @@ export default function SettingsPage() {
 
       {/* Profile Section */}
       <section className="bg-white dark:bg-surface-0 rounded-3xl p-6 sm:p-7 border border-surface-200 dark:border-surface-700 shadow-card space-y-4">
-        <div className="flex items-center gap-2.5 pb-3 border-b border-surface-100 dark:border-[#355966]">
+        <div className="flex items-center gap-2.5 pb-3 border-b border-surface-100 dark:border-[#304247]">
           <div className="w-8 h-8 rounded-xl bg-primary-50 dark:bg-primary-950/40 text-primary-600 dark:text-primary-400 flex items-center justify-center">
             <User size={18} />
           </div>
@@ -197,7 +205,7 @@ export default function SettingsPage() {
             <button
               type="submit"
               disabled={savingProfile}
-              className={`px-4 py-2 rounded-xl bg-primary-600 hover:bg-primary-700 dark:bg-primary-500 dark:hover:bg-primary-400 text-white dark:text-[#183B4A] text-xs font-semibold disabled:opacity-50 transition-colors shadow-xs`}
+              className={`px-4 py-2 rounded-xl bg-primary-600 hover:bg-primary-700 dark:bg-primary-500 dark:hover:bg-primary-400 text-white dark:text-[#101719] text-xs font-semibold disabled:opacity-50 transition-colors shadow-xs`}
             >
               {savingProfile ? 'Saving...' : 'Update Profile'}
             </button>
@@ -207,7 +215,7 @@ export default function SettingsPage() {
 
       {/* Appearance & Themes */}
       <section className="bg-white dark:bg-surface-0 rounded-3xl p-6 sm:p-7 border border-surface-200 dark:border-surface-700 shadow-card space-y-4">
-        <div className="flex items-center gap-2.5 pb-3 border-b border-surface-100 dark:border-[#355966]">
+        <div className="flex items-center gap-2.5 pb-3 border-b border-surface-100 dark:border-[#304247]">
           <div className="w-8 h-8 rounded-xl bg-teal-50 dark:bg-teal-950/40 text-teal-600 dark:text-teal-400 flex items-center justify-center">
             <Settings size={18} />
           </div>
@@ -251,7 +259,7 @@ export default function SettingsPage() {
 
       {/* Categories Management */}
       <section className="bg-white dark:bg-surface-0 rounded-3xl p-6 sm:p-7 border border-surface-200 dark:border-surface-700 shadow-card space-y-4">
-        <div className="flex items-center gap-2.5 pb-3 border-b border-surface-100 dark:border-[#355966]">
+        <div className="flex items-center gap-2.5 pb-3 border-b border-surface-100 dark:border-[#304247]">
           <div className="w-8 h-8 rounded-xl bg-primary-50 dark:bg-primary-950/40 text-primary-600 dark:text-primary-400 flex items-center justify-center">
             <Sparkles size={18} />
           </div>
@@ -299,11 +307,93 @@ export default function SettingsPage() {
           <button
             type="button"
             onClick={handleAddCategory}
-            className="px-3.5 py-2 rounded-xl bg-primary-600 hover:bg-primary-700 dark:bg-primary-500 dark:hover:bg-primary-400 text-white dark:text-[#183B4A] text-xs font-semibold flex items-center gap-1 shadow-xs transition-colors"
+            className="px-3.5 py-2 rounded-xl bg-primary-600 hover:bg-primary-700 dark:bg-primary-500 dark:hover:bg-primary-400 text-white dark:text-[#101719] text-xs font-semibold flex items-center gap-1 shadow-xs transition-colors"
           >
             <Plus size={14} /> Add
           </button>
         </div>
+      </section>
+
+      {/* Currency & Exchange Rates */}
+      <section className="bg-white dark:bg-surface-0 rounded-3xl p-6 sm:p-7 border border-surface-200 dark:border-surface-700 shadow-card space-y-4">
+        <div className="flex items-center gap-2.5 pb-3 border-b border-surface-100 dark:border-[#304247]">
+          <div className="w-8 h-8 rounded-xl bg-primary-50 dark:bg-primary-950/40 text-primary-600 dark:text-primary-400 flex items-center justify-center">
+            <IndianRupee size={18} />
+          </div>
+          <div>
+            <h2 className="text-base font-bold font-editorial text-surface-900 dark:text-surface-100">
+              Preferred Currency
+            </h2>
+            <p className="text-[11px] text-surface-600 dark:text-surface-300">
+              Choose your display currency. Amounts are converted using live exchange rates.
+            </p>
+          </div>
+        </div>
+
+        <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+          <div className="relative flex-1 max-w-md">
+            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-surface-400 pointer-events-none" />
+            <input
+              type="text"
+              value={currencySearch}
+              onChange={(e) => setCurrencySearch(e.target.value)}
+              placeholder="Search currencies..."
+              className="w-full pl-9 py-2.5 text-xs rounded-xl border border-surface-200 dark:border-surface-700 bg-white dark:bg-surface-0 text-surface-900 dark:text-surface-100 placeholder:text-surface-400 focus:outline-none focus:ring-1 focus:ring-primary-500"
+            />
+          </div>
+          <button
+            type="button"
+            onClick={() => setCurrencyDropdownOpen((v) => !v)}
+            className="px-4 py-2.5 rounded-xl border border-surface-200 dark:border-surface-700 bg-white dark:bg-surface-0 text-surface-900 dark:text-surface-100 text-xs font-semibold hover:bg-surface-50 dark:hover:bg-surface-800 transition-colors"
+          >
+            {getCurrencyInfo(preferredCurrency).symbol} {preferredCurrency}
+            <span className="ml-2 text-[10px]">{currencyDropdownOpen ? '▲' : '▼'}</span>
+          </button>
+        </div>
+
+        {currencyDropdownOpen && (
+          <div className="max-w-md border border-surface-200 dark:border-surface-700 rounded-2xl bg-white dark:bg-surface-0 shadow-elevated z-20 mt-2">
+            <div className="px-4 py-2 border-b border-surface-100 dark:border-surface-700">
+              <p className="text-[10px] font-semibold uppercase tracking-wider text-surface-500 dark:text-surface-400">
+                Select your preferred display currency
+              </p>
+            </div>
+            <div className="max-h-64 overflow-y-auto py-1">
+              {Object.values(CURRENCIES)
+                .filter((c) => c.name.toLowerCase().includes(currencySearch.toLowerCase()) || c.code.toLowerCase().includes(currencySearch.toLowerCase()))
+                .map((c) => {
+                  const isSelected = c.code === preferredCurrency;
+                  return (
+                    <button
+                      key={c.code}
+                      type="button"
+                      onClick={() => {
+                        setPreferredCurrency(c.code as CurrencyCode);
+                        handleSaveSettings({ preferredCurrency: c.code });
+                        setCurrencyDropdownOpen(false);
+                      }}
+                      className={`w-full text-left px-4 py-2.5 text-xs transition-colors ${
+                        isSelected
+                          ? 'bg-primary-50 dark:bg-primary-950/40 text-primary-700 dark:text-primary-300'
+                          : 'text-surface-700 dark:text-surface-200 hover:bg-surface-50 dark:hover:bg-surface-800'
+                      }`}
+                    >
+                      <span className="flex items-center gap-2">
+                        <span>{c.symbol}</span>
+                        <span>{c.code}</span>
+                      </span>
+                      <span className="ml-auto text-surface-500 dark:text-surface-400">{c.name}</span>
+                      {isSelected && <span className="text-primary-600 dark:text-primary-400">Selected</span>}
+                    </button>
+                  );
+                })}
+            </div>
+          </div>
+        )}
+
+        <p className="text-[10px] text-surface-500 dark:text-surface-400 mt-1">
+          Original amounts stored in your bills are never modified. Displayed amounts are converted for your convenience.
+        </p>
       </section>
 
       {/* 100% Free Product Promise */}
@@ -326,7 +416,7 @@ export default function SettingsPage() {
 
       {/* Data Portability & Account Controls */}
       <section className="bg-white dark:bg-surface-0 rounded-3xl p-6 sm:p-7 border border-surface-200 dark:border-surface-700 shadow-card space-y-4">
-        <div className="flex items-center gap-2.5 pb-3 border-b border-surface-100 dark:border-[#355966]">
+        <div className="flex items-center gap-2.5 pb-3 border-b border-surface-100 dark:border-[#304247]">
           <div className="w-8 h-8 rounded-xl bg-surface-100 dark:bg-surface-800 text-surface-600 dark:text-surface-300 flex items-center justify-center">
             <Shield size={18} />
           </div>
@@ -357,3 +447,5 @@ export default function SettingsPage() {
     </div>
   );
 }
+
+

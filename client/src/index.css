@@ -34,31 +34,32 @@
 }
 
 .dark {
-  /* Deep Ocean Blue + Teal — sophisticated, calm, premium */
-  --bg-main: #183B4A;
-  --bg-surface: #204B5A;
-  --bg-surface-secondary: #285968;
-  --bg-surface-elevated: #285968;
-  --color-primary: #55BDB5;
-  --color-primary-deep: #4AA8A1;
-  --color-primary-soft: #285968;
-  --text-main: #F1F7F7;
-  --text-secondary: #C5DDDE;
-  --text-muted: #A7C5C8;
-  --border-subtle: #355966;
+  /* Deep Midnight Teal — genuinely dark, premium, layered charcoal */
+  --bg-main: #101719;
+  --bg-surface: #1C292D;
+  --bg-surface-secondary: #243438;
+  --bg-surface-elevated: #243438;
+  --color-primary: #36B8AE;
+  --color-primary-deep: #2a9c93;
+  --color-primary-soft: #1a423e;
+  --text-main: #E8F0F0;
+  --text-secondary: #A7B8BA;
+  --text-muted: #82999C;
+  --border-subtle: #304247;
 
-  --urgency-overdue-bg: rgba(239, 68, 68, 0.18);
+  /* Urgency indicators (readable on dark) */
+  --urgency-overdue-bg: rgba(239, 68, 68, 0.15);
   --urgency-overdue-text: #FCA5A5;
   --urgency-overdue-dot: #F87171;
-  --urgency-urgent-bg: rgba(249, 115, 22, 0.18);
+  --urgency-urgent-bg: rgba(249, 115, 22, 0.15);
   --urgency-urgent-text: #FDBA74;
   --urgency-urgent-dot: #FB923C;
-  --urgency-soon-bg: rgba(245, 158, 11, 0.18);
+  --urgency-soon-bg: rgba(245, 158, 11, 0.15);
   --urgency-soon-text: #FCD34D;
   --urgency-soon-dot: #FBBF24;
-  --urgency-upcoming-bg: rgba(85, 189, 181, 0.15);
+  --urgency-upcoming-bg: rgba(54, 184, 174, 0.15);
   --urgency-upcoming-text: #99E6E0;
-  --urgency-upcoming-dot: #55BDB5;
+  --urgency-upcoming-dot: #36B8AE;
 }
 
 @layer base {
@@ -151,33 +152,33 @@
 
 /* ── Dark mode surface & brand overrides (Deep Ocean) ── */
 .dark {
-  /* Ocean Teal Brand Scale (dark mode) */
-  --color-primary-50:  #183B4A;
-  --color-primary-100: #204B5A;
-  --color-primary-200: #285968;
-  --color-primary-300: #99E6E0;
-  --color-primary-400: #6FD1C9;
-  --color-primary-500: #55BDB5;
-  --color-primary-600: #4AA8A1;
-  --color-primary-700: #3D8E88;
-  --color-primary-800: #285968;
-  --color-primary-900: #204B5A;
+  /* Deep Midnight Teal Brand Scale (dark mode) — ascending light→dark */
+  --color-primary-50:  #eaf8f7;
+  --color-primary-100: #ccf1ef;
+  --color-primary-200: #99e6e0;
+  --color-primary-300: #6fd1c9;
+  --color-primary-400: #4fc4bc;
+  --color-primary-500: #36b8ae;
+  --color-primary-600: #49c9be;
+  --color-primary-700: #2a9c93;
+  --color-primary-800: #203b3d;
+  --color-primary-900: #141f22;
 
   /* Surfaces mapped for Tailwind utilities */
-  --color-surface-0:   #204B5A; /* Card surface */
-  --color-surface-50:  #183B4A; /* Main page background */
-  --color-surface-100: #F1F7F7; /* Primary text / headings */
-  --color-surface-200: #C5DDDE; /* Secondary text */
-  --color-surface-300: #A7C5C8; /* Muted text */
-  --color-surface-400: #A7C5C8; /* Captions / icons */
-  --color-surface-500: #355966; /* Mid border / subtle */
-  --color-surface-600: #355966; /* Borders */
-  --color-surface-700: #355966; /* Standard borders */
-  --color-surface-800: #285968; /* Elevated / hover surface */
-  --color-surface-900: #204B5A; /* Card surface */
-  --color-surface-950: #143440; /* Sidebar / deepest */
+  --color-surface-0:   #1C292D; /* Card surface */
+  --color-surface-50:  #101719; /* Main page background */
+  --color-surface-100: #E8F0F0; /* Primary text / headings */
+  --color-surface-200: #A7B8BA; /* Secondary text */
+  --color-surface-300: #82999C; /* Muted text */
+  --color-surface-400: #82999C; /* Captions / icons */
+  --color-surface-500: #304247; /* Mid border / subtle */
+  --color-surface-600: #304247; /* Borders */
+  --color-surface-700: #304247; /* Standard borders */
+  --color-surface-800: #192629; /* Input backgrounds */
+  --color-surface-900: #1C292D; /* Card surface */
+  --color-surface-950: #141F22; /* Sidebar / deepest */
 
-  /* Shadows adjusted for dark ocean */
+  /* Shadows adjusted for dark midnight */
   --shadow-xs:       0 1px 2px rgba(0, 0, 0, 0.2);
   --shadow-sm:       0 1px 3px rgba(0, 0, 0, 0.25), 0 1px 2px rgba(0, 0, 0, 0.15);
   --shadow-card:     0 4px 12px -2px rgba(0, 0, 0, 0.3), 0 2px 4px -2px rgba(0, 0, 0, 0.2);
@@ -253,7 +254,7 @@
   background-color: var(--bg-surface);
 }
 .dark .bg-sidebar {
-  background-color: #143440;
+  background-color: #141F22;
 }
 
 .text-main {

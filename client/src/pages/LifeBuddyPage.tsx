@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+﻿import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { COMPANIONS, getCompanionStorage, saveCompanionStorage, getGrowthStage } from '../lib/companions';
 import type { Companion, CompanionState } from '../lib/companions';
@@ -45,7 +45,7 @@ export default function LifeBuddyPage() {
 
   return (
     <div className="space-y-8 animate-fade-in pb-12">
-      <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 pb-3 border-b border-surface-100 dark:border-[#355966]">
+      <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 pb-3 border-b border-surface-100 dark:border-[#304247]">
         <div>
           <div className="flex items-center gap-2 mb-1"><span className="text-[11px] font-bold uppercase tracking-wider text-primary-600 dark:text-primary-400">Companion + Assistant</span></div>
           <h1 className="text-3xl sm:text-4xl font-bold font-editorial text-surface-900 dark:text-surface-100 tracking-tight">LifeBuddy Sanctuary</h1>
@@ -54,7 +54,7 @@ export default function LifeBuddyPage() {
         <button type="button" onClick={() => navigate('/ai')} className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-primary-600 hover:bg-primary-700 text-white text-xs font-semibold shadow-xs"><Bot size={16} /> Open LifeBuddy Chat <ArrowRight size={14} /></button>
       </div>
 
-      <Card hover={false} className="p-5 sm:p-6 border-primary-200/60 dark:border-primary-700/30 bg-gradient-to-r from-primary-50/60 to-transparent dark:from-primary-950/20">
+      <Card hover={false} className="p-5 sm:p-6 border-primary-200/60 dark:border-surface-700 bg-gradient-to-r from-primary-50/60 to-transparent dark:from-transparent dark:to-transparent dark:bg-surface-0">
         <div className="flex flex-col md:flex-row gap-4 md:items-start">
           <div className="w-11 h-11 rounded-2xl bg-primary-600 text-white flex items-center justify-center shrink-0"><Sparkles size={20} /></div>
           <div className="flex-1 min-w-0">
@@ -62,7 +62,7 @@ export default function LifeBuddyPage() {
             <p className="text-xs text-surface-600 dark:text-surface-300 mt-1">" {activeCompanion.quote} "</p>
             <div className="mt-3 flex flex-wrap gap-2">
               {BUDDY_PROMPTS.map((p) => (
-                <button key={p} type="button" onClick={() => navigate('/ai', { state: { prompt: p } })} className="px-3 py-1.5 rounded-full text-[11px] font-medium bg-white dark:bg-[#204B5A] border border-surface-200 dark:border-surface-700 text-surface-700 dark:text-surface-200 hover:border-primary-500 transition-colors">{p}</button>
+                <button key={p} type="button" onClick={() => navigate('/ai', { state: { prompt: p } })} className="px-3 py-1.5 rounded-full text-[11px] font-medium bg-white dark:bg-[#1C292D] border border-surface-200 dark:border-surface-700 text-surface-700 dark:text-surface-200 hover:border-primary-500 transition-colors">{p}</button>
               ))}
             </div>
           </div>
@@ -168,3 +168,4 @@ function Stat({ icon: Icon, tone, value, label }: { icon: any; tone: string; val
     </div>
   );
 }
+

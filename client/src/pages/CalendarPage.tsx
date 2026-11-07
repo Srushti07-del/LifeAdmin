@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+﻿import { useEffect, useMemo, useState } from 'react';
 import api from '../lib/api';
 import Modal from '../components/ui/Modal';
 import {
@@ -294,7 +294,7 @@ export default function CalendarPage() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-surface-900 dark:text-surface-100">Unified Calendar</h1>
-          <p className="text-surface-500 text-sm mt-1">
+          <p className="text-surface-500 dark:text-surface-200 text-sm mt-1">
             View tasks, bills, appointments, reminders, and personal events in month, week, or day views.
           </p>
         </div>
@@ -315,7 +315,7 @@ export default function CalendarPage() {
         </div>
       )}
 
-      <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-4 bg-white dark:bg-[#204B5A] p-4 rounded-2xl border border-surface-200 dark:border-[#355966]">
+      <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-4 bg-white dark:bg-[#1C292D] p-4 rounded-2xl border border-surface-200 dark:border-[#304247]">
         <div className="flex flex-wrap items-center gap-3">
           <div className="flex items-center gap-1">
             <button onClick={() => navigate(-1)} aria-label="Previous" className="p-2 rounded-xl hover:bg-surface-100 dark:hover:bg-surface-800 text-surface-600 dark:text-surface-300 transition-colors">
@@ -337,7 +337,7 @@ export default function CalendarPage() {
               <button
                 key={v}
                 onClick={() => setView(v)}
-                className={`px-3 py-1.5 rounded-lg text-xs font-medium capitalize transition-colors ${view === v ? 'bg-white dark:bg-[#285968] text-surface-900 dark:text-surface-100 shadow-sm' : 'text-surface-600 dark:text-surface-300'}`}
+                className={`px-3 py-1.5 rounded-lg text-xs font-medium capitalize transition-colors ${view === v ? 'bg-white dark:bg-[#243438] text-surface-900 dark:text-surface-100 shadow-sm' : 'text-surface-600 dark:text-surface-300'}`}
               >
                 {v}
               </button>
@@ -348,7 +348,7 @@ export default function CalendarPage() {
         <div className="flex items-center gap-1.5 overflow-x-auto pb-1 xl:pb-0">
           <button
             onClick={() => setSelectedType('all')}
-            className={`px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap transition-colors ${selectedType === 'all' ? 'bg-surface-900 text-white dark:bg-primary-500 dark:text-[#183B4A]' : 'bg-surface-50 dark:bg-surface-800 text-surface-600 dark:text-surface-300'}`}
+            className={`px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap transition-colors ${selectedType === 'all' ? 'bg-surface-900 text-white dark:bg-primary-500 dark:text-[#101719]' : 'bg-surface-50 dark:bg-surface-800 text-surface-600 dark:text-surface-300'}`}
           >
             All Items
           </button>
@@ -401,8 +401,8 @@ export default function CalendarPage() {
               <div className="flex items-center gap-2 text-surface-700 dark:text-surface-200"><Clock size={15} /><span>{formatTimeRange(detailItem)}</span></div>
               {detailItem.location && <div className="flex items-center gap-2 text-surface-700 dark:text-surface-200"><MapPin size={15} /><span>{detailItem.location}</span></div>}
               {detailItem.details && <div className="flex items-start gap-2 text-surface-700 dark:text-surface-200"><FileText size={15} className="mt-0.5" /><span>{detailItem.details}</span></div>}
-              <div className="text-xs text-surface-500">Status: {detailItem.status}</div>
-              {!detailItem.isOriginalEvent && <div className="text-xs text-surface-500">Source item from {detailItem.source}. Edit it in its module to keep data consistent.</div>}
+              <div className="text-xs text-surface-500 dark:text-surface-200">Status: {detailItem.status}</div>
+              {!detailItem.isOriginalEvent && <div className="text-xs text-surface-500 dark:text-surface-200">Source item from {detailItem.source}. Edit it in its module to keep data consistent.</div>}
             </div>
             <div className="flex flex-wrap justify-end gap-2">
               {detailItem.isOriginalEvent && (
@@ -500,7 +500,7 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
 
 function EmptyInline({ message, actionLabel, onAction }: { message: string; actionLabel?: string; onAction?: () => void }) {
   return (
-    <div className="text-center py-10 text-surface-500 text-sm">
+    <div className="text-center py-10 text-surface-500 dark:text-surface-200 text-sm">
       <p>{message}</p>
       {actionLabel && onAction && <button type="button" onClick={onAction} className="mt-3 inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-primary-600 text-white text-xs font-medium hover:bg-primary-700"><Plus size={14} />{actionLabel}</button>}
     </div>
@@ -509,14 +509,14 @@ function EmptyInline({ message, actionLabel, onAction }: { message: string; acti
 
 function ItemCard({ item, onOpen }: { item: CalendarEventItem; onOpen: () => void }) {
   return (
-    <button type="button" onClick={onOpen} className="w-full text-left p-3.5 rounded-xl border border-surface-200 dark:border-[#355966] bg-surface-50/50 dark:bg-surface-800/40 flex items-start gap-3 hover:border-primary-300 dark:hover:border-primary-700 transition-colors">
+    <button type="button" onClick={onOpen} className="w-full text-left p-3.5 rounded-xl border border-surface-200 dark:border-[#304247] bg-surface-50/50 dark:bg-surface-800/40 flex items-start gap-3 hover:border-primary-300 dark:hover:border-primary-700 transition-colors">
       <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0 text-white font-bold text-xs" style={{ backgroundColor: item.color || '#087E83' }}>{item.type.charAt(0).toUpperCase()}</div>
       <div className="flex-1 min-w-0">
         <div className="flex items-center justify-between gap-2">
           <h4 className="text-sm font-semibold text-surface-900 dark:text-surface-100 truncate">{item.title}</h4>
           <span className="text-[11px] uppercase tracking-wider px-2 py-0.5 rounded-md bg-surface-200 dark:bg-surface-700 text-surface-700 dark:text-surface-200 font-semibold">{item.type}</span>
         </div>
-        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-surface-500 mt-1.5">
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-surface-500 dark:text-surface-200 mt-1.5">
           <span className="inline-flex items-center gap-1"><Clock size={12} />{formatTimeRange(item)}</span>
           {item.location && <span className="inline-flex items-center gap-1"><MapPin size={12} />{item.location}</span>}
           {item.details && <span className="truncate">{item.details}</span>}
@@ -542,8 +542,8 @@ function MonthView({ currentDate, getEventsForDay, loading, onSelectDay, onSelec
     // still show grid; empty state is subtle because month grid itself is the UI
   }
   return (
-    <div className="bg-white dark:bg-[#204B5A] rounded-2xl border border-surface-200 dark:border-[#355966] overflow-hidden shadow-sm">
-      <div className="grid grid-cols-7 border-b border-surface-200 dark:border-[#355966] text-center text-xs font-semibold text-surface-400 py-3 bg-surface-50/50 dark:bg-surface-800/20">
+    <div className="bg-white dark:bg-[#1C292D] rounded-2xl border border-surface-200 dark:border-[#304247] overflow-hidden shadow-sm">
+      <div className="grid grid-cols-7 border-b border-surface-200 dark:border-[#304247] text-center text-xs font-semibold text-surface-400 py-3 bg-surface-50/50 dark:bg-surface-800/20">
         {['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'].map((d) => <div key={d}>{d}</div>)}
       </div>
       <div className="grid grid-cols-7 auto-rows-fr divide-x divide-y divide-surface-200 dark:divide-surface-800">
@@ -551,7 +551,7 @@ function MonthView({ currentDate, getEventsForDay, loading, onSelectDay, onSelec
           const dayEvents = getEventsForDay(cell.date);
           const isToday = isSameDay(cell.date, today);
           return (
-            <div key={i} className={`min-h-28 p-2 flex flex-col ${!cell.isCurrentMonth ? 'bg-surface-50/30 dark:bg-[#143440]/40 opacity-50' : ''}`}>
+            <div key={i} className={`min-h-28 p-2 flex flex-col ${!cell.isCurrentMonth ? 'bg-surface-50/30 dark:bg-[#141F22]/40 opacity-50' : ''}`}>
               <button type="button" onClick={() => onSelectDay(cell.date)} className="flex items-center justify-between w-full text-left">
                 <span className={`inline-flex items-center justify-center text-xs font-semibold w-6 h-6 rounded-full ${isToday ? 'bg-primary-600 text-white shadow-sm' : 'text-surface-700 dark:text-surface-300'}`}>{cell.date.getDate()}</span>
                 {dayEvents.length > 0 && <span className="text-[10px] font-medium text-surface-400">{dayEvents.length}</span>}
@@ -586,7 +586,7 @@ function WeekView({ currentDate, getEventsForDay, loading, onSelectDay, onSelect
   const today = new Date();
   const hasItems = days.some((d) => getEventsForDay(d).length > 0);
   return (
-    <div className="bg-white dark:bg-[#204B5A] rounded-2xl border border-surface-200 dark:border-[#355966] overflow-hidden shadow-sm">
+    <div className="bg-white dark:bg-[#1C292D] rounded-2xl border border-surface-200 dark:border-[#304247] overflow-hidden shadow-sm">
       {!loading && !hasItems && <div className="px-4 pt-4"><EmptyInline message="No items scheduled this week." /></div>}
       <div className="grid grid-cols-1 md:grid-cols-7 divide-y md:divide-y-0 md:divide-x divide-surface-200 dark:divide-surface-800">
         {days.map((day) => {
@@ -605,7 +605,7 @@ function WeekView({ currentDate, getEventsForDay, loading, onSelectDay, onSelect
                 {items.length === 0 ? <div className="text-[11px] text-surface-400 py-2">No items</div> : items.map((item) => (
                   <button key={item.id} type="button" onClick={() => onSelectItem(item)} className="w-full text-left rounded-lg px-2 py-1.5 border border-surface-200/60 dark:border-surface-700/60" style={{ backgroundColor: item.color ? `${item.color}18` : '#087E8318' }}>
                     <div className="text-[11px] font-semibold truncate" style={{ color: item.color || '#087E83' }}>{item.title}</div>
-                    <div className="text-[10px] text-surface-500">{formatTimeRange(item)}</div>
+                    <div className="text-[10px] text-surface-500 dark:text-surface-200">{formatTimeRange(item)}</div>
                   </button>
                 ))}
               </div>
@@ -621,11 +621,11 @@ function DayView({ currentDate, items, loading, onCreate, onSelectItem }: { curr
   const allDay = items.filter((i) => i.allDay || (!i.startTime && !i.endTime));
   const timed = items.filter((i) => !allDay.includes(i)).sort((a, b) => (a.startTime || '').localeCompare(b.startTime || ''));
   return (
-    <div className="bg-white dark:bg-[#204B5A] rounded-2xl border border-surface-200 dark:border-[#355966] overflow-hidden shadow-sm p-4 sm:p-5 space-y-5">
+    <div className="bg-white dark:bg-[#1C292D] rounded-2xl border border-surface-200 dark:border-[#304247] overflow-hidden shadow-sm p-4 sm:p-5 space-y-5">
       <div className="flex items-center justify-between gap-3">
         <div>
           <div className="text-sm font-semibold text-surface-900 dark:text-surface-100">Day agenda</div>
-          <div className="text-xs text-surface-500">{items.length} item(s) on {toLocalISODate(currentDate)}</div>
+          <div className="text-xs text-surface-500 dark:text-surface-200">{items.length} item(s) on {toLocalISODate(currentDate)}</div>
         </div>
         <button type="button" onClick={onCreate} className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-primary-600 hover:bg-primary-700 text-white text-xs font-medium"><Plus size={14} />Add event</button>
       </div>
@@ -652,3 +652,5 @@ function DayView({ currentDate, items, loading, onCreate, onSelectItem }: { curr
     </div>
   );
 }
+
+

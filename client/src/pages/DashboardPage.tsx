@@ -10,6 +10,7 @@ import {
 import type { CompanionState } from '../lib/companions';
 import CompanionAvatar from '../components/companions/CompanionAvatar';
 import OnboardingModal from '../components/onboarding/OnboardingModal';
+import { formatCurrency } from '../lib/currency';
 import {
   AlertCircle,
   Calendar,
@@ -278,7 +279,7 @@ export default function DashboardPage() {
 
       {/* Gentle First-Time Orientation Banner */}
       {isEmpty && (
-        <div className="bg-primary-50/70 dark:bg-primary-950/40 border border-primary-200 dark:border-primary-800/60 rounded-3xl p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div className="bg-primary-50/70 dark:bg-surface-0 border border-primary-200 dark:border-surface-700 rounded-3xl p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div className="flex items-center gap-4">
             <div className="w-12 h-12 rounded-2xl bg-primary-500 text-white flex items-center justify-center font-bold text-lg shadow-xs flex-shrink-0">
               <Sparkles size={24} />
@@ -287,7 +288,7 @@ export default function DashboardPage() {
               <h3 className="text-base font-normal font-editorial text-surface-900 dark:text-surface-100">
                 Welcome to your command center!
               </h3>
-              <p className="text-xs text-surface-600 dark:text-surface-400 mt-0.5">
+              <p className="text-xs text-surface-600 dark:text-surface-300 mt-0.5">
                 Nothing requires urgent attention right now. Add your first task or bill to start staying ahead.
               </p>
             </div>
@@ -430,8 +431,7 @@ export default function DashboardPage() {
                                 <>
                                   <span>·</span>
                                   <span className="font-bold text-surface-900 dark:text-surface-100">
-                                    {item.currency || '₹'}
-                                    {item.amount.toLocaleString()}
+                                    {formatCurrency(item.amount, item.currency)}
                                   </span>
                                 </>
                               )}
@@ -569,7 +569,7 @@ export default function DashboardPage() {
                           </div>
                         </div>
                         <span className="text-sm font-bold font-sans text-primary-700 dark:text-primary-300">
-                          {bill.currency || '₹'}{bill.amount?.toLocaleString()}
+                          {formatCurrency(bill.amount || 0, bill.currency)}
                         </span>
                       </div>
                     ))}

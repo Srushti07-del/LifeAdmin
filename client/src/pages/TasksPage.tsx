@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+﻿import { useState, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
 import api from '../lib/api';
 import Modal from '../components/ui/Modal';
@@ -179,7 +179,7 @@ export default function TasksPage() {
   return (
     <div className="space-y-6 animate-fade-in pb-12">
       {/* Editorial Header */}
-      <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 pb-3 border-b border-surface-100 dark:border-[#355966]">
+      <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 pb-3 border-b border-surface-100 dark:border-[#304247]">
         <div>
           <h1 className="text-3xl font-bold font-editorial text-surface-900 dark:text-surface-100 tracking-tight">
             My Tasks
@@ -220,7 +220,7 @@ export default function TasksPage() {
           <button
             onClick={handleOpenCreate}
             id="new-task-button"
-            className={`flex items-center gap-2 px-4 py-2.5 rounded-xl bg-primary-600 hover:bg-primary-700 dark:bg-primary-500 dark:hover:bg-primary-400 text-white dark:text-[#183B4A] text-xs font-semibold shadow-xs transition-all`}
+            className={`flex items-center gap-2 px-4 py-2.5 rounded-xl bg-primary-600 hover:bg-primary-700 dark:bg-primary-500 dark:hover:bg-primary-400 text-white dark:text-[#101719] text-xs font-semibold shadow-xs transition-all`}
           >
             <Plus size={16} />
             <span>New Task</span>
@@ -255,7 +255,7 @@ export default function TasksPage() {
               onClick={() => setStatusFilter(f.value)}
               className={`px-3 py-1.5 rounded-xl text-xs font-medium whitespace-nowrap transition-colors ${
                 statusFilter === f.value
-                  ? 'bg-primary-600 dark:bg-primary-500 text-white dark:text-[#183B4A] font-semibold shadow-xs'
+                  ? 'bg-primary-600 dark:bg-primary-500 text-white dark:text-[#101719] font-semibold shadow-xs'
                   : 'bg-surface-100 dark:bg-surface-800 text-surface-700 dark:text-surface-200 hover:bg-surface-200 dark:hover:bg-surface-700'
               }`}
             >
@@ -317,7 +317,7 @@ export default function TasksPage() {
                     <div className="min-w-0 flex-1 pr-4">
                       <p
                         className={`text-xs font-semibold tracking-tight text-surface-900 dark:text-surface-100 ${
-                          isCompleted ? 'line-through text-surface-400 dark:text-surface-500' : ''
+                            isCompleted ? 'line-through text-surface-400 dark:text-surface-400' : ''
                         }`}
                       >
                         {task.title}
@@ -361,7 +361,7 @@ export default function TasksPage() {
               );
             })
           ) : (
-            <div className="text-center py-12 bg-white dark:bg-surface-0 rounded-3xl border border-dashed border-surface-200 dark:border-[#355966]">
+            <div className="text-center py-12 bg-white dark:bg-surface-0 rounded-3xl border border-dashed border-surface-200 dark:border-[#304247]">
               <CheckSquare size={32} className="mx-auto text-surface-300 dark:text-surface-700 mb-2" />
               <h3 className="text-sm font-bold font-editorial text-surface-900 dark:text-surface-100">
                 No tasks match your filter
@@ -380,7 +380,7 @@ export default function TasksPage() {
           {(['todo', 'in_progress', 'completed'] as const).map((colStatus) => {
             const colTasks = filteredTasks.filter((t) => t.status === colStatus);
             const colTitles = {
-              todo: { label: 'To Do', icon: Circle, color: 'text-surface-500' },
+              todo: { label: 'To Do', icon: Circle, color: 'text-surface-300' },
               in_progress: { label: 'In Progress', icon: Clock, color: 'text-teal-600 dark:text-teal-400' },
               completed: { label: 'Completed', icon: CheckCircle2, color: 'text-emerald-500' },
             }[colStatus];
@@ -388,16 +388,16 @@ export default function TasksPage() {
             return (
               <div
                 key={colStatus}
-                className="bg-surface-50/50 dark:bg-[#204B5A]/40 rounded-3xl p-4 border border-surface-200 dark:border-[#355966] min-h-[400px] flex flex-col"
+                className="bg-surface-50/50 dark:bg-[#1C292D]/40 rounded-3xl p-4 border border-surface-200 dark:border-[#304247] min-h-[400px] flex flex-col"
               >
-                <div className="flex items-center justify-between pb-3 border-b border-surface-200/60 dark:border-[#355966] mb-3">
+                <div className="flex items-center justify-between pb-3 border-b border-surface-200/60 dark:border-[#304247] mb-3">
                   <div className="flex items-center gap-2">
                     <colTitles.icon size={16} className={colTitles.color} />
                     <span className="text-xs font-bold font-editorial text-surface-900 dark:text-surface-100">
                       {colTitles.label}
                     </span>
                   </div>
-                  <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-white dark:bg-surface-0 text-surface-500 border border-surface-200 dark:border-surface-700">
+                  <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-white dark:bg-surface-0 text-surface-500 dark:text-surface-200 border border-surface-200 dark:border-surface-700">
                     {colTasks.length}
                   </span>
                 </div>
@@ -436,7 +436,7 @@ export default function TasksPage() {
                           <p className="text-[11px] text-surface-600 dark:text-surface-300 mt-1 line-clamp-2">{task.description}</p>
                         )}
 
-                        <div className="flex items-center justify-between mt-3 pt-2 border-t border-surface-100 dark:border-[#355966]">
+                        <div className="flex items-center justify-between mt-3 pt-2 border-t border-surface-100 dark:border-[#304247]">
                           <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-md border ${pConfig.bg} ${pConfig.color} ${pConfig.border}`}>
                             {pConfig.label}
                           </span>
@@ -473,8 +473,8 @@ export default function TasksPage() {
         onClose={() => setShowModal(false)}
         title={editingId ? 'Edit Task' : 'New Task'}
         maxWidth="md"
-        panelClassName="rounded-3xl dark:border-[#355966]"
-        headerClassName="pb-3 border-surface-100 dark:border-[#355966]"
+        panelClassName="rounded-3xl dark:border-[#304247]"
+        headerClassName="pb-3 border-surface-100 dark:border-[#304247]"
         contentClassName="pt-4 pb-0"
         titleClassName="text-base font-bold font-editorial text-surface-900 dark:text-surface-100"
       >
@@ -561,7 +561,7 @@ export default function TasksPage() {
             </div>
           </div>
 
-          <div className="pt-3 border-t border-surface-100 dark:border-[#355966] flex justify-end gap-2">
+          <div className="pt-3 border-t border-surface-100 dark:border-[#304247] flex justify-end gap-2">
             <button
               type="button"
               onClick={() => setShowModal(false)}
@@ -582,3 +582,5 @@ export default function TasksPage() {
     </div>
   );
 }
+
+

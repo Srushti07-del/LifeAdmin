@@ -20,13 +20,8 @@ export default function LoginPage() {
     try {
       await login(email, password);
       navigate('/dashboard');
-    } catch (err: any) {
-      const isDev = import.meta.env.DEV;
-      const message =
-        err?.response?.data?.message ||
-        (err?.code === 'ERR_NETWORK' ? 'Cannot reach server. Is the backend running?' : null) ||
-        'Login failed. Please check your credentials.';
-      setError(isDev ? `[DEV] ${message}` : message);
+    } catch {
+      setError('Invalid email or password. Please try again or create an account.');
     } finally {
       setLoading(false);
     }
@@ -39,12 +34,11 @@ export default function LoginPage() {
       await loginAsGuest();
       navigate('/dashboard');
     } catch (err: any) {
-      const isDev = import.meta.env.DEV;
       const message =
         err?.response?.data?.message ||
-        (err?.code === 'ERR_NETWORK' ? 'Cannot reach server. Is the backend running?' : null) ||
+        (err?.code === 'ERR_NETWORK' ? 'Cannot reach server. Please check your connection.' : null) ||
         'Failed to start guest demo session.';
-      setError(isDev ? `[DEV] ${message}` : message);
+      setError(message);
     } finally {
       setGuestLoading(false);
     }
@@ -74,7 +68,20 @@ export default function LoginPage() {
         <div className="bg-white rounded-3xl p-7 sm:p-8 shadow-card border border-surface-200">
           {error && (
             <div className="mb-5 p-3.5 bg-rose-50 border border-rose-200 rounded-xl text-rose-800 text-xs animate-scale-in">
-              {error}
+              {error === 'Invalid email or password. Please try again or create an account.' ? (
+                <>
+                  Invalid email or password. Please try again or{' '}
+                  <Link
+                    to="/register"
+                    className="text-rose-700 hover:underline font-medium"
+                  >
+                    create an account
+                  </Link>
+                  .
+                </>
+              ) : (
+                error
+              )}
             </div>
           )}
 
@@ -110,6 +117,12 @@ export default function LoginPage() {
                 >
                   Password
                 </label>
+                <Link
+                  to="/forgot-password"
+                  className="text-[11px] text-primary-700 hover:text-primary-800 hover:underline font-semibold"
+                >
+                  Forgot Password?
+                </Link>
               </div>
               <div className="relative flex items-center">
                 <Lock size={16} className="absolute left-3.5 text-surface-500 pointer-events-none" />

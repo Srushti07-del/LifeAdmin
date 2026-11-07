@@ -1,4 +1,4 @@
-import { useState } from 'react';
+﻿import { useState } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import {
@@ -73,7 +73,7 @@ export default function Sidebar({ collapsed, onToggleCollapse, onOpenAI }: Sideb
   return (
     <>
       {/* Mobile Top Bar */}
-      <div className="lg:hidden fixed top-0 left-0 right-0 h-16 z-30 bg-white/95 dark:bg-[#143440]/95 backdrop-blur-md border-b border-surface-200 dark:border-[#355966] px-4 flex items-center justify-between">
+      <div className="lg:hidden fixed top-0 left-0 right-0 h-16 z-30 bg-white/95 dark:bg-[#141F22]/95 backdrop-blur-md border-b border-surface-200 dark:border-[#304247] px-4 flex items-center justify-between">
         <div className="flex items-center gap-3">
           <button
             onClick={() => setMobileOpen(true)}
@@ -97,7 +97,7 @@ export default function Sidebar({ collapsed, onToggleCollapse, onOpenAI }: Sideb
           <button
             type="button"
             onClick={onOpenAI}
-            className="p-2 rounded-xl text-primary-700 dark:text-primary-300 hover:bg-primary-50 dark:hover:bg-[#285968]/70 transition-colors"
+            className="p-2 rounded-xl text-primary-700 dark:text-primary-300 hover:bg-primary-50 dark:hover:bg-[#243438]/70 transition-colors"
             aria-label="Open AI Assistant"
             title="AI Assistant"
           >
@@ -118,13 +118,13 @@ export default function Sidebar({ collapsed, onToggleCollapse, onOpenAI }: Sideb
 
       {/* Desktop / Tablet Sidebar */}
       <aside
-        className={`fixed left-0 top-0 h-full z-40 hidden lg:flex flex-col bg-white dark:bg-[#143440] border-r border-surface-200 dark:border-[#355966] transition-all duration-300 ease-in-out ${
+        className={`fixed left-0 top-0 h-full z-40 hidden lg:flex flex-col bg-white dark:bg-[#141F22] border-r border-surface-200 dark:border-[#304247] transition-all duration-300 ease-in-out ${
           collapsed ? 'w-20' : 'w-64'
         }`}
         id="sidebar"
       >
         {/* Brand Header */}
-        <div className="flex items-center justify-between h-18 px-5 border-b border-surface-200 dark:border-[#355966]">
+        <div className="flex items-center justify-between h-18 px-5 border-b border-surface-200 dark:border-[#304247]">
           {!collapsed ? (
             <div className="flex items-center gap-2.5">
               <div className="w-8 h-8 rounded-xl bg-primary-500 text-white flex items-center justify-center font-bold text-sm shadow-xs">
@@ -156,7 +156,7 @@ export default function Sidebar({ collapsed, onToggleCollapse, onOpenAI }: Sideb
           <div className="relative">
             <button
               onClick={() => setShowCreateMenu(!showCreateMenu)}
-              className={`flex items-center gap-2.5 w-full py-2.5 rounded-xl font-semibold text-xs transition-all duration-150 bg-primary-600 hover:bg-primary-700 text-white dark:bg-primary-500 dark:hover:bg-primary-400 dark:text-[#183B4A] shadow-xs ${
+              className={`flex items-center gap-2.5 w-full py-2.5 rounded-xl font-semibold text-xs transition-all duration-150 bg-primary-600 hover:bg-primary-700 text-white dark:bg-primary-500 dark:hover:bg-primary-400 dark:text-[#101719] shadow-xs ${
                 collapsed ? 'justify-center px-0' : 'px-3.5'
               }`}
             >
@@ -165,7 +165,7 @@ export default function Sidebar({ collapsed, onToggleCollapse, onOpenAI }: Sideb
             </button>
 
             {showCreateMenu && (
-              <div className="absolute left-0 right-0 mt-2 py-1.5 bg-white dark:bg-[#204B5A] rounded-2xl shadow-elevated border border-surface-200 dark:border-[#355966] z-50 animate-scale-in">
+              <div className="absolute left-0 right-0 mt-2 py-1.5 bg-white dark:bg-[#1C292D] rounded-2xl shadow-elevated border border-surface-200 dark:border-[#304247] z-50 animate-scale-in">
                 {createOptions.map((opt) => (
                   <button
                     key={opt.path}
@@ -196,8 +196,8 @@ export default function Sidebar({ collapsed, onToggleCollapse, onOpenAI }: Sideb
                   collapsed ? 'justify-center px-0' : 'px-3.5'
                 } ${
                   isActive
-                    ? 'bg-primary-50 dark:bg-[#285968] text-primary-800 dark:text-[#F1F7F7] font-semibold shadow-xs ring-1 ring-primary-200/70 dark:ring-primary-500/40'
-                    : 'text-surface-700 dark:text-surface-200 hover:bg-surface-100 dark:hover:bg-[#285968]/70 hover:text-surface-900 dark:hover:text-surface-100'
+                    ? 'bg-primary-50 dark:bg-[#243438] text-primary-800 dark:text-[#E8F0F0] font-semibold shadow-xs ring-1 ring-primary-200/70 dark:ring-primary-500/40'
+                    : 'text-surface-700 dark:text-surface-200 hover:bg-surface-100 dark:hover:bg-[#243438]/70 hover:text-surface-900 dark:hover:text-surface-100'
                 }`
               }
             >
@@ -219,7 +219,7 @@ export default function Sidebar({ collapsed, onToggleCollapse, onOpenAI }: Sideb
         </nav>
 
         {/* Bottom Section */}
-        <div className="p-3 border-t border-surface-200 dark:border-[#355966] space-y-1">
+        <div className="p-3 border-t border-surface-200 dark:border-[#304247] space-y-1">
           {!collapsed && (
             <div className="px-1 pb-1">
               <NotificationCenter />
@@ -251,8 +251,8 @@ export default function Sidebar({ collapsed, onToggleCollapse, onOpenAI }: Sideb
                 collapsed ? 'justify-center px-0' : 'px-3.5'
               } ${
                 isActive
-                  ? 'bg-primary-50 dark:bg-[#285968] text-primary-800 dark:text-[#F1F7F7] font-semibold ring-1 ring-primary-200/70 dark:ring-primary-500/40'
-                  : 'text-surface-700 dark:text-surface-200 hover:bg-surface-100 dark:hover:bg-[#285968]/70 hover:text-surface-900 dark:hover:text-surface-100'
+                  ? 'bg-primary-50 dark:bg-[#243438] text-primary-800 dark:text-[#E8F0F0] font-semibold ring-1 ring-primary-200/70 dark:ring-primary-500/40'
+                  : 'text-surface-700 dark:text-surface-200 hover:bg-surface-100 dark:hover:bg-[#243438]/70 hover:text-surface-900 dark:hover:text-surface-100'
               }`
             }
           >
@@ -262,7 +262,7 @@ export default function Sidebar({ collapsed, onToggleCollapse, onOpenAI }: Sideb
 
           {/* User Profile Info & Logout */}
           <div
-            className={`flex items-center gap-2.5 pt-2 mt-1 border-t border-surface-200 dark:border-[#355966] ${
+            className={`flex items-center gap-2.5 pt-2 mt-1 border-t border-surface-200 dark:border-[#304247] ${
               collapsed ? 'justify-center' : 'px-2'
             }`}
           >
@@ -306,8 +306,8 @@ export default function Sidebar({ collapsed, onToggleCollapse, onOpenAI }: Sideb
             className="fixed inset-0 bg-black/40 backdrop-blur-xs animate-fade-in"
             onClick={() => setMobileOpen(false)}
           />
-          <div className="relative w-72 max-w-[80vw] bg-white dark:bg-[#143440] h-full p-4 flex flex-col shadow-modal z-10 animate-slide-in-right">
-            <div className="flex items-center justify-between pb-4 border-b border-surface-200 dark:border-[#355966] mb-3">
+          <div className="relative w-72 max-w-[80vw] bg-white dark:bg-[#141F22] h-full p-4 flex flex-col shadow-modal z-10 animate-slide-in-right">
+            <div className="flex items-center justify-between pb-4 border-b border-surface-200 dark:border-[#304247] mb-3">
               <div className="flex items-center gap-2.5">
                 <div className="w-7 h-7 rounded-lg bg-primary-600 text-white flex items-center justify-center font-bold text-xs shadow-xs">
                   L
@@ -333,8 +333,8 @@ export default function Sidebar({ collapsed, onToggleCollapse, onOpenAI }: Sideb
                   className={({ isActive }) =>
                     `flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-medium transition-colors ${
                       isActive
-                        ? 'bg-primary-50 dark:bg-[#285968] text-primary-800 dark:text-[#F1F7F7] font-semibold ring-1 ring-primary-200/70 dark:ring-primary-500/40'
-                        : 'text-surface-700 dark:text-surface-200 hover:bg-surface-100 dark:hover:bg-[#285968]/70 hover:text-surface-900 dark:hover:text-surface-100'
+                        ? 'bg-primary-50 dark:bg-[#243438] text-primary-800 dark:text-[#E8F0F0] font-semibold ring-1 ring-primary-200/70 dark:ring-primary-500/40'
+                        : 'text-surface-700 dark:text-surface-200 hover:bg-surface-100 dark:hover:bg-[#243438]/70 hover:text-surface-900 dark:hover:text-surface-100'
                     }`
                   }
                 >
@@ -344,7 +344,7 @@ export default function Sidebar({ collapsed, onToggleCollapse, onOpenAI }: Sideb
               ))}
             </nav>
 
-            <div className="pt-3 border-t border-surface-200 dark:border-[#355966] space-y-2">
+            <div className="pt-3 border-t border-surface-200 dark:border-[#304247] space-y-2">
               <NavLink
                 to="/settings"
                 onClick={() => setMobileOpen(false)}
@@ -370,3 +370,5 @@ export default function Sidebar({ collapsed, onToggleCollapse, onOpenAI }: Sideb
     </>
   );
 }
+
+

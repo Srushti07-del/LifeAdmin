@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+﻿import { useState, useEffect } from 'react';
 import api from '../lib/api';
 import Modal from '../components/ui/Modal';
 import {
@@ -115,12 +115,12 @@ export default function AppointmentsPage() {
   return (
     <div className="space-y-6 animate-fade-in pb-12">
       {/* Editorial Header */}
-      <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 pb-3 border-b border-surface-100 dark:border-[#355966]">
+      <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 pb-3 border-b border-surface-100 dark:border-[#304247]">
         <div>
           <h1 className="text-3xl font-bold font-editorial text-surface-900 dark:text-surface-100 tracking-tight">
             Appointments
           </h1>
-          <p className="text-xs text-surface-500 mt-1">
+          <p className="text-xs text-surface-500 dark:text-surface-200 mt-1">
             Manage consultations, doctor visits, interviews, and official meetings
           </p>
         </div>
@@ -163,7 +163,7 @@ export default function AppointmentsPage() {
                   <h3 className="text-xs font-bold text-surface-900 dark:text-surface-100 truncate">
                     {appt.title}
                   </h3>
-                  <div className="flex items-center gap-2 mt-1 text-[11px] text-surface-500 flex-wrap">
+                  <div className="flex items-center gap-2 mt-1 text-[11px] text-surface-500 dark:text-surface-200 flex-wrap">
                     <span className="font-semibold text-primary-600 dark:text-primary-400">
                       {formatDate(appt.date)}
                     </span>
@@ -199,12 +199,12 @@ export default function AppointmentsPage() {
                     </div>
                   )}
                   {appt.notes && (
-                    <p className="text-[11px] text-surface-500 mt-1 italic">{appt.notes}</p>
+                    <p className="text-[11px] text-surface-500 dark:text-surface-200 mt-1 italic">{appt.notes}</p>
                   )}
                 </div>
               </div>
 
-              <div className="flex items-center justify-between sm:justify-end gap-2 flex-shrink-0 pt-2 sm:pt-0 border-t sm:border-t-0 border-surface-100 dark:border-[#355966]">
+              <div className="flex items-center justify-between sm:justify-end gap-2 flex-shrink-0 pt-2 sm:pt-0 border-t sm:border-t-0 border-surface-100 dark:border-[#304247]">
                 <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-surface-100 dark:bg-surface-800 text-surface-600 dark:text-surface-400">
                   {appt.category}
                 </span>
@@ -219,7 +219,7 @@ export default function AppointmentsPage() {
             </div>
           ))
         ) : (
-          <div className="text-center py-12 bg-white dark:bg-surface-0 rounded-3xl border border-dashed border-surface-200 dark:border-[#355966]">
+          <div className="text-center py-12 bg-white dark:bg-surface-0 rounded-3xl border border-dashed border-surface-200 dark:border-[#304247]">
             <CalendarClock size={32} className="mx-auto text-surface-300 dark:text-surface-700 mb-2" />
             <h3 className="text-sm font-bold font-editorial text-surface-900 dark:text-surface-100">
               No appointments found
@@ -237,8 +237,8 @@ export default function AppointmentsPage() {
         onClose={() => setShowModal(false)}
         title="New Appointment"
         maxWidth="md"
-        panelClassName="rounded-3xl dark:border-[#355966]"
-        headerClassName="pb-3 border-surface-100 dark:border-[#355966]"
+        panelClassName="rounded-3xl dark:border-[#304247]"
+        headerClassName="pb-3 border-surface-100 dark:border-[#304247]"
         contentClassName="pt-4 pb-0"
         titleClassName="text-base font-bold font-editorial text-surface-900 dark:text-surface-100"
       >
@@ -323,7 +323,7 @@ export default function AppointmentsPage() {
             />
           </div>
 
-          <div className="pt-3 border-t border-surface-100 dark:border-[#355966] flex justify-end gap-2">
+          <div className="pt-3 border-t border-surface-100 dark:border-[#304247] flex justify-end gap-2">
             <button
               type="button"
               onClick={() => setShowModal(false)}
@@ -344,3 +344,4 @@ export default function AppointmentsPage() {
     </div>
   );
 }
+
