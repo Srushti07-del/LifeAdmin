@@ -236,6 +236,7 @@ router.put(
   }
 );
 
+
 // POST /api/auth/guest — Start a demo/guest session (ephemeral user + seeded data)
 router.post('/guest', async (_req: Request, res: Response): Promise<void> => {
   try {

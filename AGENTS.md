@@ -1,6 +1,7 @@
 # AGENTS.md — Persistent Development Instructions for LifeAdmin
 
 ## 1. Core Operating Principles
+
 - **Always inspect existing code before modifying it**: Never guess file paths, component APIs, route handlers, or database schemas. Review existing code thoroughly.
 - **Read product specifications first**: Consult `product.md`, `customer.md`, `docs/UI_UX_SPEC.md`, and `docs/DESIGN_SYSTEM.md` prior to designing or altering features.
 - **Preserve the existing technology stack**:
@@ -12,6 +13,7 @@
 - **Reusable Component Architecture**: Prioritize composing reusable, accessible UI components with consistent styling tokens.
 
 ## 2. Minimal, Complete Changes (Ponytail-inspired)
+
 - **Smallest complete change**: Before editing, identify every place the change must reach (callers, tests, fixtures, config, exports/routes). Prefer the smallest working diff that fully solves the task.
 - **Reuse before adding**: Use existing helpers, components, patterns, platform features, and installed dependencies in the way surrounding code does. Do not add dependencies for work achievable with a few lines or existing code.
 - **No speculative complexity**: Skip unrequested features, options, abstractions, wrappers, boilerplate, or "for later" code. Keep values in the platform/native form where practical. Deletion beats addition when behavior is preserved.
@@ -20,6 +22,7 @@
 - **Non-negotiable (never cut for minimalism)**: Security, validation at trust boundaries, error handling that prevents data loss, accessibility, reliability, required tests/verification for the change, and anything the user explicitly asked for. Minimal code must not weaken these.
 
 ## 3. Design System & UX Standards
+
 - **Follow `docs/DESIGN_SYSTEM.md` faithfully** (source of truth for tokens):
   - Light theme: Ocean Teal palette as defined in the design system (background/surface/primary/text/borders).
   - Dark theme: Deep Ocean Blue + Teal palette as defined in the design system (`#183B4A` bg, `#143440` sidebar, `#204B5A` cards, `#285968` elevated, `#55BDB5` accent, `#F1F7F7`/`#C5DDDE`/`#A7C5C8` text, `#355966` borders) — validate contrast and adjust minimally for accessibility if needed.
@@ -29,6 +32,7 @@
 - **Adaptive Navigation**: Collapsible sidebar on desktop, compact drawer on tablet, bottom navigation bar on mobile viewports.
 
 ## 4. Product Rules & Integrity
+
 - **Completely Free Product**: LifeAdmin serves everyone with zero subscription paywalls. No active pricing gates or tier locks.
 - **LifeBuddy Companions**: Original stylized 3D virtual companions with positive reinforcement growth mechanics. Never punish inactivity. Companions never get sick or disappear.
 - **Calendar vs. Appointments**: Keep them distinct. Appointments manages specific appointment records; Calendar aggregates all dated items (events, tasks, bills, appointments).
@@ -36,11 +40,13 @@
 - **Document Expiry & Bill Currencies**: Default display currency is ₹ (INR), currency-aware.
 
 ## 5. Security & Environment Protection
+
 - **Never expose environment secrets**: Never print, log, or commit `.env` files or API keys.
 - **Preserve `.env` and authentication**: Maintain JWT authentication and existing backend routes.
 - **Access control**: Maintain secure document and upload access checks.
 
 ## 6. Verification & Workflow
+
 - **Test before declaring complete**:
   - Frontend: `npm run client:build`
   - Backend: `npm run server:build`
@@ -48,6 +54,7 @@
 - **Update documentation**: Keep `docs/CHANGELOG.md` and related documentation up-to-date with architectural and feature changes.
 
 ## 7. Knowledge Graph (Graphify)
+
 - Project Graphify rules live in `.agents/rules/graphify.md` and workflow in `.agents/workflows/graphify.md` (Antigravity/project agents). Follow them.
 - When `graphify-out/graph.json` exists, prefer `graphify query/path/explain` (or MCP equivalents) for codebase/architecture questions before broad file reads. Read `graphify-out/GRAPH_REPORT.md` only when scoped queries are insufficient.
 - After modifying code files in a session, run `graphify update .` to keep the graph current (AST-only, no API cost) when Graphify is in use.
