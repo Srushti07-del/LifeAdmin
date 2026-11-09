@@ -167,7 +167,7 @@ function getDaysDiff(targetDate: Date, today: Date): number {
         dueDate: billDueDate,
         destination: `/bills/${bill._id}`,
         amount: bill.amount,
-        currency: bill.currency || '₹',
+        currency: bill.currency || 'INR',
       });
     } else if (daysDiff <= 3) {
       const severity = daysDiff <= 1 ? 'urgent' : 'soon';
@@ -183,7 +183,7 @@ function getDaysDiff(targetDate: Date, today: Date): number {
         dueDate: billDueDate,
         destination: `/bills/${bill._id}`,
         amount: bill.amount,
-        currency: bill.currency || '₹',
+        currency: bill.currency || 'INR',
       });
     }
 
@@ -192,11 +192,11 @@ function getDaysDiff(targetDate: Date, today: Date): number {
         id: bill._id.toString(),
         type: 'bill',
         title: bill.name,
-        subtitle: bill.provider ? `${bill.provider} · ${bill.currency || '₹'}${bill.amount}` : `${bill.currency || '₹'}${bill.amount}`,
+        subtitle: bill.provider ? `${bill.provider} · ${bill.currency || 'INR'} ${bill.amount}` : `${bill.currency || 'INR'} ${bill.amount}`,
         date: billDueDate,
         destination: `/bills/${bill._id}`,
         amount: bill.amount,
-        currency: bill.currency || '₹',
+        currency: bill.currency || 'INR',
       });
     }
   }

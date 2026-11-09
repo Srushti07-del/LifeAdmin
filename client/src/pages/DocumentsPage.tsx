@@ -11,6 +11,8 @@ import {
   Loader2,
   Sparkles,
   X,
+  AlertCircle,
+  AlertTriangle,
 } from 'lucide-react';
 import { formatCurrency, getCurrencyInfo } from '../lib/currency';
 
@@ -25,6 +27,11 @@ interface ExtractedAmount {
   currency?: string;
 }
 
+interface ExtractedIdentifier {
+  label: string;
+  value: string;
+}
+
 interface DocumentItem {
   _id: string;
   originalName: string;
@@ -37,11 +44,14 @@ interface DocumentItem {
   notes?: string;
   aiProcessed: boolean;
   aiConfirmed: boolean;
+  aiExtractionStatus?: 'processing' | 'completed' | 'no_info' | 'unsupported' | 'failed';
+  aiExtractionError?: string;
   aiExtracted?: {
     provider?: string;
     summary?: string;
     importantDates?: ExtractedDate[];
     amounts?: ExtractedAmount[];
+    identifiers?: ExtractedIdentifier[];
   };
   createdAt: string;
 }
@@ -65,6 +75,7 @@ export default function DocumentsPage() {
   const [entityDueDate, setEntityDueDate] = useState('');
   const [entityAmount, setEntityAmount] = useState<number | ''>('');
   const [entityPriority, setEntityPriority] = useState('medium');
+  const [reExtracting, setReExtracting] = useState<Set<string>>(new Set());
   const [creatingEntity, setCreatingEntity] = useState(false);
 
   const categories = ['All', 'General', 'Utilities', 'Housing', 'Medical', 'Education', 'Financial', 'Legal'];
@@ -127,6 +138,24 @@ export default function DocumentsPage() {
       setDocuments((prev) => prev.filter((d) => d._id !== id));
     } catch (err) {
       console.error('Delete error:', err);
+    }
+  };
+
+  const handleReExtract = async (id: string) => {
+    if (reExtracting.has(id)) return;
+    setReExtracting((prev) => new Set([...prev, id]));
+    try {
+      await api.post(`/documents/${id}/re-extract`);
+      await fetchDocuments();
+    } catch (err) {
+      console.error('Re-extract error:', err);
+      alert('Failed to re-extract document. Please try again.');
+    } finally {
+      setReExtracting((prev) => {
+        const next = new Set(prev);
+        next.delete(id);
+        return next;
+      });
     }
   };
 
@@ -386,60 +415,126 @@ export default function DocumentsPage() {
                 </div>
 
                 {/* AI Extracted Insights Banner */}
-                {doc.aiProcessed && (
-                  <div className="mt-3 p-3 rounded-xl bg-surface-50 dark:bg-surface-800/60 border border-surface-200/60 dark:border-surface-700/60 space-y-2">
-                    <div className="flex items-center justify-between text-xs font-medium">
-                      <span className="inline-flex items-center gap-1.5 text-primary-600 dark:text-primary-400">
-                        <Sparkles size={14} />
-                        AI Extraction
-                      </span>
-                      {doc.aiConfirmed ? (
-                        <span className="inline-flex items-center gap-1 text-success-600 dark:text-success-400">
-                          <CheckCircle2 size={12} />
-                          Converted
-                        </span>
-                      ) : (
-                        <span className="text-accent-500">Unconfirmed</span>
-                      )}
-                    </div>
+                {doc.aiProcessed || doc.aiExtractionStatus === 'processing' || doc.aiExtractionStatus === 'failed' || doc.aiExtractionStatus === 'no_info' || doc.aiExtractionStatus === 'unsupported' ? (
+                  <div className="mt-3 p-3 rounded-xl space-y-2">
+                    {/* Processing state */}
+                    {doc.aiExtractionStatus === 'processing' ? (
+                      <div className="p-3 rounded-xl bg-surface-50 dark:bg-surface-800/60 border border-surface-200/60 dark:border-surface-700/60 flex items-center gap-3">
+                        <Loader2 size={16} className="animate-spin text-primary-600 dark:text-primary-400" />
+                        <div className="text-xs text-surface-600 dark:text-surface-300 font-medium">Analyzing document…</div>
+                      </div>
+                    ) : null}
 
-                    {doc.aiExtracted?.provider && (
-                      <p className="text-xs text-surface-600 dark:text-surface-300">
-                        <span className="font-medium text-surface-900 dark:text-surface-100">Provider:</span> {doc.aiExtracted.provider}
-                      </p>
-                    )}
+                    {/* Unsupported format */}
+                    {doc.aiExtractionStatus === 'unsupported' ? (
+                      <div className="p-3 rounded-xl bg-amber-50 dark:bg-amber-950/20 border border-amber-200/40 dark:border-amber-900/30 text-amber-800 dark:text-amber-200 text-xs flex items-center gap-2">
+                        <AlertTriangle size={14} />
+                        <span>Unsupported file format — AI extraction not available for this file type.</span>
+                      </div>
+                    ) : null}
 
-                    {doc.aiExtracted?.importantDates && doc.aiExtracted.importantDates.length > 0 && (
-                      <div className="space-y-1">
-                        {doc.aiExtracted.importantDates.map((item, idx) => (
-                          <div key={idx} className="flex items-center gap-1.5 text-xs text-surface-600 dark:text-surface-300">
-                            <Calendar size={12} className="text-accent-500 flex-shrink-0" />
-                            <span className="truncate">{item.label}:</span>
-                            <span className="font-semibold text-surface-800 dark:text-surface-200">
-                              {new Date(item.date).toLocaleDateString()}
+                    {/* No relevant information */}
+                    {doc.aiExtractionStatus === 'no_info' ? (
+                      <div className="p-3 rounded-xl bg-surface-50 dark:bg-surface-800/60 border border-surface-200/60 dark:border-surface-700/60 text-xs text-surface-500 dark:text-surface-400 flex items-center gap-2">
+                        <Sparkles size={14} className="text-surface-400" />
+                        <span>{doc.aiExtracted?.summary || 'No relevant information found in this document.'}</span>
+                      </div>
+                    ) : null}
+
+                    {/* Failed */}
+                    {doc.aiExtractionStatus === 'failed' ? (
+                      <div className="p-3 rounded-xl bg-rose-50 dark:bg-rose-950/20 border border-rose-200/40 dark:border-rose-900/30 text-rose-800 dark:text-rose-200 text-xs flex items-center gap-2">
+                        <AlertCircle size={14} className="text-rose-600 dark:text-rose-400" />
+                        <span>{doc.aiExtractionError || 'AI extraction failed. Please try again.'}</span>
+                        <button
+                          type="button"
+                          onClick={() => handleReExtract(doc._id)}
+                          disabled={reExtracting.has(doc._id)}
+                          className="ml-auto px-2 py-1 rounded text-[10px] font-medium text-rose-600 dark:text-rose-400 hover:bg-rose-100 dark:hover:bg-rose-900/30 disabled:opacity-50"
+                        >
+                          {reExtracting.has(doc._id) ? 'Retrying...' : 'Retry'}
+                        </button>
+                      </div>
+                    ) : null}
+
+                    {/* Completed extraction panel */}
+                    {doc.aiExtractionStatus === 'completed' || (doc.aiProcessed && doc.aiExtractionStatus !== 'processing') ? (
+                      <div className="p-3 rounded-xl bg-surface-50 dark:bg-surface-800/60 border border-surface-200/60 dark:border-surface-700/60 space-y-2">
+                        <div className="flex items-center justify-between text-xs font-medium">
+                          <span className="inline-flex items-center gap-1.5 text-primary-600 dark:text-primary-400">
+                            <Sparkles size={14} />
+                            AI Extraction
+                          </span>
+                          {doc.aiConfirmed ? (
+                            <span className="inline-flex items-center gap-1 text-success-600 dark:text-success-400">
+                              <CheckCircle2 size={12} />
+                              Converted
+                            </span>
+                          ) : (
+                            <span className="text-accent-500">Unconfirmed</span>
+                          )}
+                        </div>
+
+                        {doc.aiExtracted?.provider && (
+                          <p className="text-xs text-surface-600 dark:text-surface-300">
+                            <span className="font-medium text-surface-900 dark:text-surface-100">Provider:</span> {doc.aiExtracted.provider}
+                          </p>
+                        )}
+
+                        {doc.aiExtracted?.importantDates && doc.aiExtracted.importantDates.length > 0 && (
+                          <div className="space-y-1">
+                            {doc.aiExtracted.importantDates.map((item, idx) => (
+                              <div key={idx} className="flex items-center gap-1.5 text-xs text-surface-600 dark:text-surface-300">
+                                <Calendar size={12} className="text-accent-500 flex-shrink-0" />
+                                <span className="truncate">{item.label}:</span>
+                                <span className="font-semibold text-surface-800 dark:text-surface-200">
+                                  {new Date(item.date).toLocaleDateString()}
+                                </span>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+
+                        {doc.aiExtracted?.amounts && doc.aiExtracted.amounts.length > 0 && (
+                          <div className="flex items-center gap-1.5 text-xs text-surface-600 dark:text-surface-300">
+                            <span className="text-teal-600 dark:text-teal-400 flex-shrink-0 text-xs">{getCurrencyInfo(doc.aiExtracted.amounts[0].currency).symbol}</span>
+                            <span>{doc.aiExtracted.amounts[0].label}:</span>
+                            <span className="font-semibold text-surface-900 dark:text-surface-100">
+                              {formatCurrency(doc.aiExtracted.amounts[0].amount, doc.aiExtracted.amounts[0].currency)}
                             </span>
                           </div>
-                        ))}
-                      </div>
-                    )}
+                        )}
 
-                    {doc.aiExtracted?.amounts && doc.aiExtracted.amounts.length > 0 && (
-                      <div className="flex items-center gap-1.5 text-xs text-surface-600 dark:text-surface-300">
-                        <span className="text-teal-600 dark:text-teal-400 flex-shrink-0 text-xs">{getCurrencyInfo(doc.aiExtracted.amounts[0].currency).symbol}</span>
-                        <span>{doc.aiExtracted.amounts[0].label}:</span>
-                        <span className="font-semibold text-surface-900 dark:text-surface-100">
-                          {formatCurrency(doc.aiExtracted.amounts[0].amount, doc.aiExtracted.amounts[0].currency)}
-                        </span>
-                      </div>
-                    )}
+                        {/* Summary (useful for academic case studies even with no bill/deadline) */}
+                        {doc.aiExtracted?.summary && (
+                          <p className="text-xs text-surface-600 dark:text-surface-300 leading-relaxed mt-0.5">
+                            <span className="font-medium text-surface-900 dark:text-surface-100">Summary:</span>{' '}
+                            {doc.aiExtracted.summary}
+                          </p>
+                        )}
 
-                    {doc.notes && (
-                      <p className="text-xs text-surface-400 line-clamp-2 italic pt-1 border-t border-surface-200 dark:border-surface-700">
-                        "{doc.notes}"
-                      </p>
-                    )}
+                        {/* Key concepts / identifiers (academic case studies) */}
+                        {doc.aiExtracted?.identifiers && doc.aiExtracted.identifiers.length > 0 && (
+                          <div className="space-y-1">
+                            <p className="text-[10px] font-semibold text-surface-500 dark:text-surface-400 mb-1 uppercase tracking-wider">Key concepts</p>
+                            {doc.aiExtracted.identifiers.map((item, idx) => (
+                              <div key={idx} className="flex items-center gap-1.5 text-xs text-surface-600 dark:text-surface-300">
+                                <span className="w-1.5 h-1.5 rounded-full bg-surface-300 dark:bg-surface-700 flex-shrink-0" />
+                                <span className="truncate">{item.label}: {item.value}</span>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+
+                        {doc.notes && (
+                          <p className="text-xs text-surface-400 line-clamp-2 italic pt-1 border-t border-surface-200 dark:border-surface-700">
+                            "{doc.notes}"
+                          </p>
+                        )}
+                      </div>
+                    ) : null}
                   </div>
-                )}
+                ) : null}
               </div>
 
               {/* Action Bar: Create Task / Bill from Doc */}

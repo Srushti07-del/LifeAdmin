@@ -58,7 +58,7 @@ const billSchema = new Schema<IBill>(
     description: { type: String, trim: true },
     provider: { type: String, trim: true },
     amount: { type: Number, required: true },
-    currency: { type: String, default: '₹' },
+    currency: { type: String, default: 'INR' },
     dueDate: { type: Date, required: true, index: true },
     paymentStatus: {
       type: String,

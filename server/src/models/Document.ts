@@ -28,6 +28,9 @@ export interface IDocumentMeta extends Document {
   };
   aiProcessed: boolean;
   aiConfirmed: boolean;
+  // Extraction lifecycle status for newly uploaded documents
+  aiExtractionStatus: 'processing' | 'completed' | 'no_info' | 'unsupported' | 'failed';
+  aiExtractionError?: string;
   
   // Linked entities
   linkedTasks: mongoose.Types.ObjectId[];
@@ -73,6 +76,9 @@ const documentSchema = new Schema<IDocumentMeta>(
     },
     aiProcessed: { type: Boolean, default: false },
     aiConfirmed: { type: Boolean, default: false },
+    // Extraction lifecycle status for newly uploaded documents
+    aiExtractionStatus: { type: String, enum: ['processing', 'completed', 'no_info', 'unsupported', 'failed'], default: 'processing' },
+    aiExtractionError: { type: String },
     
     linkedTasks: [{ type: Schema.Types.ObjectId, ref: 'Task' }],
     linkedBills: [{ type: Schema.Types.ObjectId, ref: 'Bill' }],

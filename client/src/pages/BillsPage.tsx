@@ -19,7 +19,7 @@ import {
   ArrowUpDown,
   Eye,
 } from 'lucide-react';
-import { formatCurrency, getCurrencyInfo, CURRENCIES, type CurrencyCode } from '../lib/currency';
+import { formatCurrency, convertAmountTo, useExchangeRates, getCurrencyInfo, CURRENCIES, type CurrencyCode } from '../lib/currency';
 
 type PaymentStatus = 'pending' | 'paid' | 'overdue' | 'upcoming';
 type RecurrenceType = 'none' | 'weekly' | 'monthly' | 'quarterly' | 'yearly';
@@ -127,24 +127,10 @@ export default function BillsPage() {
   const [form, setForm] = useState<BillForm>(emptyForm());
   const [submitting, setSubmitting] = useState(false);
   const [actionId, setActionId] = useState<string | null>(null);
-  const [exchangeRates, setExchangeRates] = useState<Record<string, number>>({});
 
   const preferredCurrency = (user?.preferredCurrency || 'INR') as CurrencyCode;
 
-  const fetchExchangeRates = useCallback(async (fromCurrency: string) => {
-    if (fromCurrency === preferredCurrency) {
-      setExchangeRates({});
-      return;
-    }
-    try {
-      const res = await api.get('/currency/rates', { params: { from: fromCurrency, to: preferredCurrency } });
-      if (res.data.rates && res.data.rates[preferredCurrency]) {
-        setExchangeRates({ [preferredCurrency]: res.data.rates[preferredCurrency] });
-      }
-    } catch {
-      // Graceful degradation — show original currency only
-    }
-  }, [preferredCurrency]);
+  const { rates: exchangeRates, fetchRate } = useExchangeRates(preferredCurrency);
 
   const fetchBills = useCallback(async () => {
     try {
@@ -165,22 +151,16 @@ export default function BillsPage() {
 
   useEffect(() => {
     const currencies = new Set(bills.map((b) => b.currency).filter(Boolean));
-    if (currencies.has(preferredCurrency) || currencies.size === 0) {
-      setExchangeRates({});
-    } else {
-      // Fetch rate from first non-preferred currency to preferred
+    if (!currencies.has(preferredCurrency) && currencies.size > 0) {
       const firstNonPref = [...currencies].find((c) => c !== preferredCurrency);
       if (firstNonPref) {
-        fetchExchangeRates(firstNonPref);
+        fetchRate(firstNonPref);
       }
     }
-  }, [bills, preferredCurrency, fetchExchangeRates]);
+  }, [bills, preferredCurrency, fetchRate]);
 
   const convertAmount = useCallback((amount: number, fromCurrency: string) => {
-    if (fromCurrency === preferredCurrency) return amount;
-    const rate = exchangeRates[preferredCurrency];
-    if (!rate) return amount;
-    return amount * rate;
+    return convertAmountTo(amount, fromCurrency, preferredCurrency, exchangeRates);
   }, [exchangeRates, preferredCurrency]);
 
   const filteredBills = useMemo(() => {
@@ -215,12 +195,12 @@ export default function BillsPage() {
     return {
       upcomingCount,
       overdueCount: overdue.length,
-      overdueAmount: overdue.reduce((s, b) => s + (b.amount || 0), 0),
+      overdueAmount: overdue.reduce((s, b) => s + convertAmount(b.amount || 0, b.currency), 0),
       paidCount: paid.length,
-      paidAmount: paid.reduce((s, b) => s + (b.amount || 0), 0),
-      dueThisMonthAmount: dueThisMonth.reduce((s, b) => s + (b.amount || 0), 0),
+      paidAmount: paid.reduce((s, b) => s + convertAmount(b.amount || 0, b.currency), 0),
+      dueThisMonthAmount: dueThisMonth.reduce((s, b) => s + convertAmount(b.amount || 0, b.currency), 0),
     };
-  }, [bills]);
+  }, [bills, exchangeRates, preferredCurrency]);
 
   const openCreate = () => {
     setEditing(null);
@@ -434,11 +414,7 @@ export default function BillsPage() {
                   <div className="flex items-baseline justify-between gap-2">
                     <span className="text-[11px] font-medium text-surface-500 dark:text-surface-400">Amount</span>
                     <span className="text-lg font-bold font-editorial text-surface-900 dark:text-surface-100">
-                      {formatCurrency(bill.amount || 0, bill.currency)}{bill.currency !== preferredCurrency && exchangeRates[preferredCurrency] ? (
-                        <span className="text-xs text-surface-500 dark:text-surface-400 ml-1">
-                          ≈ {formatCurrency(convertAmount(bill.amount || 0, bill.currency), preferredCurrency)}
-                        </span>
-                      ) : null}
+                      {formatCurrency(convertAmount(bill.amount || 0, bill.currency), preferredCurrency)}
                     </span>
                   </div>
                   <div className="flex items-center justify-between gap-2 text-[11px]">
@@ -515,7 +491,7 @@ export default function BillsPage() {
               <span className="text-surface-500 dark:text-surface-400 text-xs">Status</span>
               <Badge variant={statusBadgeVariant[displayStatus(viewing).key]} size="sm">{displayStatus(viewing).label}</Badge>
             </div>
-            <DetailRow label="Amount" value={formatCurrency(viewing?.amount || 0, viewing?.currency)} prominent />
+            <DetailRow label="Amount" value={formatCurrency(convertAmount(viewing?.amount || 0, viewing?.currency), preferredCurrency)} prominent />
             <DetailRow label="Due date" value={new Date(viewing.dueDate).toLocaleDateString('en-IN', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })} />
             <DetailRow label="Category" value={viewing.category || '—'} />
             <DetailRow label="Recurrence" value={recurrenceLabels[viewing.recurrence?.type] || viewing.recurrence?.type || 'One-time'} />

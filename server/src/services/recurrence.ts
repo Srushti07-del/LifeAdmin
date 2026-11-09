@@ -152,7 +152,7 @@ export async function handleBillRecurrence(bill: IBill): Promise<IBill | null> {
     description: bill.description,
     provider: bill.provider,
     amount: bill.amount,
-    currency: bill.currency || '₹',
+    currency: bill.currency || 'INR',
     dueDate: nextDueDate,
     paymentStatus: 'pending',
     category: bill.category || 'Finance',

@@ -117,7 +117,7 @@ router.post(
       }
 
       const billData = pickBillData(req.body);
-      const bill = await Bill.create({ ...billData, userId: req.user!._id, currency: billData.currency || '₹' });
+      const bill = await Bill.create({ ...billData, userId: req.user!._id, currency: billData.currency || 'INR' });
       res.status(201).json({ message: 'Bill created', bill });
     } catch (error) {
       console.error('Create bill error:', error);

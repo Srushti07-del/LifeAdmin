@@ -9,6 +9,7 @@ import app from '../app';
 import User from '../models/User';
 import DocumentModel from '../models/Document';
 import { generateToken } from '../middleware/auth';
+import { classifyDocumentFallback } from '../services/documentExtraction';
 import config from '../config';
 
 describe('Document Authorization & Truthful Classification Tests', () => {
@@ -200,12 +201,13 @@ describe('Document Authorization & Truthful Classification Tests', () => {
     const body = (await res.json()) as any;
     const doc = body.document;
 
+    // AI extraction pipeline ran; with no real content it must NOT complete successfully
+    assert.ok(doc.aiProcessed, 'aiProcessed should be true after extraction pipeline ran');
+    assert.ok(['no_info', 'failed', 'unsupported'].includes(doc.aiExtractionStatus), 'extraction status should not be completed for dummy content');
     // Must NOT fabricate amounts, providers, or dates
-    assert.equal(doc.aiProcessed, false, 'aiProcessed must be false');
     assert.deepEqual(doc.aiExtracted.amounts, [], 'Must not fabricate amounts');
     assert.deepEqual(doc.aiExtracted.importantDates, [], 'Must not fabricate dates');
     assert.equal(doc.aiExtracted.provider, '', 'Must not fabricate provider');
-    assert.match(doc.aiExtracted.summary, /OCR\/AI extraction is not configured/i);
 
     // Clean up created file
     if (doc.fileName) {
@@ -213,5 +215,19 @@ describe('Document Authorization & Truthful Classification Tests', () => {
       if (fs.existsSync(p)) fs.unlinkSync(p);
     }
     await DocumentModel.findByIdAndDelete(doc._id);
+  });
+});
+
+describe('Document Filename Fallback Classification', () => {
+  it('classifies academic case studies by filename', () => {
+    const r = classifyDocumentFallback('CS101_Academic_Case_Study.pdf', '');
+    assert.equal(r.documentType, 'Academic Case Study');
+    assert.equal(r.category, 'Education');
+  });
+
+  it('classifies invoices by filename', () => {
+    const r = classifyDocumentFallback('Invoice_ACME_Jan2026.pdf', '');
+    assert.equal(r.documentType, 'Utility Bill');
+    assert.equal(r.category, 'Utilities');
   });
 });

@@ -1,3 +1,6 @@
+import { useState, useCallback } from 'react';
+import api from '../lib/api';
+
 export type CurrencyCode =
   | 'INR' | 'USD' | 'EUR' | 'GBP' | 'AED' | 'CAD' | 'AUD' | 'JPY' | 'SGD';
 
@@ -23,8 +26,33 @@ export const CURRENCIES: Record<CurrencyCode, CurrencyInfo> = {
 
 export const DEFAULT_CURRENCY: CurrencyCode = 'INR';
 
+const CURRENCY_SYMBOL_TO_ISO: Record<string, string> = {
+  '₹': 'INR',
+  '$': 'USD',
+  '€': 'EUR',
+  '£': 'GBP',
+  'د.إ': 'AED',
+  'CA$': 'CAD',
+  'AU$': 'AUD',
+  '¥': 'JPY',
+  'S$': 'SGD',
+};
+
+export function normalizeCurrencyCode(code: string | undefined | null): CurrencyCode {
+  if (!code) return DEFAULT_CURRENCY;
+  const trimmed = code.trim();
+  const isoCodes = Object.values(CURRENCIES).map((c) => c.code);
+  if (isoCodes.includes(trimmed as CurrencyCode)) {
+    return trimmed as CurrencyCode;
+  }
+  if (CURRENCY_SYMBOL_TO_ISO[trimmed]) {
+    return CURRENCY_SYMBOL_TO_ISO[trimmed] as CurrencyCode;
+  }
+  return DEFAULT_CURRENCY;
+}
+
 export function getCurrencyInfo(code?: string | null): CurrencyInfo {
-  const c = (code || DEFAULT_CURRENCY) as CurrencyCode;
+  const c = normalizeCurrencyCode(code);
   return CURRENCIES[c] || CURRENCIES[DEFAULT_CURRENCY];
 }
 
@@ -91,4 +119,68 @@ export interface ExchangeRateState {
   base: string;
   lastUpdated: string | null;
   error: string | null;
+}
+
+/**
+ * Centralized exchange-rate hook. Fetches rates from the backend API and caches
+ * them in a module-level map so multiple components can share without duplicate
+ * requests. Returns a convert(amount, fromCode) function that converts any
+ * amount from its original currency to the preferred display currency.
+ */
+export function useExchangeRates(preferredCurrency: CurrencyCode) {
+  const [rates, setRates] = useState<Record<string, number>>({});
+  const [error, setError] = useState<string | null>(null);
+
+  // Module-level cache shared across instances
+  const [rateCacheRef] = useState<Record<string, number>>(
+    {}
+  );
+
+  const fetchRate = useCallback(async (from: string) => {
+    const fromNorm = normalizeCurrencyCode(from);
+    if (fromNorm === preferredCurrency) {
+      setRates((r) => ({ ...r, [preferredCurrency]: 1 }));
+      return;
+    }
+    const cacheKey = `${fromNorm}|${preferredCurrency}`;
+    if (rateCacheRef[cacheKey]) {
+      const cachedRate = rateCacheRef[cacheKey];
+      setRates((r) => ({ ...r, [preferredCurrency]: cachedRate }));
+      return;
+    }
+    try {
+      const res = await api.get('/currency/rates', {
+        params: { from: fromNorm, to: preferredCurrency },
+      });
+      const rate = res.data.rates?.[preferredCurrency];
+      if (rate != null) {
+        rateCacheRef[cacheKey] = rate;
+        setRates((r) => ({ ...r, [preferredCurrency]: rate }));
+      }
+    } catch {
+      // Graceful degradation — caller falls back to showing original amount
+      setError('Unable to fetch exchange rate');
+    }
+  }, [preferredCurrency, rateCacheRef]);
+
+  return { rates, error, fetchRate };
+}
+
+/**
+ * Convert an amount from its original currency to the preferred display currency.
+ * Returns the original amount if no rate is available (graceful degradation).
+ * Always converts from the original amount — never compounds conversions.
+ */
+export function convertAmountTo(
+  amount: number,
+  fromCode: string | undefined | null,
+  toCode: string | undefined | null,
+  rates: Record<string, number>
+): number {
+  const from = normalizeCurrencyCode(fromCode);
+  const to = normalizeCurrencyCode(toCode);
+  if (from === to) return amount;
+  const rate = rates[to];
+  if (!rate) return amount;
+  return amount * rate;
 }

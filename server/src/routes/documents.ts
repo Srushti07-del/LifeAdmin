@@ -10,6 +10,7 @@ import Bill from '../models/Bill';
 import Reminder from '../models/Reminder';
 import { authenticate } from '../middleware/auth';
 import config from '../config';
+import { processDocumentExtraction, classifyDocumentFallback } from '../services/documentExtraction';
 
 const router = Router();
 router.use(authenticate);
@@ -47,33 +48,11 @@ const upload = multer({
   },
 });
 
-// Truthful document classification helper — does NOT fabricate extracted data.
+// Filename-based classifier used only as a fallback when AI content extraction is unavailable.
 // Only classifies document type based on filename/notes keywords.
 // No amounts, providers, or dates are invented.
 function classifyDocument(originalName: string, notes?: string) {
-  const nameLower = (originalName + ' ' + (notes || '')).toLowerCase();
-  let documentType = 'General';
-
-  if (nameLower.includes('bill') || nameLower.includes('utility') || nameLower.includes('electric') || nameLower.includes('water') || nameLower.includes('internet') || nameLower.includes('wifi')) {
-    documentType = 'Utility Bill';
-  } else if (nameLower.includes('lease') || nameLower.includes('rent') || nameLower.includes('tenancy')) {
-    documentType = 'Lease Agreement';
-  } else if (nameLower.includes('insurance') || nameLower.includes('policy')) {
-    documentType = 'Insurance Policy';
-  } else if (nameLower.includes('id') || nameLower.includes('passport') || nameLower.includes('license')) {
-    documentType = 'Identification';
-  } else if (nameLower.includes('tax') || nameLower.includes('w2') || nameLower.includes('1099')) {
-    documentType = 'Tax Document';
-  } else if (nameLower.includes('medical') || nameLower.includes('prescription') || nameLower.includes('doctor')) {
-    documentType = 'Medical Record';
-  }
-
-  return {
-    documentType,
-    summary: documentType !== 'General'
-      ? `Classified as "${documentType}" based on filename. No content extraction was performed — OCR/AI extraction is not configured. You can manually add details or confirm the classification.`
-      : `Document uploaded. No content extraction was performed — OCR/AI extraction is not configured. You can manually add details below.`,
-  };
+  return classifyDocumentFallback(originalName, notes);
 }
 
 // GET /api/documents — List documents with filtering & search
@@ -216,7 +195,7 @@ router.post('/upload', upload.single('file'), async (req: Request, res: Response
 
     const { category = 'General', notes = '', documentType, expiryDate } = req.body;
 
-    // Classify document type from filename — no fake extraction
+    // Start with filename-based classification; AI content extraction refines this below.
     const classification = classifyDocument(req.file.originalname, notes);
 
     const doc = new DocumentModel({
@@ -229,8 +208,9 @@ router.post('/upload', upload.single('file'), async (req: Request, res: Response
       category: category || 'General',
       documentType: documentType || classification.documentType,
       notes,
-      aiProcessed: false, // No real extraction was performed
+      aiProcessed: false,
       aiConfirmed: false,
+      aiExtractionStatus: 'processing',
       aiExtracted: {
         provider: '',
         expiryDate: expiryDate ? new Date(expiryDate) : undefined,
@@ -243,14 +223,153 @@ router.post('/upload', upload.single('file'), async (req: Request, res: Response
 
     await doc.save();
 
+    // Run secure content extraction + AI processing (text from PDFs, images, docx, txt).
+    // Results are persisted so they survive a refresh. Never auto-creates tasks/bills/reminders.
+    try {
+      const extraction = await processDocumentExtraction(
+        path.join(uploadDirPath, req.file.filename),
+        req.file.mimetype,
+        req.file.originalname,
+      );
+
+      doc.aiExtractionStatus = extraction.status;
+
+      if (extraction.status === 'completed') {
+        doc.aiProcessed = true;
+        // Content-based classification takes precedence over filename-based.
+        if (extraction.documentType) doc.documentType = extraction.documentType;
+        if (extraction.category) doc.category = extraction.category;
+        doc.aiExtracted = {
+          ...doc.aiExtracted,
+          provider: extraction.provider || '',
+          summary: extraction.summary || classification.summary,
+          amounts: extraction.amounts || [],
+          importantDates: (extraction.importantDates || []).map((d) => ({ label: d.label, date: d.date })),
+          identifiers: extraction.identifiers || [],
+        };
+      } else if (extraction.status === 'no_info') {
+        doc.aiProcessed = true;
+        doc.aiExtracted = {
+          ...doc.aiExtracted,
+          summary: classification.summary,
+          amounts: [],
+          importantDates: [],
+          identifiers: [],
+        };
+      } else if (extraction.status === 'failed') {
+        doc.aiProcessed = true;
+        doc.aiExtractionError = extraction.error || 'Extraction failed. Please try again.';
+      }
+      // 'unsupported' leaves aiProcessed false and status 'unsupported'
+
+      await doc.save();
+    } catch (extractionErr) {
+      // Extraction failure must not fail the upload itself.
+      doc.aiExtractionStatus = 'failed';
+      doc.aiExtractionError = 'Extraction failed. Please try again.';
+      await doc.save();
+    }
+
     // Update filePath to use the actual document ID for the download route
     doc.filePath = `/api/documents/${doc._id}/download`;
     await doc.save();
 
-    res.status(201).json({ message: 'Document uploaded and classified', document: doc });
+    res.status(201).json({ message: 'Document uploaded and analyzed', document: doc });
   } catch (error) {
     console.error('Upload document error:', error);
     res.status(500).json({ message: 'Failed to upload document' });
+  }
+});
+
+// POST /api/documents/:id/re-extract — Re-run AI extraction on a stuck or failed document
+router.post('/:id/re-extract', async (req: Request, res: Response): Promise<void> => {
+  try {
+    const id = req.params.id as string;
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      res.status(404).json({ message: 'Document not found' });
+      return;
+    }
+
+    const doc = await DocumentModel.findById(id);
+    if (!doc) {
+      res.status(404).json({ message: 'Document not found' });
+      return;
+    }
+
+    if (doc.userId.toString() !== req.user!._id.toString()) {
+      res.status(403).json({ message: 'Access denied' });
+      return;
+    }
+
+    // Only re-extract if the document is in a terminal non-completed state
+    if (doc.aiExtractionStatus === 'completed') {
+      res.status(400).json({ message: 'Document extraction is already complete' });
+      return;
+    }
+
+    // Mark as processing and run extraction
+    doc.aiExtractionStatus = 'processing';
+    doc.aiProcessed = false;
+    doc.aiExtractionError = undefined;
+    await doc.save();
+
+    const filePath = path.join(uploadDirPath, doc.fileName);
+    if (!fs.existsSync(filePath)) {
+      doc.aiExtractionStatus = 'failed';
+      doc.aiExtractionError = 'Source file not found on disk';
+      await doc.save();
+      res.status(404).json({ message: 'Source file not found on disk' });
+      return;
+    }
+
+    try {
+      const extraction = await processDocumentExtraction(
+        filePath,
+        doc.mimeType,
+        doc.originalName,
+      );
+
+      doc.aiExtractionStatus = extraction.status;
+
+      if (extraction.status === 'completed') {
+        doc.aiProcessed = true;
+        if (extraction.documentType) doc.documentType = extraction.documentType;
+        if (extraction.category) doc.category = extraction.category;
+        doc.aiExtracted = {
+          ...doc.aiExtracted,
+          provider: extraction.provider || '',
+          summary: extraction.summary || '',
+          amounts: extraction.amounts || [],
+          importantDates: (extraction.importantDates || []).map((d) => ({ label: d.label, date: d.date })),
+          identifiers: extraction.identifiers || [],
+        };
+      } else if (extraction.status === 'no_info') {
+        doc.aiProcessed = true;
+        doc.aiExtracted = {
+          ...doc.aiExtracted,
+          summary: '',
+          amounts: [],
+          importantDates: [],
+          identifiers: [],
+        };
+      } else if (extraction.status === 'failed') {
+        doc.aiProcessed = true;
+        doc.aiExtractionError = extraction.error || 'Extraction failed. Please try again.';
+      }
+      // 'unsupported' leaves aiProcessed false and status 'unsupported'
+
+      await doc.save();
+
+      res.json({ message: 'Re-extraction complete', document: doc });
+    } catch (extractionErr) {
+      doc.aiExtractionStatus = 'failed';
+      doc.aiExtractionError = 'Extraction failed. Please try again.';
+      await doc.save();
+      res.status(500).json({ message: 'Failed to re-extract document' });
+    }
+  } catch (error) {
+    console.error('Re-extract document error:', error);
+    res.status(500).json({ message: 'Failed to re-extract document' });
   }
 });
 
@@ -274,7 +393,7 @@ router.put('/:id', async (req: Request, res: Response): Promise<void> => {
       return;
     }
 
-    const { category, documentType, tags, notes, aiConfirmed, aiExtracted, expiryDate } = req.body;
+    const { category, documentType, tags, notes, aiConfirmed, aiExtracted, expiryDate, aiExtractionStatus, aiExtractionError } = req.body;
 
     if (category !== undefined) doc.category = category;
     if (documentType !== undefined) doc.documentType = documentType;
@@ -282,6 +401,8 @@ router.put('/:id', async (req: Request, res: Response): Promise<void> => {
     if (notes !== undefined) doc.notes = notes;
     if (aiConfirmed !== undefined) doc.aiConfirmed = aiConfirmed;
     if (aiExtracted !== undefined) doc.aiExtracted = { ...doc.aiExtracted, ...aiExtracted };
+    if (aiExtractionStatus !== undefined) doc.aiExtractionStatus = aiExtractionStatus;
+    if (aiExtractionError !== undefined) doc.aiExtractionError = aiExtractionError;
     if (expiryDate !== undefined) {
       doc.aiExtracted = doc.aiExtracted || {};
       doc.aiExtracted.expiryDate = expiryDate ? new Date(expiryDate) : undefined;

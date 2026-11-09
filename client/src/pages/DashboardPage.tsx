@@ -10,7 +10,7 @@ import {
 import type { CompanionState } from '../lib/companions';
 import CompanionAvatar from '../components/companions/CompanionAvatar';
 import OnboardingModal from '../components/onboarding/OnboardingModal';
-import { formatCurrency } from '../lib/currency';
+import { formatCurrency, convertAmountTo, useExchangeRates, getCurrencyInfo, type CurrencyCode } from '../lib/currency';
 import {
   AlertCircle,
   Calendar,
@@ -118,6 +118,10 @@ export default function DashboardPage() {
     }
     return DEFAULT_WIDGETS;
   });
+
+  // Exchange rates for currency conversion in bills widget
+  const preferredCurrency = (user?.preferredCurrency || 'INR') as CurrencyCode;
+  const { rates: dashboardExchangeRates } = useExchangeRates(preferredCurrency);
 
   useEffect(() => {
     // Check if new user needs onboarding
@@ -427,14 +431,14 @@ export default function DashboardPage() {
                             </p>
                             <div className="flex items-center gap-2 mt-0.5 text-xs text-surface-600 dark:text-surface-400 font-medium">
                               <span className="capitalize">{item.subtitle || item.type}</span>
-                              {item.amount && (
-                                <>
-                                  <span>·</span>
-                                  <span className="font-bold text-surface-900 dark:text-surface-100">
-                                    {formatCurrency(item.amount, item.currency)}
-                                  </span>
-                                </>
-                              )}
+                                  {item.amount && (
+                                    <>
+                                      <span>·</span>
+                                      <span className="font-bold text-surface-900 dark:text-surface-100">
+                                        {formatCurrency(convertAmountTo(item.amount, item.currency, preferredCurrency, dashboardExchangeRates), preferredCurrency)}
+                                      </span>
+                                    </>
+                                  )}
                             </div>
                           </div>
                         </div>
@@ -538,7 +542,7 @@ export default function DashboardPage() {
                     <h3 className="text-lg font-normal font-editorial text-surface-900 dark:text-surface-100">
                       Bills & Payments
                     </h3>
-                    <p className="text-xs text-surface-500 dark:text-surface-400">Upcoming expenses in INR (₹)</p>
+                    <p className="text-xs text-surface-500 dark:text-surface-400">Upcoming expenses in {getCurrencyInfo(preferredCurrency).symbol} ({preferredCurrency})</p>
                   </div>
                 </div>
                 <button
@@ -569,7 +573,7 @@ export default function DashboardPage() {
                           </div>
                         </div>
                         <span className="text-sm font-bold font-sans text-primary-700 dark:text-primary-300">
-                          {formatCurrency(bill.amount || 0, bill.currency)}
+                          {formatCurrency(convertAmountTo(bill.amount || 0, bill.currency, preferredCurrency, dashboardExchangeRates), preferredCurrency)}
                         </span>
                       </div>
                     ))}
