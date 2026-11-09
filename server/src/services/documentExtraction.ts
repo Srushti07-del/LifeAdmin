@@ -167,8 +167,12 @@ async function runAiExtraction(rawText: string): Promise<DocumentExtractionResul
   }
 
   if (lastError) {
-    // Do not log the document text. Only note that extraction failed.
-    console.error('Document AI extraction request failed');
+    // Do not log the document text. Only note that extraction failed, with safe
+    // diagnostic details (error category and HTTP status, never API keys or document contents).
+    const err = lastError as any;
+    const status = err?.status ?? err?.response?.status ?? err?.code;
+    const message = err?.message ?? String(err);
+    console.error('Document AI extraction request failed', { category: 'gemini_api', status, message });
     return { status: 'failed', error: 'AI extraction request failed. Please try again.' };
   }
 

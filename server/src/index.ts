@@ -4,6 +4,7 @@ import app from './app';
 import config from './config';
 import connectDB, { disconnectDB } from './config/database';
 import { startReminderScheduler, stopReminderScheduler } from './services/reminderScheduler';
+import { migrateStaleDocumentExtractions } from './utils/demoSeed';
 
 let server: http.Server | null = null;
 let isShuttingDown = false;
@@ -95,6 +96,18 @@ process.on('SIGTERM', () => void gracefulShutdown('SIGTERM'));
 export const startServer = async (): Promise<http.Server | void> => {
   try {
     await connectDB();
+
+    // One-time idempotent migration: mark documents as completed when they have
+    // aiProcessed=true and meaningful extracted data but are stuck at 'processing'.
+    try {
+      const migration = await migrateStaleDocumentExtractions();
+      if (migration.modified > 0) {
+        console.log(`📦 Document extraction migration: ${migration.modified} stale record(s) marked completed.`);
+      }
+    } catch (migrationErr) {
+      console.warn('⚠️  Document extraction migration skipped:', migrationErr);
+    }
+
     startReminderScheduler();
 
     const host = process.env.HOST || (config.nodeEnv === 'development' ? '0.0.0.0' : undefined);

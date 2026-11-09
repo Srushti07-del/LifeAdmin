@@ -18,7 +18,6 @@ export async function seedDemoData(userId: mongoose.Types.ObjectId): Promise<voi
     date.setDate(date.getDate() + offsetDays);
     return date;
   };
-
   // ── Tasks ──────────────────────────────────────────────────────────────────
   await Task.insertMany([
     {
@@ -354,4 +353,37 @@ export async function seedDemoData(userId: mongoose.Types.ObjectId): Promise<voi
     },
   ]);
 }
+
+/**
+ * Idempotent migration: mark documents as 'completed' when they have aiProcessed=true
+ * and meaningful extracted data, but are still stuck at aiExtractionStatus='processing'.
+ *
+ * This fixes records created before the extraction status was properly set on completion.
+ * Safe to run repeatedly — only targets the transient 'processing' state and only when
+ * actual extraction data exists. Does not touch 'failed', 'no_info', 'unsupported' (legitimate
+ * terminal states) or records where aiProcessed is false (still genuinely processing).
+ */
+export async function migrateStaleDocumentExtractions(): Promise<{ matched: number; modified: number }> {
+  const result = await DocumentModel.updateMany(
+    {
+      aiProcessed: true,
+      aiExtractionStatus: 'processing',
+      $or: [
+        { 'aiExtracted.provider': { $exists: true, $ne: '' } },
+        { 'aiExtracted.summary': { $exists: true, $ne: '' } },
+        { 'aiExtracted.amounts': { $exists: true, $not: { $size: 0 } } },
+        { 'aiExtracted.importantDates': { $exists: true, $not: { $size: 0 } } },
+        { 'aiExtracted.identifiers': { $exists: true, $not: { $size: 0 } } },
+        { 'aiExtracted.documentType': { $exists: true, $nin: ['General', null] } },
+      ],
+    },
+    { $set: { aiExtractionStatus: 'completed' } }
+  );
+
+  return {
+    matched: result.matchedCount,
+    modified: result.modifiedCount,
+  };
+}
+
 
