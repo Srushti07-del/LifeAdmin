@@ -1,24 +1,23 @@
 /**
  * LifeAdmin Mobile Typography
- * Source of truth: docs/DESIGN_SYSTEM.md §2
+ * Bundles DM Serif Display & Inter fonts matching website authority
  */
 
 import { Platform } from 'react-native';
 
 export const Typography = {
   fontFamilies: {
-    // Editorial headings (DM Serif Display fallback to serif)
-    editorial: Platform.select({
-      ios: 'Georgia',
-      android: 'serif',
-      default: 'serif',
-    }),
-    // Body & Interface (Inter fallback to system sans-serif)
-    sans: Platform.select({
-      ios: 'System',
-      android: 'Roboto',
-      default: 'sans-serif',
-    }),
+    // Editorial headings (DM Serif Display 400 Regular)
+    editorial: 'DMSerifDisplay_400Regular',
+
+    // Inter UI & body text variants
+    sansLight: 'Inter_300Light',
+    sans: 'Inter_400Regular',
+    sansMedium: 'Inter_500Medium',
+    sansSemiBold: 'Inter_600SemiBold',
+    sansBold: 'Inter_700Bold',
+
+    // Monospace for tabular currency & IDs
     mono: Platform.select({
       ios: 'Courier New',
       android: 'monospace',
@@ -27,6 +26,7 @@ export const Typography = {
   },
 
   fontSize: {
+    micro: 11,
     xs: 12,
     sm: 14,
     base: 16,
@@ -38,6 +38,7 @@ export const Typography = {
   },
 
   lineHeight: {
+    micro: 14,
     tight: 1.2,
     snug: 1.25,
     normal: 1.4,
@@ -45,6 +46,7 @@ export const Typography = {
   },
 
   fontWeight: {
+    light: '300' as const,
     normal: '400' as const,
     medium: '500' as const,
     semibold: '600' as const,

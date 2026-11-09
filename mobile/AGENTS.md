@@ -119,3 +119,22 @@ Otherwise, apply these principles:
 Do not sacrifice correctness, security, or maintainability merely to reduce code length.
 
 Use dedicated Ponytail commands only when the installed integration supports them.
+
+## 6. Knowledge Graph (Graphify)
+
+- Project Graphify rules live in `.agents/rules/graphify.md` and workflow in `.agents/workflows/graphify.md` (Antigravity/project agents). Follow them.
+- When `graphify-out/graph.json` exists, prefer `graphify query/path/explain` (or MCP equivalents) for codebase/architecture questions before broad file reads. Read `graphify-out/GRAPH_REPORT.md` only when scoped queries are insufficient.
+- After modifying code files in a session, run `graphify update .` to keep the graph current (AST-only, no API cost) when Graphify is in use.
+
+## 7. Design System & Impeccable Rules
+
+- `DESIGN.md` is the single source of truth for LifeAdmin's visual design system.
+- Follow its colors, typography, spacing, shapes, component styling, and design principles.
+- Use Impeccable skills when designing, implementing, or reviewing UI.
+- Before making visual changes, inspect the existing implementation and preserve established design patterns.
+- Do not introduce arbitrary colors, fonts, shadows, gradients, border radii, or spacing values.
+- Maintain the "Editorial Sanctuary" visual direction.
+- Preserve visual consistency between the web and mobile applications.
+- For mobile, adapt interaction patterns to native conventions without changing the underlying visual identity.
+- Never simplify or redesign existing screens without explicit approval.
+- Prioritize accessibility, readability, responsive layouts, and consistent touch targets.

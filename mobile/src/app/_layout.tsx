@@ -1,5 +1,15 @@
 import { DarkTheme, DefaultTheme, ThemeProvider as NavigationThemeProvider } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
+import { useEffect } from 'react';
+import { useFonts } from 'expo-font';
+import { DMSerifDisplay_400Regular, DMSerifDisplay_400Regular_Italic } from '@expo-google-fonts/dm-serif-display';
+import {
+  Inter_300Light,
+  Inter_400Regular,
+  Inter_500Medium,
+  Inter_600SemiBold,
+  Inter_700Bold,
+} from '@expo-google-fonts/inter';
 
 import { AnimatedSplashOverlay } from '@/components/animated-icon';
 import AppTabs from '@/components/app-tabs';
@@ -14,8 +24,24 @@ function RootNavigator() {
   const { isDark } = useAppTheme();
   const { user, isLoading } = useAuth();
 
-  // Show loading screen while restoring persistent session from SecureStore
-  if (isLoading) {
+  const [fontsLoaded] = useFonts({
+    DMSerifDisplay_400Regular,
+    DMSerifDisplay_400Regular_Italic,
+    Inter_300Light,
+    Inter_400Regular,
+    Inter_500Medium,
+    Inter_600SemiBold,
+    Inter_700Bold,
+  });
+
+  useEffect(() => {
+    if (fontsLoaded && !isLoading) {
+      SplashScreen.hideAsync().catch(() => {});
+    }
+  }, [fontsLoaded, isLoading]);
+
+  // Show loading screen while restoring persistent session or loading fonts
+  if (isLoading || !fontsLoaded) {
     return (
       <NavigationThemeProvider value={isDark ? DarkTheme : DefaultTheme}>
         <AnimatedSplashOverlay />

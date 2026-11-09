@@ -1,13 +1,13 @@
 /**
  * LifeAdmin Mobile Color Palette
- * Source of truth: docs/DESIGN_SYSTEM.md
+ * Synchronized with Website Authority (client/src/index.css & root DESIGN.md)
  */
 
 export interface ThemeColors {
   background: string;
   surface: string;
   surfaceSecondary: string;
-  surfaceElevated?: string;
+  surfaceElevated: string;
   primary: string;
   primaryDeep: string;
   primarySoft: string;
@@ -23,26 +23,27 @@ export interface ThemeColors {
 }
 
 export const Colors = {
-  // Light Theme (Ocean Teal)
+  // Light Theme (Ocean Teal identity, high-contrast WCAG AAA text)
   light: {
-    background: '#E7F3F1',
+    background: '#F5F7F5',
     surface: '#FFFFFF',
-    surfaceSecondary: '#D3EAE7',
-    primary: '#168F91',
-    primaryDeep: '#106F71',
-    primarySoft: '#D3EAE7',
-    text: '#183B3D',
-    textSecondary: '#587477',
-    textMuted: '#789598',
-    border: '#D0E2DF',
-    borderSubtle: '#E2ECE9',
-    backgroundElement: '#E2EFE9',
-    backgroundSelected: '#D3EAE7',
+    surfaceSecondary: '#E8F2F0',
+    surfaceElevated: '#FFFFFF',
+    primary: '#087E83',
+    primaryDeep: '#066568',
+    primarySoft: '#DDF1EF',
+    text: '#1D3032',
+    textSecondary: '#526967',
+    textMuted: '#687F7D',
+    border: '#E1E9E6',
+    borderSubtle: '#EBF0EE',
+    backgroundElement: '#E8F2F0',
+    backgroundSelected: '#DDF1EF',
     card: '#FFFFFF',
     notification: '#EF4444',
   } satisfies ThemeColors,
 
-  // Dark Theme (Deep Ocean Blue + Teal)
+  // Dark Theme (Deep Ocean Blue + Teal — calm, sophisticated, premium)
   dark: {
     background: '#183B4A',
     surface: '#204B5A',
@@ -62,41 +63,41 @@ export const Colors = {
     notification: '#EF4444',
   } satisfies ThemeColors,
 
-  // Functional Urgency Palette (Source: docs/DESIGN_SYSTEM.md §1.1)
+  // Functional Urgency Palette (Calibrated for strict deadline tiers)
   urgency: {
     critical: {
       accent: '#EF4444',
       lightBg: '#FEE2E2',
       lightText: '#B91C1C',
-      darkBg: '#5C2828',
+      darkBg: 'rgba(239, 68, 68, 0.18)',
       darkText: '#FFD2D2',
     },
     urgent: {
       accent: '#F97316',
       lightBg: '#FFEDD5',
       lightText: '#C2410C',
-      darkBg: '#5A2C14',
+      darkBg: 'rgba(249, 115, 22, 0.18)',
       darkText: '#FFDEC7',
     },
     dueSoon: {
       accent: '#F59E0B',
       lightBg: '#FEF3C7',
       lightText: '#B45309',
-      darkBg: '#54390E',
+      darkBg: 'rgba(245, 158, 11, 0.18)',
       darkText: '#FFE8AD',
     },
     upcoming: {
-      accent: '#69BDB7',
+      accent: '#168F91',
       lightBg: '#D3EAE7',
-      lightText: '#168F91',
-      darkBg: '#285D63',
+      lightText: '#0E6567',
+      darkBg: 'rgba(85, 189, 181, 0.15)',
       darkText: '#8EE0D9',
     },
     completed: {
       accent: '#10B981',
       lightBg: '#DCFCE7',
       lightText: '#15803D',
-      darkBg: '#1D4F40',
+      darkBg: 'rgba(16, 185, 129, 0.18)',
       darkText: '#A7F3D0',
     },
   },
