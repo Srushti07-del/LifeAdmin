@@ -1,4 +1,4 @@
-﻿import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import api from '../lib/api';
 import {
   FileText,
@@ -458,7 +458,7 @@ export default function DocumentsPage() {
                     ) : null}
 
                     {/* Completed extraction panel */}
-                    {doc.aiExtractionStatus === 'completed' || (doc.aiProcessed && doc.aiExtractionStatus !== 'processing') ? (
+                    {doc.aiExtractionStatus === 'completed' || (doc.aiProcessed && !doc.aiExtractionStatus) ? (
                       <div className="p-3 rounded-xl bg-surface-50 dark:bg-surface-800/60 border border-surface-200/60 dark:border-surface-700/60 space-y-2">
                         <div className="flex items-center justify-between text-xs font-medium">
                           <span className="inline-flex items-center gap-1.5 text-primary-600 dark:text-primary-400">
