@@ -70,6 +70,8 @@ export const Endpoints = {
     update: (id: string) => `/reminders/${id}`,
     delete: (id: string) => `/reminders/${id}`,
     acknowledge: (id: string) => `/reminders/${id}/acknowledge`,
+    complete: (id: string) => `/reminders/${id}/complete`,
+    pending: (id: string) => `/reminders/${id}/pending`,
   },
 
   // Documents (server/src/routes/documents.ts)
@@ -77,8 +79,11 @@ export const Endpoints = {
     list: '/documents',
     upload: '/documents/upload',
     getById: (id: string) => `/documents/${id}`,
+    update: (id: string) => `/documents/${id}`,
     delete: (id: string) => `/documents/${id}`,
     downloadUrl: (id: string) => `/documents/${id}/download`,
+    reExtract: (id: string) => `/documents/${id}/re-extract`,
+    createEntities: (id: string) => `/documents/${id}/create-entities`,
   },
 
   // Calendar (server/src/routes/calendar.ts)

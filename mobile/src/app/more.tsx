@@ -87,8 +87,18 @@ export default function MoreScreen() {
           desc: 'Consultations, doctor visits & meetings',
           action: () => router.push('/appointments' as any),
         },
-        { label: 'Documents Vault', icon: 'folder', desc: 'Secure storage & expiry dates' },
-        { label: 'Reminders Timeline', icon: 'notifications', desc: 'Time-sensitive nudges' },
+        {
+          label: 'Documents Vault',
+          icon: 'folder',
+          desc: 'Secure storage & expiry dates',
+          action: () => router.push('/documents' as any),
+        },
+        {
+          label: 'Reminders Timeline',
+          icon: 'notifications',
+          desc: 'Time-sensitive nudges & native alerts',
+          action: () => router.push('/reminders' as any),
+        },
       ],
     },
     {

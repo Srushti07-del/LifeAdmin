@@ -7,7 +7,8 @@ import {
   useLocalSearchParams,
 } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
-import { useEffect } from 'react';
+import * as Notifications from 'expo-notifications';
+import { useEffect, useRef, useCallback } from 'react';
 import { useFonts } from 'expo-font';
 import { DMSerifDisplay_400Regular, DMSerifDisplay_400Regular_Italic } from '@expo-google-fonts/dm-serif-display';
 import {
@@ -26,10 +27,12 @@ import { AuthNavigator } from '@/features/auth/components/AuthNavigator';
 import { AuthLoadingScreen } from '@/features/auth/screens/AuthLoadingScreen';
 import { usePasswordResetDeepLink } from '@/features/auth';
 import { OnboardingScreen } from '@/features/onboarding';
+import { notificationService } from '@/features/reminders/services/notificationService';
 
 SplashScreen.preventAutoHideAsync();
 
 function RootNavigator() {
+  const router = useRouter();
   const { isDark } = useAppTheme();
   const { user, isLoading, isGuest, isOnboardingCompleted, completeOnboarding } = useAuth();
   const pathname = usePathname();
@@ -37,6 +40,86 @@ function RootNavigator() {
 
   // Register Android App Link and custom scheme deep link listener
   usePasswordResetDeepLink();
+
+  // Pending cold-start notification navigation target
+  const pendingNotificationRef = useRef<{
+    url?: string;
+    reminderId?: string;
+    userId?: string;
+  } | null>(null);
+
+  // Initialize Android notification channel on mount
+  useEffect(() => {
+    notificationService.initialize().catch(() => {});
+  }, []);
+
+  const navigateToNotificationTarget = useCallback(
+    (data?: { url?: string; reminderId?: string; userId?: string }) => {
+      if (!data) return;
+
+      // User isolation: ignore notifications targeting another user's account
+      if (data.userId && user?.id && data.userId !== user.id) {
+        return;
+      }
+
+      if (data.reminderId) {
+        router.push(`/reminders?reminderId=${data.reminderId}` as any);
+      } else if (data.url) {
+        router.push(data.url as any);
+      }
+    },
+    [router, user?.id]
+  );
+
+  // Listen for local/push notification tap (background and cold start)
+  useEffect(() => {
+    const subscription = Notifications.addNotificationResponseReceivedListener((response) => {
+      const data = response?.notification?.request?.content?.data as {
+        url?: string;
+        reminderId?: string;
+        userId?: string;
+      } | undefined;
+
+      if (isLoading || !user) {
+        pendingNotificationRef.current = data || null;
+      } else {
+        navigateToNotificationTarget(data);
+      }
+    });
+
+    Notifications.getLastNotificationResponseAsync()
+      .then((response) => {
+        if (response) {
+          const data = response?.notification?.request?.content?.data as {
+            url?: string;
+            reminderId?: string;
+            userId?: string;
+          } | undefined;
+
+          if (isLoading || !user) {
+            pendingNotificationRef.current = data || null;
+          } else {
+            navigateToNotificationTarget(data);
+          }
+        }
+      })
+      .catch(() => {});
+
+    return () => {
+      subscription.remove();
+    };
+  }, [isLoading, user, navigateToNotificationTarget]);
+
+  // When loading finishes and user session is active, process any cold-start notification
+  useEffect(() => {
+    if (!isLoading && user && pendingNotificationRef.current) {
+      const pending = pendingNotificationRef.current;
+      pendingNotificationRef.current = null;
+      setTimeout(() => {
+        navigateToNotificationTarget(pending);
+      }, 150);
+    }
+  }, [isLoading, user, navigateToNotificationTarget]);
 
   const [fontsLoaded] = useFonts({
     DMSerifDisplay_400Regular,

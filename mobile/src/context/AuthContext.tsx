@@ -18,6 +18,7 @@ import { secureStorage } from '@/services/secureStore';
 import { authService } from '@/features/auth/services/authService';
 import { onboardingService } from '@/features/onboarding/services/onboardingService';
 import { companionService } from '@/features/companions/services/companionService';
+import { notificationService } from '@/features/reminders/services/notificationService';
 import { AuthContextType, User } from '@/types/auth';
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -39,6 +40,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
    */
   const logout = useCallback(async () => {
     try {
+      if (user?.id) {
+        await notificationService.clearAllUserSchedules(user.id);
+      } else {
+        await notificationService.clearAllUserSchedules();
+      }
+    } catch (e) {
+      console.warn('Error clearing notification schedules on logout:', e);
+    }
+
+    try {
       await secureStorage.clearSession();
     } catch (e) {
       console.warn('Error clearing secure storage session:', e);
@@ -48,7 +59,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setUser(null);
       setIsOnboardingCompleted(true);
     }
-  }, []);
+  }, [user?.id]);
 
   /**
    * Exit ephemeral demo/guest session: cleans up demo data on server, then logs out

@@ -2,9 +2,12 @@
  * Documents Feature Module
  */
 
-export const DocumentsFeature = {
-  name: 'Documents',
-  description: 'Organize important personal documents and file metadata securely',
-};
-
-export default DocumentsFeature;
+export * from './types';
+export * from './services/documentCalculations';
+export * from './services/documentService';
+export * from './components/DocumentSummaryCard';
+export * from './components/DocumentCard';
+export * from './components/DocumentUploadModal';
+export * from './components/DocumentDetailsModal';
+export * from './components/DocumentEntityConversionModal';
+export * from './components/DocumentEditModal';

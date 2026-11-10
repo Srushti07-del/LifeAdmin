@@ -41,6 +41,9 @@ class ApiClient {
     const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
 
     const headers = apiConfig.getHeaders(customHeaders as Record<string, string>);
+    if (typeof FormData !== 'undefined' && restOptions.body instanceof FormData) {
+      delete headers['Content-Type'];
+    }
 
     try {
       const response = await fetch(url, {
@@ -123,7 +126,15 @@ class ApiClient {
     return this.request<T>(path, {
       ...options,
       method: 'POST',
-      body: body ? JSON.stringify(body) : undefined,
+      body: body ? (typeof FormData !== 'undefined' && body instanceof FormData ? body : JSON.stringify(body)) : undefined,
+    });
+  }
+
+  public upload<T = any>(path: string, formData: FormData, options?: RequestOptions): Promise<T> {
+    return this.request<T>(path, {
+      ...options,
+      method: 'POST',
+      body: formData,
     });
   }
 

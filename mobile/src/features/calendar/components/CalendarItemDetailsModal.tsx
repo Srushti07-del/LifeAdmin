@@ -82,8 +82,10 @@ export function CalendarItemDetailsModal({
       router.push('/bills');
     } else if (item.type === 'task') {
       router.push('/tasks');
-    } else if (item.source === 'appointment') {
+    } else if (item.source === 'appointment' || item.type === 'appointment') {
       router.push('/appointments' as any);
+    } else if (item.source === 'reminder' || item.type === 'reminder') {
+      router.push('/reminders' as any);
     } else {
       router.push('/more');
     }
