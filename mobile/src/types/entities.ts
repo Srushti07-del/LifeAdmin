@@ -62,15 +62,22 @@ export interface Task {
 export interface Bill {
   _id: string;
   userId: string;
-  title: string;
+  name: string;
+  title?: string;
+  description?: string;
+  provider?: string;
   amount: number;
   currency: string;
   dueDate: string;
   category: string;
-  status: PaymentStatus;
-  isRecurring: boolean;
+  paymentStatus: PaymentStatus;
+  status?: PaymentStatus;
+  paidAt?: string;
+  isRecurring?: boolean;
   recurrence?: RecurrenceConfig;
+  reminderDaysBefore?: number[];
   notes?: string;
+  attachments?: string[];
   createdAt: string;
   updatedAt: string;
 }

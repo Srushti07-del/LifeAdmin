@@ -45,6 +45,12 @@ export const Endpoints = {
     update: (id: string) => `/bills/${id}`,
     delete: (id: string) => `/bills/${id}`,
     pay: (id: string) => `/bills/${id}/pay`,
+    unpay: (id: string) => `/bills/${id}/unpay`,
+  },
+
+  // Currency & Exchange Rates (server/src/routes/currency.ts)
+  currency: {
+    rates: '/currency/rates',
   },
 
   // Appointments (server/src/routes/appointments.ts)
