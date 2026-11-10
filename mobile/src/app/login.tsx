@@ -10,6 +10,16 @@ export default function LoginRoute() {
       onNavigateToRegister={() => {
         router.push('/register' as any);
       }}
+      onNavigateToForgotPassword={() => {
+        router.push('/forgot-password' as any);
+      }}
+      onNavigateToResetPassword={(token?: string) => {
+        if (token) {
+          router.push({ pathname: '/reset-password', params: { token } } as any);
+        } else {
+          router.push('/reset-password' as any);
+        }
+      }}
     />
   );
 }

@@ -1,14 +1,24 @@
 /**
- * Learn more about light and dark modes:
- * https://docs.expo.dev/guides/color-schemes/
+ * Theme hook referencing LifeAdmin Ocean Teal and Deep Ocean Blue tokens
+ * Synchronized with Website Authority
  */
 
-import { Colors } from '@/constants/theme';
+import { Colors, ThemeColors, ThemeType } from '@/constants/colors';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 
-export function useTheme() {
+export function useTheme(): ThemeColors {
   const scheme = useColorScheme();
-  const theme = scheme === 'dark' ? 'dark' : 'light';
+  const theme: ThemeType = scheme === 'dark' ? 'dark' : 'light';
 
   return Colors[theme];
+}
+
+export function useThemeMode(): ThemeType {
+  const scheme = useColorScheme();
+  return scheme === 'dark' ? 'dark' : 'light';
+}
+
+export function useIsDark(): boolean {
+  const scheme = useColorScheme();
+  return scheme === 'dark';
 }

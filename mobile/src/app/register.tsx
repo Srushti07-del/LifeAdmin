@@ -10,6 +10,9 @@ export default function RegisterRoute() {
       onNavigateToLogin={() => {
         router.push('/login' as any);
       }}
+      onNavigateToForgotPassword={() => {
+        router.push('/forgot-password' as any);
+      }}
     />
   );
 }

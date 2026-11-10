@@ -50,6 +50,22 @@ export const authService = {
   async getCurrentUser(): Promise<{ user: User }> {
     return apiClient.get<{ user: User }>(Endpoints.auth.me);
   },
+
+  /**
+   * Request password reset email
+   */
+  async forgotPassword(email: string): Promise<{ message: string }> {
+    return apiClient.post<{ message: string }>(Endpoints.auth.forgotPassword, {
+      email: email.trim().toLowerCase(),
+    });
+  },
+
+  /**
+   * Reset password with a valid token
+   */
+  async resetPassword(token: string, payload: { password: string; confirmPassword: string }): Promise<{ message: string }> {
+    return apiClient.post<{ message: string }>(Endpoints.auth.resetPassword(token), payload);
+  },
 };
 
 export default authService;

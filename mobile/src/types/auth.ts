@@ -37,6 +37,8 @@ export interface AuthContextType {
   loginAsGuest: () => Promise<void>;
   logout: () => Promise<void>;
   exitGuest: () => Promise<void>;
+  forgotPassword: (email: string) => Promise<{ message: string }>;
+  resetPassword: (token: string, password: string, confirmPassword: string) => Promise<{ message: string }>;
   clearError: () => void;
   refreshUser: () => Promise<void>;
 }

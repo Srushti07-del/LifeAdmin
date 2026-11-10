@@ -7,4 +7,6 @@ export * from './components/ForgotPasswordModal';
 export * from './components/AuthNavigator';
 export * from './screens/LoginScreen';
 export * from './screens/RegisterScreen';
+export * from './screens/ForgotPasswordScreen';
+export * from './screens/ResetPasswordScreen';
 export * from './screens/AuthLoadingScreen';

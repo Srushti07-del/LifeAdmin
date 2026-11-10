@@ -30,5 +30,11 @@ Thumbs.db
 server/uploads/
 graphify-out/
 
+# Backups and Git metadata
+mobile-history-backup.bundle
+mobile-git-metadata-backup
+mobile-git-metadata-backup/
+*.bundle
+
 customer.md 
 LifeAdmin_Antigravity_Spec.md

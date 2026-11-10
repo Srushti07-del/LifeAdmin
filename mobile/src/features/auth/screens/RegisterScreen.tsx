@@ -25,9 +25,10 @@ import { Spacing, Radius } from '@/constants/spacing';
 
 interface RegisterScreenProps {
   onNavigateToLogin?: () => void;
+  onNavigateToForgotPassword?: () => void;
 }
 
-export function RegisterScreen({ onNavigateToLogin }: RegisterScreenProps) {
+export function RegisterScreen({ onNavigateToLogin, onNavigateToForgotPassword }: RegisterScreenProps) {
   const { colors, isDark } = useAppTheme();
   const { register, loginAsGuest, isAuthenticating, error, clearError } = useAuth();
 
@@ -143,14 +144,51 @@ export function RegisterScreen({ onNavigateToLogin }: RegisterScreenProps) {
                   size={16}
                   tintColor={colors.notification}
                 />
-                <ThemedText
-                  style={[
-                    styles.errorText,
-                    { color: isDark ? '#FCA5A5' : '#B91C1C' },
-                  ]}
-                >
-                  {activeError}
-                </ThemedText>
+                <View style={{ flex: 1 }}>
+                  <ThemedText
+                    style={[
+                      styles.errorText,
+                      { color: isDark ? '#FCA5A5' : '#B91C1C' },
+                    ]}
+                  >
+                    {activeError}
+                  </ThemedText>
+                  {activeError.toLowerCase().includes('already exists') && (
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing.two, marginTop: Spacing.one }}>
+                      {onNavigateToLogin && (
+                        <Pressable onPress={onNavigateToLogin} hitSlop={8}>
+                          <ThemedText
+                            style={{
+                              fontSize: Typography.fontSize.xs,
+                              fontWeight: '600',
+                              color: isDark ? '#93C5FD' : '#1D4ED8',
+                              textDecorationLine: 'underline',
+                            }}
+                          >
+                            Sign In &rarr;
+                          </ThemedText>
+                        </Pressable>
+                      )}
+                      {onNavigateToForgotPassword && (
+                        <>
+                          <ThemedText style={{ color: colors.textMuted, fontSize: Typography.fontSize.xs }}>·</ThemedText>
+                          <Pressable onPress={onNavigateToForgotPassword} hitSlop={8}>
+                            <ThemedText
+                              style={{
+                                fontSize: Typography.fontSize.xs,
+                                fontWeight: '600',
+                                color: isDark ? '#93C5FD' : '#1D4ED8',
+                                textDecorationLine: 'underline',
+                              }}
+                            >
+                              Forgot Password?
+                            </ThemedText>
+                          </Pressable>
+                        </>
+                      )}
+                    </View>
+                  )}
+                </View>
               </View>
             )}
 
