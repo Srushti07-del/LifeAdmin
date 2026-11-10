@@ -5,6 +5,7 @@ import config from './config';
 import connectDB, { disconnectDB } from './config/database';
 import { startReminderScheduler, stopReminderScheduler } from './services/reminderScheduler';
 import { migrateStaleDocumentExtractions } from './utils/demoSeed';
+import { getPublicWebBaseUrl } from './services/passwordResetUrl';
 
 let server: http.Server | null = null;
 let isShuttingDown = false;
@@ -127,6 +128,12 @@ export const startServer = async (): Promise<http.Server | void> => {
       }
       const isLocalDb = config.mongodbUri.includes('localhost') || config.mongodbUri.includes('127.0.0.1');
       console.log(`🗄️  MongoDB:    ${isLocalDb ? 'local' : 'Atlas'}`);
+      try {
+        const webUrl = getPublicWebBaseUrl();
+        console.log(`🔗 Web App:    ${webUrl}`);
+      } catch (urlErr: any) {
+        console.warn(`⚠️  Web App:    ${urlErr.message}`);
+      }
       console.log('================================================================================\n');
     };
 

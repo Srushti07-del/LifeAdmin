@@ -27,8 +27,13 @@ const config = {
     return (process.env.GEMINI_MODEL || 'gemini-3.5-flash-lite').trim();
   },
   
-  // Client URL
-  clientUrl: process.env.CLIENT_URL || 'http://localhost:5173',
+  // Client / Public Web Application URL (getter to reflect runtime environment updates)
+  get clientUrl(): string {
+    return (process.env.APP_URL || process.env.CLIENT_URL || 'http://localhost:5173').trim();
+  },
+  get appUrl(): string {
+    return (process.env.APP_URL || process.env.CLIENT_URL || '').trim();
+  },
   
   // File Upload
   maxFileSize: parseInt(process.env.MAX_FILE_SIZE || '10485760', 10),

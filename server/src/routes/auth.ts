@@ -14,6 +14,7 @@ import { authenticate, generateToken } from '../middleware/auth';
 import config from '../config';
 import { seedDemoData } from '../utils/demoSeed';
 import { sendPasswordResetEmail, isEmailConfigured } from '../services/email';
+import { generatePasswordResetUrl } from '../services/passwordResetUrl';
 
 const router = Router();
 
@@ -364,12 +365,23 @@ router.post(
       const tokenHash = createHash('sha256').update(token).digest('hex');
       const expiresAt = new Date(Date.now() + 30 * 60 * 1000); // 30 minutes
 
+      // Generate the password reset URL (enforces production HTTPS requirements)
+      let resetUrl: string;
+      try {
+        resetUrl = generatePasswordResetUrl(token);
+      } catch (urlErr: any) {
+        console.error('Password reset URL configuration error:', urlErr?.message || urlErr);
+        res.status(500).json({
+          message: 'Password reset service configuration error. Please contact support.',
+        });
+        return;
+      }
+
       // Store only its SHA-256 hash and expiry
       user.resetPasswordToken = tokenHash;
       user.resetPasswordExpires = expiresAt;
       await user.save();
 
-      const resetUrl = `${config.clientUrl}/reset-password?token=${token}`;
       try {
         await sendPasswordResetEmail(user.email, resetUrl);
       } catch (emailErr) {
