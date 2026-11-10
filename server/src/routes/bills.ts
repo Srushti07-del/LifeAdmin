@@ -2,11 +2,12 @@ import { Router, Request, Response } from 'express';
 import { body, validationResult } from 'express-validator';
 import mongoose from 'mongoose';
 import Bill from '../models/Bill';
-import { authenticate } from '../middleware/auth';
+import { authenticate, enforceOnboarding } from '../middleware/auth';
 import { handleBillRecurrence } from '../services/recurrence';
 
 const router = Router();
 router.use(authenticate);
+router.use(enforceOnboarding);
 
 function sanitizeRecurrence(input: any) {
   if (!input || input.type === 'none') return { type: 'none' as const };

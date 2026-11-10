@@ -45,9 +45,21 @@ export interface IUser extends Document {
   // Future-proofing for household support
   householdId?: mongoose.Types.ObjectId;
 
-  // Demo / guest session
-  isDemo: boolean;
-  demoExpiresAt?: Date;
+  // Onboarding
+  onboardingCompleted: boolean;
+  onboardingStep: number;
+  
+  // Notification type preferences
+  notificationTypes: {
+    tasks: boolean;
+    bills: boolean;
+    appointments: boolean;
+    reminders: boolean;
+  };
+
+  // Email notification preferences
+  emailReminderIntervals: number[]; // minutes before due (e.g. [1440, 60, 0])
+  timezone: string; // IANA timezone, e.g. 'Asia/Kolkata'
   
   createdAt: Date;
   updatedAt: Date;
@@ -110,9 +122,24 @@ const userSchema = new Schema<IUser>(
     // Future household support
     householdId: { type: Schema.Types.ObjectId, ref: 'Household' },
 
-    // Demo / guest session
-    isDemo: { type: Boolean, default: false },
-    demoExpiresAt: { type: Date },
+    // Onboarding
+    onboardingCompleted: { type: Boolean, default: false },
+    onboardingStep: { type: Number, default: 1 },
+    
+    // Notification type preferences
+    notificationTypes: {
+      tasks: { type: Boolean, default: true },
+      bills: { type: Boolean, default: true },
+      appointments: { type: Boolean, default: true },
+      reminders: { type: Boolean, default: true },
+    },
+
+    // Email notification preferences
+    emailReminderIntervals: {
+      type: [Number],
+      default: [1440, 60, 0], // 1 day before, 1 hour before, at scheduled time
+    },
+    timezone: { type: String, default: 'UTC' },
   },
   {
     timestamps: true,

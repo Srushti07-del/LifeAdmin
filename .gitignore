@@ -1,4 +1,10 @@
-# Environment variables — never commit secrets
+# ==============================================================================
+# LifeAdmin — .gitignore
+# ==============================================================================
+
+# ------------------------------------------------------------------------------
+# 1. Environment Variables & Credentials (Never commit secrets)
+# ------------------------------------------------------------------------------
 .env
 .env.*
 *.env
@@ -6,35 +12,132 @@
 **/.env.*
 server/.env
 server/.env.*
+!.env.example
+!**/.env.example
 
-# Local MongoDB data directory
-server/data/
+# Certificates and private keys
+*.pem
+*.key
+*.cert
+*.cer
+*.pfx
+*.p12
+id_rsa
+id_rsa.pub
 
-# Dependencies
+# ------------------------------------------------------------------------------
+# 2. Dependencies
+# ------------------------------------------------------------------------------
 node_modules/
+**/node_modules/
+.pnp/
+.pnp.js
 
-# Build outputs
+# ------------------------------------------------------------------------------
+# 3. Build Outputs & Compilations
+# ------------------------------------------------------------------------------
 dist/
-client/dist/
-server/dist/
+**/dist/
+dist-ssr/
+**/dist-ssr/
+build/
+**/build/
+out/
+**/out/
+.vite/
+web-build/
+*.tsbuildinfo
 
-# IDE
+# ------------------------------------------------------------------------------
+# 4. Local Database & Runtime Data
+# ------------------------------------------------------------------------------
+server/data/
+data/
+**/data/
+*.sqlite
+*.sqlite3
+*.db
+
+# ------------------------------------------------------------------------------
+# 5. User Uploads & Temporary Files
+# ------------------------------------------------------------------------------
+server/uploads/
+uploads/
+**/uploads/
+tmp/
+temp/
+*.tmp
+
+# ------------------------------------------------------------------------------
+# 6. Logs & Debug Artifacts
+# ------------------------------------------------------------------------------
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# ------------------------------------------------------------------------------
+# 7. Operating System Metadata
+# ------------------------------------------------------------------------------
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+desktop.ini
+
+# ------------------------------------------------------------------------------
+# 8. Editor & IDE Settings
+# ------------------------------------------------------------------------------
 .vscode/
 .idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+*.sublime-workspace
+*.sublime-project
 
-# OS
-.DS_Store
-Thumbs.db
+# ------------------------------------------------------------------------------
+# 9. Test Coverage & Reports
+# ------------------------------------------------------------------------------
+coverage/
+**/coverage/
+.nyc_output/
 
-# Uploads
-server/uploads/
+# ------------------------------------------------------------------------------
+# 10. Mobile / Expo / Native Builds
+# ------------------------------------------------------------------------------
+.expo/
+expo-env.d.ts
+.kotlin/
+mobile/ios/
+mobile/android/
+*.jks
+*.p8
+*.mobileprovision
+*.orig.*
+
+# ------------------------------------------------------------------------------
+# 11. AI / Agent Tooling, Graphs & Backups
+# ------------------------------------------------------------------------------
 graphify-out/
-
-# Backups and Git metadata
+.kilo/
+.claude/
 mobile-history-backup.bundle
 mobile-git-metadata-backup
 mobile-git-metadata-backup/
 *.bundle
 
-customer.md 
-LifeAdmin_Antigravity_Spec.md
+# ------------------------------------------------------------------------------
+# 12. Markdown Documentation (All markdown files except README.md)
+# ------------------------------------------------------------------------------
+*.md
+!README.md
+!readme.md

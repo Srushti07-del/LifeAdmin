@@ -2,10 +2,11 @@ import { Router, Request, Response } from 'express';
 import { body, validationResult } from 'express-validator';
 import mongoose from 'mongoose';
 import Appointment from '../models/Appointment';
-import { authenticate } from '../middleware/auth';
+import { authenticate, enforceOnboarding } from '../middleware/auth';
 
 const router = Router();
 router.use(authenticate);
+router.use(enforceOnboarding);
 
 // GET /api/appointments
 router.get('/', async (req: Request, res: Response): Promise<void> => {

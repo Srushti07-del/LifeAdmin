@@ -11,12 +11,23 @@ interface User {
   theme: 'light' | 'dark' | 'system';
   notificationsEnabled: boolean;
   defaultReminderTiming: number[];
+  quietHoursStart?: string;
+  quietHoursEnd?: string;
   categories: string[];
   aiPreferences: { autoExtract: boolean; suggestionsEnabled: boolean };
   subscriptionTier: 'free' | 'premium' | 'premium_ai';
   preferredCurrency: string;
   companion?: CompanionState;
-  isDemo?: boolean;
+  onboardingCompleted: boolean;
+  onboardingStep: number;
+  notificationTypes: {
+    tasks: boolean;
+    bills: boolean;
+    appointments: boolean;
+    reminders: boolean;
+  };
+  emailReminderIntervals: number[];
+  timezone: string;
 }
 
 interface AuthContextType {
@@ -24,10 +35,8 @@ interface AuthContextType {
   token: string | null;
   loading: boolean;
   login: (email: string, password: string) => Promise<void>;
-  loginAsGuest: () => Promise<void>;
   register: (name: string, email: string, password: string) => Promise<void>;
   logout: () => void;
-  exitDemo: () => Promise<void>;
   updateUser: (updates: Partial<User>) => void;
   setTheme: (theme: 'light' | 'dark' | 'system') => void;
 }
@@ -150,27 +159,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     applyTheme('light');
   }, []);
 
-  const loginAsGuest = useCallback(async () => {
-    const res = await api.post('/auth/guest');
-    const { token: newToken, user: userData } = res.data;
-    localStorage.setItem('lifeadmin_token', newToken);
-    // Seed an engaging companion state for the guest demo
-    const guestCompanion = userData.companion || {
-      activeId: 'aura',
-      customName: 'Aura',
-      xp: 380,
-      level: 3,
-      growthStage: 'Bloom',
-      streakDays: 4,
-      lastActiveDate: new Date().toISOString().split('T')[0],
-    };
-    saveCompanionStorage(guestCompanion, false);
-    setToken(newToken);
-    setUser(userData);
-    // Force light theme on guest login to avoid a dark-mode flash on the Dashboard.
-    applyTheme('light');
-  }, []);
-
   const register = useCallback(async (name: string, email: string, password: string) => {
     const res = await api.post('/auth/register', { name, email, password });
     const { token: newToken, user: userData } = res.data;
@@ -189,19 +177,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     localStorage.removeItem('lifeadmin_companion_state');
     setToken(null);
     setUser(null);
-  }, []);
-
-  const exitDemo = useCallback(async () => {
-    try {
-      await api.delete('/auth/guest');
-    } catch (e) {
-      console.warn('Failed to clean up demo session on server:', e);
-    } finally {
-      localStorage.removeItem('lifeadmin_token');
-      localStorage.removeItem('lifeadmin_companion_state');
-      setToken(null);
-      setUser(null);
-    }
   }, []);
 
   const updateUser = useCallback((updates: Partial<User>) => {
@@ -226,10 +201,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         token,
         loading,
         login,
-        loginAsGuest,
         register,
         logout,
-        exitDemo,
         updateUser,
         setTheme: setThemeCallback,
       }}

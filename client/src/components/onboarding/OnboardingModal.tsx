@@ -129,7 +129,7 @@ export default function OnboardingModal({ isOpen, onComplete }: OnboardingModalP
           </div>
           <button
             onClick={onComplete}
-            className="text-xs font-medium text-surface-400 hover:text-surface-700 dark:hover:text-surface-200 transition-colors"
+            className="text-xs font-medium text-surface-400 dark:text-surface-300 hover:text-surface-700 dark:hover:text-surface-200 transition-colors"
           >
             Skip setup
           </button>
@@ -147,7 +147,7 @@ export default function OnboardingModal({ isOpen, onComplete }: OnboardingModalP
                 <h2 className="text-2xl font-bold font-editorial text-surface-900 dark:text-surface-100">
                   Welcome to LifeAdmin
                 </h2>
-                <p className="text-sm text-surface-500 mt-2 max-w-md mx-auto leading-relaxed">
+                <p className="text-sm text-surface-500 dark:text-surface-200 mt-2 max-w-md mx-auto leading-relaxed">
                   Your life, organised. Your mind, uncluttered. Let&apos;s take one minute to tailor your workspace so you immediately know what needs attention next.
                 </p>
               </div>
@@ -169,7 +169,7 @@ export default function OnboardingModal({ isOpen, onComplete }: OnboardingModalP
                 <h3 className="text-xl font-bold font-editorial text-surface-900 dark:text-surface-100">
                   Notification & Reminder Pace
                 </h3>
-                <p className="text-xs text-surface-500 mt-1">
+                <p className="text-xs text-surface-500 dark:text-surface-200 mt-1">
                   Choose how early you want LifeAdmin to alert you before deadlines and bill due dates.
                 </p>
               </div>
@@ -182,7 +182,7 @@ export default function OnboardingModal({ isOpen, onComplete }: OnboardingModalP
                     </div>
                     <div>
                       <p className="text-xs font-semibold text-surface-800 dark:text-surface-200">Alert Cadence</p>
-                      <p className="text-[11px] text-surface-400">7 days, 3 days, 1 day & on the due date</p>
+                      <p className="text-[11px] text-surface-400 dark:text-surface-300">7 days, 3 days, 1 day & on the due date</p>
                     </div>
                   </div>
                   <input
@@ -200,7 +200,7 @@ export default function OnboardingModal({ isOpen, onComplete }: OnboardingModalP
                     </div>
                     <div>
                       <p className="text-xs font-semibold text-surface-800 dark:text-surface-200">Quiet Hours</p>
-                      <p className="text-[11px] text-surface-400">Respect your calm hours from 10:00 PM to 7:00 AM</p>
+                      <p className="text-[11px] text-surface-400 dark:text-surface-300">Respect your calm hours from 10:00 PM to 7:00 AM</p>
                     </div>
                   </div>
                   <input
@@ -215,7 +215,7 @@ export default function OnboardingModal({ isOpen, onComplete }: OnboardingModalP
               <div className="flex justify-between pt-4">
                 <button
                   onClick={() => setStep(1)}
-                  className="px-4 py-2 text-xs font-medium text-surface-500 hover:text-surface-800 flex items-center gap-1.5"
+                  className="px-4 py-2 text-xs font-medium text-surface-500 dark:text-surface-300 hover:text-surface-800 flex items-center gap-1.5"
                 >
                   <ArrowLeft size={14} /> Back
                 </button>
@@ -236,7 +236,7 @@ export default function OnboardingModal({ isOpen, onComplete }: OnboardingModalP
                 <h3 className="text-xl font-bold font-editorial text-surface-900 dark:text-surface-100">
                   Select Your Key Domains
                 </h3>
-                <p className="text-xs text-surface-500 mt-1">
+                <p className="text-xs text-surface-500 dark:text-surface-200 mt-1">
                   Choose the life categories that represent your daily responsibilities.
                 </p>
               </div>
@@ -255,7 +255,7 @@ export default function OnboardingModal({ isOpen, onComplete }: OnboardingModalP
                       }`}
                     >
                       <div className="flex items-center gap-2">
-                        <Tag size={14} className={active ? 'text-primary-500' : 'text-surface-400'} />
+                        <Tag size={14} className={active ? 'text-primary-500' : 'text-surface-400 dark:text-surface-300'} />
                         <span>{cat}</span>
                       </div>
                       {active && <Check size={14} className="text-primary-500 flex-shrink-0" />}
@@ -267,7 +267,7 @@ export default function OnboardingModal({ isOpen, onComplete }: OnboardingModalP
               <div className="flex justify-between pt-4">
                 <button
                   onClick={() => setStep(2)}
-                  className="px-4 py-2 text-xs font-medium text-surface-500 hover:text-surface-800 flex items-center gap-1.5"
+                  className="px-4 py-2 text-xs font-medium text-surface-500 dark:text-surface-300 hover:text-surface-800 flex items-center gap-1.5"
                 >
                   <ArrowLeft size={14} /> Back
                 </button>
@@ -288,7 +288,7 @@ export default function OnboardingModal({ isOpen, onComplete }: OnboardingModalP
                 <h3 className="text-xl font-bold font-editorial text-surface-900 dark:text-surface-100">
                   Choose Your LifeBuddy Companion
                 </h3>
-                <p className="text-xs text-surface-500 mt-1">
+                <p className="text-xs text-surface-500 dark:text-surface-200 mt-1">
                   A gentle, quiet partner that grows with your productivity. No guilt, no stress.
                 </p>
               </div>
@@ -313,7 +313,7 @@ export default function OnboardingModal({ isOpen, onComplete }: OnboardingModalP
                       <h4 className="text-xs font-bold text-surface-900 dark:text-surface-100 font-editorial">
                         {comp.name}
                       </h4>
-                      <p className="text-[10px] text-surface-500 truncate">{comp.title}</p>
+                      <p className="text-[10px] text-surface-500 dark:text-surface-300 truncate">{comp.title}</p>
                     </div>
                   );
                 })}
@@ -335,7 +335,7 @@ export default function OnboardingModal({ isOpen, onComplete }: OnboardingModalP
               <div className="flex justify-between pt-4">
                 <button
                   onClick={() => setStep(3)}
-                  className="px-4 py-2 text-xs font-medium text-surface-500 hover:text-surface-800 flex items-center gap-1.5"
+                  className="px-4 py-2 text-xs font-medium text-surface-500 dark:text-surface-300 hover:text-surface-800 flex items-center gap-1.5"
                 >
                   <ArrowLeft size={14} /> Back
                 </button>
@@ -356,7 +356,7 @@ export default function OnboardingModal({ isOpen, onComplete }: OnboardingModalP
                 <h3 className="text-xl font-bold font-editorial text-surface-900 dark:text-surface-100">
                   Choose Dashboard Layout
                 </h3>
-                <p className="text-xs text-surface-500 mt-1">
+                <p className="text-xs text-surface-500 dark:text-surface-200 mt-1">
                   You can easily customize and reorder widgets at any time.
                 </p>
               </div>
@@ -390,7 +390,7 @@ export default function OnboardingModal({ isOpen, onComplete }: OnboardingModalP
                           : 'border-surface-200 dark:border-surface-700 hover:bg-surface-50 dark:hover:bg-surface-800/40'
                       }`}
                     >
-                      <div className="w-8 h-8 rounded-xl bg-surface-100 dark:bg-surface-800 text-surface-600 flex items-center justify-center flex-shrink-0 mt-0.5">
+                      <div className="w-8 h-8 rounded-xl bg-surface-100 dark:bg-surface-800 text-surface-600 dark:text-surface-300 flex items-center justify-center flex-shrink-0 mt-0.5">
                         <Layout size={16} />
                       </div>
                       <div className="flex-1">
@@ -398,7 +398,7 @@ export default function OnboardingModal({ isOpen, onComplete }: OnboardingModalP
                           <span className="text-xs font-semibold">{preset.title}</span>
                           {isSelected && <Check size={15} className="text-primary-500" />}
                         </div>
-                        <p className="text-[11px] text-surface-500 mt-0.5">{preset.desc}</p>
+                        <p className="text-[11px] text-surface-500 dark:text-surface-200 mt-0.5">{preset.desc}</p>
                       </div>
                     </button>
                   );
@@ -408,7 +408,7 @@ export default function OnboardingModal({ isOpen, onComplete }: OnboardingModalP
               <div className="flex justify-between pt-4">
                 <button
                   onClick={() => setStep(4)}
-                  className="px-4 py-2 text-xs font-medium text-surface-500 hover:text-surface-800 flex items-center gap-1.5"
+                  className="px-4 py-2 text-xs font-medium text-surface-500 dark:text-surface-300 hover:text-surface-800 flex items-center gap-1.5"
                 >
                   <ArrowLeft size={14} /> Back
                 </button>
@@ -432,7 +432,7 @@ export default function OnboardingModal({ isOpen, onComplete }: OnboardingModalP
                 <h2 className="text-2xl font-bold font-editorial text-surface-900 dark:text-surface-100">
                   You&apos;re All Set!
                 </h2>
-                <p className="text-xs text-surface-500 mt-1 max-w-sm mx-auto leading-relaxed">
+                <p className="text-xs text-surface-500 dark:text-surface-200 mt-1 max-w-sm mx-auto leading-relaxed">
                   Your workspace is ready. {companionName} is delighted to meet you and will accompany your journey towards an uncluttered mind.
                 </p>
               </div>

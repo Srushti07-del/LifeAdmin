@@ -1,9 +1,10 @@
 import { Router, Request, Response } from 'express';
-import { authenticate } from '../middleware/auth';
+import { authenticate, enforceOnboarding } from '../middleware/auth';
 import { getExchangeRate, getSupportedCurrencies, clearRateCache } from '../services/exchangeRate';
 
 const router = Router();
 router.use(authenticate);
+router.use(enforceOnboarding);
 
 // GET /api/currency/supported — List supported currency codes
 router.get('/supported', async (_req: Request, res: Response): Promise<void> => {

@@ -4,14 +4,13 @@ import { useAuth } from '../contexts/AuthContext';
 import { Mail, Lock, Eye, EyeOff, ArrowRight, Loader2, Sparkles } from 'lucide-react';
 
 export default function LoginPage() {
-  const { login, loginAsGuest } = useAuth();
+  const { login } = useAuth();
   const navigate = useNavigate();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const [guestLoading, setGuestLoading] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -19,28 +18,11 @@ export default function LoginPage() {
     setLoading(true);
     try {
       await login(email, password);
-      navigate('/dashboard');
+      navigate('/dashboard', { replace: true });
     } catch {
       setError('Invalid email or password. Please try again or create an account.');
     } finally {
       setLoading(false);
-    }
-  };
-
-  const handleGuestLogin = async () => {
-    setError('');
-    setGuestLoading(true);
-    try {
-      await loginAsGuest();
-      navigate('/dashboard');
-    } catch (err: any) {
-      const message =
-        err?.response?.data?.message ||
-        (err?.code === 'ERR_NETWORK' ? 'Cannot reach server. Please check your connection.' : null) ||
-        'Failed to start guest demo session.';
-      setError(message);
-    } finally {
-      setGuestLoading(false);
     }
   };
 
@@ -161,40 +143,9 @@ export default function LoginPage() {
               )}
             </button>
           </form>
-
-          {/* Divider */}
-          <div className="relative my-5">
-            <div className="absolute inset-0 flex items-center">
-              <div className="w-full border-t border-surface-200" />
-            </div>
-            <div className="relative flex justify-center text-[11px] uppercase tracking-wider">
-              <span className="bg-white px-3 text-surface-500">or explore first</span>
-            </div>
-          </div>
-
-          {/* Explore as Guest Button */}
-          <button
-            type="button"
-            onClick={handleGuestLogin}
-            disabled={loading || guestLoading}
-            id="explore-guest-btn"
-            className="w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl border border-primary-300 bg-primary-50 hover:bg-primary-100 text-primary-800 font-semibold text-xs transition-all duration-150 disabled:opacity-60 disabled:cursor-not-allowed group hover:shadow-card cursor-pointer"
-          >
-            {guestLoading ? (
-              <Loader2 size={15} className="animate-spin text-primary-700" />
-            ) : (
-              <>
-                <Sparkles size={15} className="text-primary-600 group-hover:scale-110 transition-transform duration-150" />
-                <span>Explore LifeAdmin as Guest</span>
-                <span className="ml-1 text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-primary-100 text-primary-700 border border-primary-200">
-                  Instant Access
-                </span>
-              </>
-            )}
-          </button>
         </div>
 
-        {/* Footer */}
+          {/* Footer */}
         <p className="text-center mt-6 text-xs text-surface-600">
           Don&apos;t have an account yet?{' '}
           <Link

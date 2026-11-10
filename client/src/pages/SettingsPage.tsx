@@ -17,6 +17,9 @@ import {
   Plus,
   Search,
   IndianRupee,
+  Bell,
+  Target,
+  Monitor,
 } from 'lucide-react';
 import { CURRENCIES, DEFAULT_CURRENCY, getCurrencyInfo, type CurrencyCode } from '../lib/currency';
 
@@ -35,6 +38,7 @@ export default function SettingsPage() {
   const [preferredCurrency, setPreferredCurrency] = useState<CurrencyCode>((user?.preferredCurrency || DEFAULT_CURRENCY) as CurrencyCode);
   const [currencySearch, setCurrencySearch] = useState('');
   const [currencyDropdownOpen, setCurrencyDropdownOpen] = useState(false);
+  const [defaultReminderTiming, setDefaultReminderTiming] = useState<number[]>(user?.defaultReminderTiming || [7, 3, 1, 0]);
 
   // Categories
   const [categories, setCategories] = useState<string[]>(
@@ -42,6 +46,38 @@ export default function SettingsPage() {
   );
   const [newCatInput, setNewCatInput] = useState('');
   const [saveSuccess, setSaveSuccess] = useState(false);
+
+  // Email notification preferences
+  const [emailConfigured, setEmailConfigured] = useState(false);
+  const [emailReminderIntervals, setEmailReminderIntervals] = useState<number[]>(user?.emailReminderIntervals || [1440, 60, 0]);
+  const [timezone, setTimezone] = useState(user?.timezone || 'UTC');
+  const [loadingEmailStatus, setLoadingEmailStatus] = useState(false);
+
+  const INTERVAL_OPTIONS = [
+    { minutes: 1440, label: '1 day before' },
+    { minutes: 720, label: '12 hours before' },
+    { minutes: 360, label: '6 hours before' },
+    { minutes: 180, label: '3 hours before' },
+    { minutes: 60, label: '1 hour before' },
+    { minutes: 30, label: '30 minutes before' },
+    { minutes: 15, label: '15 minutes before' },
+    { minutes: 0, label: 'At scheduled time' },
+  ];
+
+  const TIMEZONE_OPTIONS = [
+    { value: 'UTC', label: 'UTC' },
+    { value: 'Asia/Kolkata', label: 'India (IST)' },
+    { value: 'Asia/Dubai', label: 'Gulf Standard Time (GST)' },
+    { value: 'Asia/Singapore', label: 'Singapore Time (SGT)' },
+    { value: 'Asia/Tokyo', label: 'Japan Standard Time (JST)' },
+    { value: 'Australia/Sydney', label: 'Australian Eastern Time (AET)' },
+    { value: 'Europe/London', label: 'Greenwich Mean Time (GMT)' },
+    { value: 'Europe/Berlin', label: 'Central European Time (CET)' },
+    { value: 'America/New_York', label: 'Eastern Time (ET)' },
+    { value: 'America/Chicago', label: 'Central Time (CT)' },
+    { value: 'America/Denver', label: 'Mountain Time (MT)' },
+    { value: 'America/Los_Angeles', label: 'Pacific Time (PT)' },
+  ];
 
   useEffect(() => {
     if (user) {
@@ -52,8 +88,27 @@ export default function SettingsPage() {
       setSuggestionsEnabled(user.aiPreferences?.suggestionsEnabled ?? true);
       if (user.categories) setCategories(user.categories);
       if (user.preferredCurrency) setPreferredCurrency(user.preferredCurrency as CurrencyCode);
+      setDefaultReminderTiming(user.defaultReminderTiming || [7, 3, 1, 0]);
+      setEmailReminderIntervals(user.emailReminderIntervals || [1440, 60, 0]);
+      setTimezone(user.timezone || 'UTC');
     }
+    fetchEmailStatus();
   }, [user]);
+
+  const fetchEmailStatus = async () => {
+    setLoadingEmailStatus(true);
+    try {
+      const res = await api.get('/api/email-notifications/status');
+      setEmailConfigured(res.data.emailConfigured);
+      setNotificationsEnabled(res.data.emailNotificationsEnabled ?? notificationsEnabled);
+      setEmailReminderIntervals(res.data.emailReminderIntervals || emailReminderIntervals);
+      setTimezone(res.data.timezone || timezone);
+    } catch (err) {
+      console.error('Fetch email status error:', err);
+    } finally {
+      setLoadingEmailStatus(false);
+    }
+  };
 
   const handleSaveProfile = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -74,6 +129,9 @@ export default function SettingsPage() {
       const payload = {
         theme,
         notificationsEnabled,
+        defaultReminderTiming,
+        emailReminderIntervals,
+        timezone,
         aiPreferences: {
           autoExtract,
           suggestionsEnabled,
@@ -254,6 +312,189 @@ export default function SettingsPage() {
               </button>
             );
           })}
+        </div>
+      </section>
+
+      {/* Email Notification Preferences */}
+      <section className="bg-white dark:bg-surface-0 rounded-3xl p-6 sm:p-7 border border-surface-200 dark:border-surface-700 shadow-card space-y-4">
+        <div className="flex items-center gap-2.5 pb-3 border-b border-surface-100 dark:border-[#304247]">
+          <div className="w-8 h-8 rounded-xl bg-primary-50 dark:bg-primary-950/40 text-primary-600 dark:text-primary-400 flex items-center justify-center">
+            <Bell size={18} />
+          </div>
+          <div>
+            <h2 className="text-base font-bold font-editorial text-surface-900 dark:text-surface-100">
+              Notification Preferences
+            </h2>
+            <p className="text-[11px] text-surface-600 dark:text-surface-300">
+              Choose how and when LifeAdmin notifies you by email.
+            </p>
+          </div>
+        </div>
+
+        {/* Email delivery status */}
+        {loadingEmailStatus && (
+          <div className="p-3.5 rounded-xl bg-surface-100 dark:bg-surface-800 text-surface-500 dark:text-surface-300 text-xs animate-pulse">
+            Loading email settings...
+          </div>
+        )}
+        {!emailConfigured && !loadingEmailStatus && (
+          <div className="p-3.5 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 text-xs">
+            <p className="font-semibold mb-1">Email service not configured</p>
+            <p className="text-rose-700">
+              SMTP credentials are not set on the server. Email notifications will not be delivered until an administrator configures SMTP_HOST, SMTP_USER, and SMTP_PASS.
+            </p>
+          </div>
+        )}
+
+        {/* Global toggle */}
+        <div className="flex items-center justify-between p-3 bg-surface-50 dark:bg-surface-800/40 rounded-xl border border-surface-200 dark:border-surface-700">
+          <div className="flex items-center gap-3">
+            <input
+              id="email-notifications-enabled"
+              type="checkbox"
+              checked={notificationsEnabled}
+              onChange={(e) => setNotificationsEnabled(e.target.checked)}
+              className="rounded text-primary-500 focus:ring-primary-500"
+            />
+            <label htmlFor="email-notifications-enabled" className="text-xs font-semibold text-surface-800 dark:text-surface-200">
+              Enable email notifications
+            </label>
+          </div>
+          <div className="text-[10px] text-surface-500 dark:text-surface-400">
+            When enabled, you&apos;ll receive email reminders for deadlines, bills, appointments, and tasks.
+          </div>
+        </div>
+
+        {/* Per-category toggles */}
+        <div className="space-y-2">
+              {[
+            { id: 'tasks', label: 'Tasks & deadlines', icon: <Target size={14} /> },
+            { id: 'bills', label: 'Bill payments', icon: <Bell size={14} className="text-amber-600" /> },
+            { id: 'appointments', label: 'Appointments', icon: <Monitor size={14} /> },
+            { id: 'reminders', label: 'Personal reminders', icon: <Bell size={14} className="text-primary-600" /> },
+          ].map((n) => {
+            const nt = user?.notificationTypes as Record<string, boolean> | undefined;
+            const isEnabled = nt?.[n.id] ?? true;
+            return (
+              <label
+                key={n.id}
+                className={`flex items-center gap-2.5 p-2.5 rounded-xl cursor-pointer transition-colors border-transparent hover:bg-surface-50 dark:hover:bg-surface-800/40`}
+              >
+                <input
+                  type="checkbox"
+                  checked={isEnabled}
+                  onChange={(e) => {
+                    const types = { ...(user?.notificationTypes || {}) } as Record<string, boolean>;
+                    types[n.id] = e.target.checked;
+                    handleSaveSettings({ notificationTypes: types });
+                  }}
+                  className="rounded text-primary-500 focus:ring-primary-500 shrink-0"
+                />
+                <div className="flex items-center gap-2">
+                  {n.icon}
+                  <span className="text-xs font-medium text-surface-900 dark:text-surface-100">{n.label}</span>
+                </div>
+              </label>
+            );
+          })}
+        </div>
+
+        {/* Reminder intervals */}
+        <div className="border border-surface-200 dark:border-surface-700 rounded-2xl p-4">
+          <div className="flex items-center justify-between mb-3">
+            <div>
+              <p className="text-xs font-semibold text-surface-800 dark:text-surface-200">Reminder intervals</p>
+              <p className="text-[10px] text-surface-500 dark:text-surface-400">
+                How far in advance to send email reminders for each event.
+              </p>
+            </div>
+          </div>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+            {INTERVAL_OPTIONS.map((opt) => {
+              const active = emailReminderIntervals.includes(opt.minutes);
+              return (
+                <button
+                  key={opt.minutes}
+                  type="button"
+                  onClick={() => {
+                    if (active) {
+                      setEmailReminderIntervals(emailReminderIntervals.filter((m) => m !== opt.minutes));
+                    } else {
+                      setEmailReminderIntervals([...emailReminderIntervals, opt.minutes]);
+                    }
+                  }}
+                  className={`px-3 py-2 rounded-xl text-xs transition-all border ${
+                    active
+                      ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/30 text-primary-800 dark:text-primary-200'
+                      : 'border-surface-200 dark:border-surface-700 text-surface-600 dark:text-surface-400 hover:bg-surface-50 dark:hover:bg-surface-800'
+                  }`}
+                >
+                  {opt.label}
+                </button>
+              );
+            })}
+          </div>
+          {emailReminderIntervals.length === 0 && (
+            <p className="text-[10px] text-rose-600 dark:text-rose-400 mt-2 text-center">
+              Select at least one interval.
+            </p>
+          )}
+        </div>
+
+        {/* Timezone */}
+        <div className="border border-surface-200 dark:border-surface-700 rounded-2xl p-4">
+          <div className="mb-3">
+            <label className="block text-xs font-semibold text-surface-800 dark:text-surface-200 mb-1.5">
+              Timezone
+            </label>
+            <select
+              value={timezone}
+              onChange={(e) => setTimezone(e.target.value)}
+              className="w-full px-3.5 py-2 text-xs rounded-xl border border-surface-200 dark:border-surface-700 bg-white dark:bg-surface-0 text-surface-900 dark:text-surface-100 focus:outline-none focus:ring-1 focus:ring-primary-500"
+            >
+              {TIMEZONE_OPTIONS.map((tz) => (
+                <option key={tz.value} value={tz.value}>
+                  {tz.label}
+                </option>
+              ))}
+            </select>
+          </div>
+          <p className="text-[10px] text-surface-500 dark:text-surface-400">
+            Reminder times are converted to your local timezone for scheduling.
+          </p>
+        </div>
+
+        {/* Quiet hours info */}
+        <div className="border border-surface-200 dark:border-surface-700 rounded-2xl p-4">
+          <div className="flex items-start gap-3">
+            <div className="flex-shrink-0">
+              <div className="w-6 h-6 rounded-full bg-surface-100 dark:bg-surface-800 flex items-center justify-center text-surface-500 dark:text-surface-300">
+                <Moon size={14} />
+              </div>
+            </div>
+            <div>
+              <p className="text-xs font-semibold text-surface-800 dark:text-surface-200">Quiet hours</p>
+              <p className="text-[10px] text-surface-500 dark:text-surface-400">
+                Emails scheduled during your quiet hours (set in {user?.quietHoursStart || '–'} to {user?.quietHoursEnd || '–'}) will be held until the quiet period ends.
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {/* Save button */}
+        <div className="flex justify-end">
+          <button
+            type="button"
+            onClick={() => handleSaveSettings()}
+            disabled={emailReminderIntervals.length === 0}
+            className={`px-5 py-2.5 rounded-xl text-xs font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed ${
+              emailReminderIntervals.length === 0
+                ? 'border border-surface-200 dark:border-surface-700 text-surface-500 dark:text-surface-400'
+                : 'bg-primary-600 hover:bg-primary-700 text-white shadow-sm'
+            }`}
+          >
+            Save Notification Preferences
+          </button>
         </div>
       </section>
 

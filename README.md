@@ -1,275 +1,56 @@
-# 🧠 LifeAdmin
+# LifeAdmin
 
-### *Your life, organised. Your mind, uncluttered.*
+LifeAdmin is a personal life-management platform designed to organize everyday responsibilities into a calm, unified workspace. It helps students and professionals track tasks, bills, appointments, and important documents with intelligent reminders. The platform also includes LifeBuddy, an interactive virtual companion that reinforces positive habit-building without guilt.
 
-**LifeAdmin** is an editorial personal management workspace designed to help users organize and manage everyday responsibilities in one place. From bills and deadlines to appointments, important documents, and personal tasks, LifeAdmin brings scattered life-admin work into a calm, intelligent, and customizable command center.
+## Key Features
 
-The goal is simple: **less forgetting, less searching, less mental clutter.**
+- **Tasks & Deadlines:** Manage to-dos and recurring responsibilities across List and Board views.
+- **Bills & Subscriptions:** Monitor payment dates, recurring expenses, and upcoming dues in INR (₹).
+- **Calendar & Appointments:** Consolidated timeline aggregating all dated tasks, bills, and appointments.
+- **Documents & AI Extraction:** Upload personal files with automated metadata extraction via Google Gemini.
+- **LifeBuddy & AI Assistant:** Stylized 3D companion for habit reinforcement plus an interactive planning assistant.
 
-LifeAdmin is a **100% free product** built for everyone — students, young professionals, and individuals seeking to conquer daily life administration without subscription paywalls or guilt.
+## Tech Stack
 
----
+- **Frontend:** React 19, TypeScript, Vite, Tailwind CSS 4, React Router
+- **Backend:** Node.js, Express, TypeScript, JWT, Nodemailer
+- **Database:** MongoDB, Mongoose
+- **AI:** Google Gemini API (`@google/generative-ai`)
 
-## 🚀 Why LifeAdmin?
+## Getting Started
 
-Modern life involves managing dozens of small but important responsibilities:
+### Prerequisites
+- Node.js (v18+) and npm
+- MongoDB instance
 
-* 💳 Paying bills on time
-* 📅 Remembering appointments
-* ⏰ Tracking deadlines
-* 📄 Managing important documents
-* ✅ Completing personal tasks
-* 🔔 Remembering renewals and recurring responsibilities
-
-These things are usually scattered across calendars, notes apps, emails, messages, and physical documents.
-
-**LifeAdmin brings them together into one personal command center.**
-
----
-
-## ✨ Key Features
-
-### 📊 Personal Dashboard
-
-Get an overview of upcoming responsibilities, pending tasks, approaching deadlines, bills, appointments, and important reminders.
-
-### ⏰ Deadline & Reminder Management
-
-Create deadlines and reminders so important responsibilities don't get lost in everyday life.
-
-### 💳 Bill & Payment Tracking
-
-Keep track of bills, payment dates, recurring expenses, and upcoming payments.
-
-### 📅 Appointment Management
-
-Organize appointments and important events with dates, times, and reminders.
-
-### 📄 Document Management
-
-Store and organize important personal documents so they are easier to find when needed.
-
-### 🔄 Recurring Responsibilities
-
-Manage tasks that repeat regularly, such as subscriptions, bill payments, renewals, and other recurring activities.
-
-### 🤖 AI-Powered Assistance
-
-LifeAdmin can intelligently identify important information and help users stay aware of responsibilities they may otherwise overlook.
-
-### 🔔 Smart Notifications
-
-Receive timely reminders about approaching deadlines, payments, appointments, and other important activities.
-
----
-
-## 🎯 Problem Statement
-
-People manage their everyday responsibilities across multiple disconnected platforms.
-
-A bill may be in an email, an appointment in a calendar, a deadline in a notes app, and an important document buried somewhere in cloud storage.
-
-This fragmentation increases the chances of:
-
-* Missing deadlines
-* Forgetting payments
-* Missing appointments
-* Losing important documents
-* Overlooking recurring responsibilities
-* Spending unnecessary time searching for information
-
-**LifeAdmin aims to solve this problem by creating a unified personal management system.**
-
----
-
-## 💡 Our Vision
-
-LifeAdmin aims to become a **personal operating system for everyday life** — a single place where users can understand what needs their attention, when it needs attention, and why it matters.
-
-Instead of asking:
-
-> "What am I forgetting?"
-
-LifeAdmin should help answer:
-
-> **"Here's what needs your attention next."**
-
----
-
-## 🛠️ Tech Stack
-
-The technology stack can be updated according to the implementation.
-
-**Frontend**
-
-* React
-* HTML
-* CSS / Tailwind CSS
-* JavaScript / TypeScript
-
-**Backend**
-
-* Node.js
-* Express.js
-
-**Database**
-
-* MongoDB
-
-**AI / Intelligence**
-
-* AI APIs
-* Intelligent deadline and responsibility detection
-
-**Authentication & Security**
-
-* Secure user authentication
-* Protected user data
-* Role-based access where required
-
----
-
-## 🏗️ Project Architecture
-
-```text
-LifeAdmin
-│
-├── Frontend
-│   ├── Dashboard
-│   ├── Tasks
-│   ├── Bills
-│   ├── Appointments
-│   ├── Documents
-│   └── Notifications
-│
-├── Backend
-│   ├── Authentication
-│   ├── User Management
-│   ├── Task Management
-│   ├── Bill Management
-│   ├── Appointment Management
-│   └── Notification Service
-│
-├── AI Layer
-│   ├── Information Extraction
-│   ├── Deadline Detection
-│   └── Smart Suggestions
-│
-└── Database
-    ├── Users
-    ├── Tasks
-    ├── Bills
-    ├── Appointments
-    └── Documents
-```
-
----
-
-## 📌 Core Modules
-
-| Module       | Purpose                               |
-| ------------ | ------------------------------------- |
-| Dashboard    | Spacious, editorial, customizable command center |
-| Tasks        | Create and track tasks in List and Board views   |
-| Calendar     | Aggregated schedule of all dated responsibilities|
-| Bills        | Track payments, INR currency-aware and subscriptions|
-| Appointments | Detailed records for professional/medical visits  |
-| Documents    | Organize important documents with AI metadata    |
-| Reminders    | Actionable alert timeline and notifications      |
-| LifeBuddy    | Original 3D stylised companion collection        |
-| AI Assistant | Floating drawer and dedicated planning workspace |
-| Settings     | Manage user preferences, categories and themes   |
-
----
-
-## 🔮 Future Scope
-
-LifeAdmin can be expanded with:
-
-* 🤖 AI-generated task prioritization
-* 📧 Email-based deadline detection
-* 🧾 Automatic bill information extraction
-* 📄 OCR-based document scanning
-* 🔄 Automatic recurring-task detection
-* 📱 Mobile application
-* 🎙️ Voice-based life administration
-* 📊 Personal productivity analytics
-* 🔐 End-to-end encrypted document storage
-* 🧠 Predictive reminders
-* 🔗 Integration with calendars and email services
-* 🌐 Cross-device synchronization
-
----
-
-## 🔐 Privacy & Security
-
-Since LifeAdmin handles potentially sensitive personal information, privacy and security are core considerations.
-
-The platform aims to implement:
-
-* Secure authentication
-* Password hashing
-* Encrypted sensitive data
-* Secure API communication
-* Access-controlled documents
-* Minimal data collection
-* Secure file storage
-* User-controlled data deletion
-
----
-
-## 🧪 Project Status
-
-🚧 **Currently in Development**
-
-LifeAdmin is being actively developed and new features are being added.
-
----
-
-## 🤝 Contributing
-
-Contributions are welcome!
-
-If you would like to contribute:
+### Installation & Run
 
 ```bash
-# Fork the repository
+# Install root, client, and server dependencies
+npm run install:all
 
-# Clone the repository
-git clone <repository-url>
-
-# Create a new branch
-git checkout -b feature/your-feature
-
-# Make your changes
-
-# Commit your changes
-git commit -m "Add your feature"
-
-# Push your branch
-git push origin feature/your-feature
+# Start frontend and backend concurrently
+npm run dev
 ```
 
-Then open a Pull Request.
+The web client runs on `http://localhost:5173` and the server on `http://localhost:5000`.
 
----
+## Environment Setup
 
-## 👩‍💻 Team
+Copy the example environment file and configure required keys:
 
-**LifeAdmin** is being developed as a software project focused on solving a real-world problem through intelligent automation and centralized personal management.
+```bash
+cp server/.env.example server/.env
+```
 
----
+Set `MONGODB_URI`, `JWT_SECRET`, and optionally `GEMINI_API_KEY` and SMTP settings in `server/.env`.
 
-## ⭐ Support
+## Project Structure
 
-If you find LifeAdmin interesting, consider giving the repository a ⭐.
-
-Your support helps motivate further development!
-
----
-
-### 💭 LifeAdmin
-
-**Manage your responsibilities.
-Reduce your mental clutter.
-Take control of everyday life.**
+```text
+├── client/   # React frontend application
+├── server/   # Express backend API and database models
+├── mobile/   # React Native / Expo mobile app
+├── shared/   # Shared TypeScript types and contracts
+└── docs/     # Design system, UX specs, and documentation
+```

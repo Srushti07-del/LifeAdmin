@@ -10,11 +10,12 @@ import DocumentModel from '../models/Document';
 import CalendarEvent from '../models/CalendarEvent';
 import Notification from '../models/Notification';
 import AIInteraction from '../models/AIInteraction';
-import { authenticate } from '../middleware/auth';
+import { authenticate, enforceOnboarding } from '../middleware/auth';
 import config from '../config';
 
 const router = Router();
 router.use(authenticate);
+router.use(enforceOnboarding);
 
 const uploadDirPath = path.join(process.cwd(), config.uploadDir);
 
@@ -72,6 +73,8 @@ router.put('/settings', async (req: Request, res: Response): Promise<void> => {
       aiPreferences,
       preferredCurrency,
       companion,
+      emailReminderIntervals,
+      timezone,
     } = req.body;
 
     const user = await User.findById(req.user!._id);
@@ -83,6 +86,10 @@ router.put('/settings', async (req: Request, res: Response): Promise<void> => {
     if (theme && ['light', 'dark', 'system'].includes(theme)) user.theme = theme;
     if (typeof notificationsEnabled === 'boolean') user.notificationsEnabled = notificationsEnabled;
     if (Array.isArray(defaultReminderTiming)) user.defaultReminderTiming = defaultReminderTiming;
+    if (Array.isArray(emailReminderIntervals)) {
+      user.emailReminderIntervals = emailReminderIntervals.filter((n: number) => Number.isFinite(n));
+    }
+    if (typeof timezone === 'string' && timezone.trim()) user.timezone = timezone.trim();
     if (Array.isArray(categories)) user.categories = categories;
     if (preferredCurrency && typeof preferredCurrency === 'string') {
       const valid = ['INR', 'USD', 'EUR', 'GBP', 'AED', 'CAD', 'AUD', 'JPY', 'SGD'];

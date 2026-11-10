@@ -14,26 +14,40 @@ export default function RegisterPage() {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [passwordTouched, setPasswordTouched] = useState(false);
+  const [confirmTouched, setConfirmTouched] = useState(false);
+
+  const passwordLengthError = passwordTouched && password.length > 0 && password.length < 8
+    ? 'Password must be at least 8 characters long.'
+    : '';
+  const passwordMatchError = confirmTouched && confirmPassword.length > 0 && password !== confirmPassword
+    ? 'Passwords do not match.'
+    : '';
+
+  const hasFieldErrors = Boolean(passwordLengthError || passwordMatchError);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+    setPasswordTouched(true);
+    setConfirmTouched(true);
 
-    if (password !== confirmPassword) {
-      setError('Passwords do not match');
+    if (passwordLengthError) return;
+    if (passwordMatchError) return;
+    if (password.length < 8) {
+      setPasswordTouched(true);
       return;
     }
-    if (password.length < 8) {
-      setError('Password must be at least 8 characters');
+    if (password !== confirmPassword) {
+      setConfirmTouched(true);
       return;
     }
 
     setLoading(true);
     try {
       await register(name.trim(), email.trim(), password);
-      // Trigger onboarding for new user
-      localStorage.setItem('lifeadmin_show_onboarding', 'true');
-      navigate('/dashboard');
+      // Redirect new users to mandatory onboarding
+      navigate('/onboarding', { replace: true });
     } catch (err: any) {
       const message =
         err?.response?.data?.message ||
@@ -98,7 +112,7 @@ export default function RegisterPage() {
             </div>
           )}
 
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <form onSubmit={handleSubmit} noValidate className="space-y-4">
             {/* Full Name */}
             <div>
               <label
@@ -114,8 +128,7 @@ export default function RegisterPage() {
                   type="text"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
-                  required
-                  placeholder="e.g. Maya Chen"
+                  placeholder="Enter your full name"
                   className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-surface-200 bg-white text-surface-900 placeholder:text-surface-400 text-xs focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition-all"
                 />
               </div>
@@ -136,8 +149,7 @@ export default function RegisterPage() {
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  required
-                  placeholder="you@example.com"
+                  placeholder="Enter your email address"
                   className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-surface-200 bg-white text-surface-900 placeholder:text-surface-400 text-xs focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition-all"
                 />
               </div>
@@ -158,9 +170,8 @@ export default function RegisterPage() {
                   type={showPassword ? 'text' : 'password'}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  required
-                  minLength={8}
-                  placeholder="At least 8 characters"
+                  onBlur={() => setPasswordTouched(true)}
+                  placeholder="Enter your password"
                   className="w-full pl-10 pr-11 py-2.5 rounded-xl border border-surface-200 bg-white text-surface-900 placeholder:text-surface-400 text-xs focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition-all"
                 />
                 <button
@@ -172,6 +183,10 @@ export default function RegisterPage() {
                   {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
                 </button>
               </div>
+              {passwordLengthError && (
+                <p className="text-[10px] text-rose-600 mt-1.5">{passwordLengthError}</p>
+              )}
+              <p className="text-[10px] text-surface-400 mt-1">At least 8 characters</p>
             </div>
 
             {/* Confirm Password */}
@@ -189,9 +204,8 @@ export default function RegisterPage() {
                   type={showConfirmPassword ? 'text' : 'password'}
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
-                  required
-                  minLength={8}
-                  placeholder="Repeat your password"
+                  onBlur={() => setConfirmTouched(true)}
+                  placeholder="Re-enter your password"
                   className="w-full pl-10 pr-11 py-2.5 rounded-xl border border-surface-200 bg-white text-surface-900 placeholder:text-surface-400 text-xs focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition-all"
                 />
                 <button
@@ -203,12 +217,15 @@ export default function RegisterPage() {
                   {showConfirmPassword ? <EyeOff size={16} /> : <Eye size={16} />}
                 </button>
               </div>
+              {passwordMatchError && (
+                <p className="text-[10px] text-rose-600 mt-1.5">{passwordMatchError}</p>
+              )}
             </div>
 
             {/* Submit */}
             <button
               type="submit"
-              disabled={loading}
+              disabled={loading || hasFieldErrors}
               id="register-submit"
               className="w-full mt-2 flex items-center justify-center gap-2 py-3 px-4 rounded-xl bg-primary-600 hover:bg-primary-700 active:scale-[0.99] disabled:opacity-60 disabled:cursor-not-allowed text-white text-xs font-semibold tracking-wide transition-all duration-150 shadow-sm cursor-pointer"
             >

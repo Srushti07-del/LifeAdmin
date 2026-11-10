@@ -138,7 +138,7 @@ function parseAmount(input: unknown): number | undefined {
  * never into the instruction portion, to limit prompt-injection surface.
  */
 async function runAiExtraction(rawText: string): Promise<DocumentExtractionResult> {
-  if (!geminiModel) {
+  if (!geminiModel || process.env.NODE_ENV === 'test') {
     return { status: 'no_info' };
   }
 

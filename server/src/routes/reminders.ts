@@ -3,11 +3,12 @@ import { body, validationResult } from 'express-validator';
 import mongoose from 'mongoose';
 import Reminder, { IReminder } from '../models/Reminder';
 import Notification from '../models/Notification';
-import { authenticate } from '../middleware/auth';
+import { authenticate, enforceOnboarding } from '../middleware/auth';
 import { calculateNextOccurrence } from '../services/recurrence';
 
 const router = Router();
 router.use(authenticate);
+router.use(enforceOnboarding);
 
 const ALLOWED_OFFSETS = new Set([0, 5, 15, 30, 60]);
 const ALLOWED_RECURRENCE = new Set(['none', 'daily', 'weekly', 'monthly', 'yearly']);

@@ -95,3 +95,5 @@ export const generateToken = (userId: string, expiresIn?: string | number): stri
     expiresIn: (expiresIn || config.jwtExpiresIn) as any,
   });
 };
+
+export { enforceOnboarding } from './onboarding';

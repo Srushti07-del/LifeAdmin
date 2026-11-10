@@ -1,10 +1,11 @@
 import { Router, Request, Response } from 'express';
 import mongoose from 'mongoose';
 import Notification from '../models/Notification';
-import { authenticate } from '../middleware/auth';
+import { authenticate, enforceOnboarding } from '../middleware/auth';
 
 const router = Router();
 router.use(authenticate);
+router.use(enforceOnboarding);
 
 function asId(value: unknown): string | null {
   if (typeof value === 'string' && mongoose.Types.ObjectId.isValid(value)) return value;

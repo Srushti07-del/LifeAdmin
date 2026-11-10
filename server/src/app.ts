@@ -15,8 +15,10 @@ import documentRoutes from './routes/documents';
 import calendarRoutes from './routes/calendar';
 import aiRoutes from './routes/ai';
 import notificationRoutes from './routes/notifications';
+import onboardingRoutes from './routes/onboarding';
 import userRoutes from './routes/users';
 import currencyRoutes from './routes/currency';
+import emailNotificationRoutes from './routes/emailNotifications';
 
 const app = express();
 
@@ -58,8 +60,10 @@ app.use('/api/documents', documentRoutes);
 app.use('/api/calendar', calendarRoutes);
 app.use('/api/ai', aiRoutes);
 app.use('/api/notifications', notificationRoutes);
+app.use('/api/onboarding', onboardingRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/currency', currencyRoutes);
+app.use('/api/email-notifications', emailNotificationRoutes);
 
 // Health check
 app.get('/api/health', (_req, res) => {
