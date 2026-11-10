@@ -231,6 +231,48 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
+  /**
+   * Request password reset email
+   */
+  const forgotPassword = useCallback(async (email: string) => {
+    setIsAuthenticating(true);
+    setError(null);
+    try {
+      const response = await authService.forgotPassword(email);
+      return response;
+    } catch (err: any) {
+      const message =
+        err?.message ||
+        err?.details?.message ||
+        'Failed to process password reset request. Please try again.';
+      setError(message);
+      throw err;
+    } finally {
+      setIsAuthenticating(false);
+    }
+  }, []);
+
+  /**
+   * Reset password with token
+   */
+  const resetPassword = useCallback(async (token: string, password: string, confirmPassword: string) => {
+    setIsAuthenticating(true);
+    setError(null);
+    try {
+      const response = await authService.resetPassword(token, { password, confirmPassword });
+      return response;
+    } catch (err: any) {
+      const message =
+        err?.message ||
+        err?.details?.message ||
+        'Failed to reset password. The token may be invalid or expired.';
+      setError(message);
+      throw err;
+    } finally {
+      setIsAuthenticating(false);
+    }
+  }, []);
+
   const isGuest = useMemo(() => Boolean(user?.isDemo), [user?.isDemo]);
 
   const value = useMemo(
@@ -246,6 +288,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       loginAsGuest,
       logout,
       exitGuest,
+      forgotPassword,
+      resetPassword,
       clearError,
       refreshUser,
     }),
@@ -261,6 +305,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       loginAsGuest,
       logout,
       exitGuest,
+      forgotPassword,
+      resetPassword,
       clearError,
       refreshUser,
     ]
