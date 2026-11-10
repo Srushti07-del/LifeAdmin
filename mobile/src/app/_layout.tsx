@@ -1,4 +1,11 @@
-import { DarkTheme, DefaultTheme, ThemeProvider as NavigationThemeProvider } from 'expo-router';
+import {
+  DarkTheme,
+  DefaultTheme,
+  ThemeProvider as NavigationThemeProvider,
+  useRouter,
+  usePathname,
+  useLocalSearchParams,
+} from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { useEffect } from 'react';
 import { useFonts } from 'expo-font';
@@ -17,12 +24,19 @@ import { ThemeProvider as AppThemeProvider, useAppTheme } from '@/context/ThemeC
 import { AuthProvider, useAuth } from '@/context/AuthContext';
 import { AuthNavigator } from '@/features/auth/components/AuthNavigator';
 import { AuthLoadingScreen } from '@/features/auth/screens/AuthLoadingScreen';
+import { usePasswordResetDeepLink } from '@/features/auth';
+import { OnboardingScreen } from '@/features/onboarding';
 
 SplashScreen.preventAutoHideAsync();
 
 function RootNavigator() {
   const { isDark } = useAppTheme();
-  const { user, isLoading } = useAuth();
+  const { user, isLoading, isGuest, isOnboardingCompleted, completeOnboarding } = useAuth();
+  const pathname = usePathname();
+  const params = useLocalSearchParams<{ token?: string }>();
+
+  // Register Android App Link and custom scheme deep link listener
+  usePasswordResetDeepLink();
 
   const [fontsLoaded] = useFonts({
     DMSerifDisplay_400Regular,
@@ -50,11 +64,34 @@ function RootNavigator() {
     );
   }
 
+  // If navigating to password reset (via Android App Link, custom scheme, or route push),
+  // present the reset password screen with pre-filled token
+  if (pathname.includes('reset-password')) {
+    return (
+      <NavigationThemeProvider value={isDark ? DarkTheme : DefaultTheme}>
+        <AuthNavigator initialScreen="reset-password" initialToken={params.token || ''} />
+      </NavigationThemeProvider>
+    );
+  }
+
   // If unauthenticated, redirect to authentication flow (Login / Register / Guest Demo)
   if (!user) {
     return (
       <NavigationThemeProvider value={isDark ? DarkTheme : DefaultTheme}>
         <AuthNavigator />
+      </NavigationThemeProvider>
+    );
+  }
+
+  // If authenticated but onboarding not yet completed, present native onboarding flow
+  if (!isOnboardingCompleted) {
+    return (
+      <NavigationThemeProvider value={isDark ? DarkTheme : DefaultTheme}>
+        <OnboardingScreen
+          userId={user.id}
+          isGuest={isGuest}
+          onComplete={completeOnboarding}
+        />
       </NavigationThemeProvider>
     );
   }

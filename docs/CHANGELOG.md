@@ -5,6 +5,20 @@ All notable changes to the LifeAdmin project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.0] - 2026-11-10
+
+### Added
+- **Mobile Companion System Integration (Phase 3.1)**:
+  - Ensured 1:1 fidelity with canonical companions: *Aura*, *Mossy*, *Nori*, and *Zephyr* across web and mobile.
+  - Implemented backend user companion schema persistence in `server/src/models/User.ts`, updating `/api/users/settings`, `/api/users/companion`, and auth session payloads (`/me`, `/login`, `/register`, `/guest`).
+  - Added shared `GrowthStage` and `CompanionState` interfaces in `shared/types.ts`.
+  - Built mobile `LifeBuddyWidget` featuring live companion avatar, level badge, species & stage, growth progress bar, and daily encouragement quote.
+  - Integrated `LifeBuddyWidget` into mobile dashboard (`mobile/src/app/index.tsx`).
+  - Created native `CompanionSanctuaryModal` for companion inspection, adoption, inline name customization, and guilt-free philosophy display.
+  - Connected `LifeBuddy Companions` item in mobile `MoreScreen` (`mobile/src/app/more.tsx`) to open the sanctuary modal.
+  - Synchronized web `localStorage` and mobile `SecureStore` with the shared backend so changes on either client reflect seamlessly across platforms.
+  - Added unit test suite `mobile/src/tests/companion.test.ts` verifying companion identities, attributes, positive reinforcement invariants, and growth stage calculations.
+
 ## [1.0.0] - 2026-11-05
 
 ### Added

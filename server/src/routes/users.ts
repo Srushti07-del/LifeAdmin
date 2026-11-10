@@ -18,6 +18,13 @@ router.use(authenticate);
 
 const uploadDirPath = path.join(process.cwd(), config.uploadDir);
 
+export function getGrowthStage(level: number): 'Sprout' | 'Bloom' | 'Ascended' | 'Luminary' {
+  if (level >= 10) return 'Luminary';
+  if (level >= 6) return 'Ascended';
+  if (level >= 3) return 'Bloom';
+  return 'Sprout';
+}
+
 // GET /api/users/profile — Get full profile
 router.get('/profile', async (req: Request, res: Response): Promise<void> => {
   try {
@@ -64,6 +71,7 @@ router.put('/settings', async (req: Request, res: Response): Promise<void> => {
       categories,
       aiPreferences,
       preferredCurrency,
+      companion,
     } = req.body;
 
     const user = await User.findById(req.user!._id);
@@ -86,6 +94,31 @@ router.put('/settings', async (req: Request, res: Response): Promise<void> => {
         ...aiPreferences,
       };
     }
+    if (companion && typeof companion === 'object') {
+      const current = user.companion || {
+        activeId: 'aura',
+        customName: 'Aura',
+        xp: 150,
+        level: 1,
+        growthStage: 'Sprout',
+        streakDays: 1,
+        lastActiveDate: new Date().toISOString().split('T')[0],
+      };
+
+      const newXp = typeof companion.xp === 'number' ? Math.max(current.xp, Math.max(0, companion.xp)) : current.xp;
+      const newLevel = typeof companion.level === 'number' ? Math.max(current.level, Math.max(1, companion.level)) : current.level;
+      const newGrowthStage = getGrowthStage(newLevel);
+
+      user.companion = {
+        activeId: typeof companion.activeId === 'string' ? companion.activeId : current.activeId,
+        customName: typeof companion.customName === 'string' ? companion.customName.trim() : current.customName,
+        xp: newXp,
+        level: newLevel,
+        growthStage: newGrowthStage,
+        streakDays: typeof companion.streakDays === 'number' ? Math.max(current.streakDays, Math.max(1, companion.streakDays)) : current.streakDays,
+        lastActiveDate: typeof companion.lastActiveDate === 'string' ? companion.lastActiveDate : current.lastActiveDate,
+      };
+    }
     // Note: subscriptionTier is not client-controllable (prevents unauthorized privilege escalation)
 
     await user.save();
@@ -93,6 +126,48 @@ router.put('/settings', async (req: Request, res: Response): Promise<void> => {
   } catch (error) {
     console.error('Update settings error:', error);
     res.status(500).json({ message: 'Failed to update settings' });
+  }
+});
+
+// PUT /api/users/companion — Dedicated update for active companion state & progression
+router.put('/companion', async (req: Request, res: Response): Promise<void> => {
+  try {
+    const user = await User.findById(req.user!._id);
+    if (!user) {
+      res.status(404).json({ message: 'User not found' });
+      return;
+    }
+
+    const { activeId, customName, xp, level, growthStage, streakDays, lastActiveDate } = req.body;
+    const current = user.companion || {
+      activeId: 'aura',
+      customName: 'Aura',
+      xp: 150,
+      level: 1,
+      growthStage: 'Sprout',
+      streakDays: 1,
+      lastActiveDate: new Date().toISOString().split('T')[0],
+    };
+
+    const newXp = typeof xp === 'number' ? Math.max(current.xp, Math.max(0, xp)) : current.xp;
+    const newLevel = typeof level === 'number' ? Math.max(current.level, Math.max(1, level)) : current.level;
+    const newGrowthStage = getGrowthStage(newLevel);
+
+    user.companion = {
+      activeId: typeof activeId === 'string' ? activeId : current.activeId,
+      customName: typeof customName === 'string' ? customName.trim() : current.customName,
+      xp: newXp,
+      level: newLevel,
+      growthStage: newGrowthStage,
+      streakDays: typeof streakDays === 'number' ? Math.max(current.streakDays, Math.max(1, streakDays)) : current.streakDays,
+      lastActiveDate: typeof lastActiveDate === 'string' ? lastActiveDate : current.lastActiveDate,
+    };
+
+    await user.save();
+    res.json({ message: 'Companion updated successfully', companion: user.companion, user });
+  } catch (error) {
+    console.error('Update companion error:', error);
+    res.status(500).json({ message: 'Failed to update companion' });
   }
 });
 

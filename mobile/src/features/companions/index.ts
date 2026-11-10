@@ -1,10 +1,10 @@
 /**
- * LifeBuddy Companion Feature Module
+ * LifeBuddy Companion Feature Barrel
  */
 
-export const CompanionsFeature = {
-  name: 'LifeBuddy',
-  description: 'Original stylized virtual companions with positive reinforcement mechanics',
-};
-
-export default CompanionsFeature;
+export * from './types';
+export * from './catalog';
+export * from './components/CompanionAvatar';
+export * from './components/CompanionSanctuaryModal';
+export * from './components/LifeBuddyWidget';
+export * from './services/companionService';

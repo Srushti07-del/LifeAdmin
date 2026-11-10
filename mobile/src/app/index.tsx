@@ -32,6 +32,7 @@ import {
   QuickActionModal,
   DashboardSkeleton,
   DashboardErrorState,
+  LifeBuddyWidget,
   DashboardOverview,
   AttentionItem,
   UpcomingItem,
@@ -44,7 +45,7 @@ import { ApiError } from '@/types/api';
 
 export default function DashboardScreen() {
   const { colors, isDark } = useAppTheme();
-  const { user, isGuest, exitGuest } = useAuth();
+  const { user, isGuest, exitGuest, refreshUser } = useAuth();
   const router = useRouter();
 
   const [data, setData] = useState<DashboardOverview | null>(null);
@@ -68,7 +69,10 @@ export default function DashboardScreen() {
     setError(null);
 
     try {
-      const result = await fetchDashboardOverview();
+      const [result] = await Promise.all([
+        fetchDashboardOverview(),
+        refreshUser().catch(() => {}),
+      ]);
       setData(result);
     } catch (err: any) {
       setError(err);
@@ -76,7 +80,7 @@ export default function DashboardScreen() {
       setLoading(false);
       setRefreshing(false);
     }
-  }, []);
+  }, [refreshUser]);
 
   useEffect(() => {
     loadDashboard();
@@ -210,6 +214,9 @@ export default function DashboardScreen() {
                 }}
               />
             )}
+
+            {/* LifeBuddy Companion Command Widget */}
+            <LifeBuddyWidget />
 
             {/* 2. Needs Attention Section */}
             <NeedsAttentionSection

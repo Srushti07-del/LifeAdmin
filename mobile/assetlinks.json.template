@@ -1,0 +1,14 @@
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "com.lifeadmin.app",
+      "sha256_cert_fingerprints": [
+        "<!-- TODO: Replace with production SHA-256 fingerprint from Google Play Console / release keystore -->",
+        "<!-- Example: 14:6D:E9:01:0F:B2:68:C6:EE:2F:9C:E4:16:3B:EB:98:B5:E8:42:32:AE:34:6A:B9:49:50:87:6D:73:C0:B2:6F -->"
+      ]
+    }
+  }
+]
+

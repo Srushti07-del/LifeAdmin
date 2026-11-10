@@ -2,7 +2,7 @@
  * More Screen (Settings, LifeBuddy, Documents, Account)
  */
 
-import React from 'react';
+import React, { useState } from 'react';
 import { View, StyleSheet, Pressable, Alert, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { SymbolView } from 'expo-symbols';
@@ -13,6 +13,7 @@ import { ThemedView } from '@/components/themed-view';
 import { Typography } from '@/constants/typography';
 import { Spacing, Radius } from '@/constants/spacing';
 import { BottomTabInset } from '@/constants/theme';
+import { CompanionSanctuaryModal } from '@/features/companions';
 
 interface MenuItem {
   label: string;
@@ -29,7 +30,8 @@ interface MenuSection {
 
 export default function MoreScreen() {
   const { colors, isDark, themePreference, setThemePreference } = useAppTheme();
-  const { user, isGuest, logout, exitGuest } = useAuth();
+  const { user, isGuest, logout, exitGuest, restartOnboarding } = useAuth();
+  const [isSanctuaryVisible, setIsSanctuaryVisible] = useState(false);
 
   const handleLogout = () => {
     Alert.alert(
@@ -65,7 +67,12 @@ export default function MoreScreen() {
     {
       title: 'Companions & AI',
       items: [
-        { label: 'LifeBuddy Companions', icon: 'favorite', desc: 'Virtual positive reinforcement companions' },
+        {
+          label: 'LifeBuddy Companions',
+          icon: 'favorite',
+          desc: 'Virtual positive reinforcement companions',
+          action: () => setIsSanctuaryVisible(true),
+        },
         { label: 'AI Assistant', icon: 'smart_toy', desc: 'Planning and intelligent summaries' },
       ],
     },
@@ -87,6 +94,12 @@ export default function MoreScreen() {
             const next = themePreference === 'light' ? 'dark' : themePreference === 'dark' ? 'system' : 'light';
             setThemePreference(next);
           },
+        },
+        {
+          label: 'Setup & Onboarding',
+          icon: 'auto_awesome',
+          desc: 'Revisit domains, alert pacing & companion selection',
+          action: restartOnboarding,
         },
       ],
     },
@@ -243,6 +256,11 @@ export default function MoreScreen() {
           ))}
         </ScrollView>
       </SafeAreaView>
+
+      <CompanionSanctuaryModal
+        visible={isSanctuaryVisible}
+        onClose={() => setIsSanctuaryVisible(false)}
+      />
     </ThemedView>
   );
 }

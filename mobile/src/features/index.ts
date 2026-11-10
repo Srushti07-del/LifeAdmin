@@ -10,4 +10,5 @@ export * from './reminders';
 export * from './documents';
 export * from './calendar';
 export * from './companions';
+export * from './onboarding';
 export * from './ai';

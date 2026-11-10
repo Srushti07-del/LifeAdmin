@@ -124,6 +124,95 @@ export const secureStorage = {
   async clearSession(): Promise<void> {
     await Promise.all([this.removeToken(), this.removeCachedUser()]);
   },
+
+  /**
+   * Generic key-value retrieval for user preferences & companion states.
+   */
+  async getCustomData<T>(key: string): Promise<T | null> {
+    try {
+      let raw: string | null = null;
+      if (Platform.OS === 'web') {
+        if (typeof window !== 'undefined' && window.localStorage) {
+          raw = window.localStorage.getItem(key);
+        }
+      } else {
+        raw = await SecureStore.getItemAsync(key);
+      }
+      return raw ? (JSON.parse(raw) as T) : null;
+    } catch {
+      return null;
+    }
+  },
+
+  /**
+   * Generic key-value persistence for user preferences & companion states.
+   */
+  async setCustomData(key: string, data: unknown): Promise<void> {
+    try {
+      const raw = JSON.stringify(data);
+      if (Platform.OS === 'web') {
+        if (typeof window !== 'undefined' && window.localStorage) {
+          window.localStorage.setItem(key, raw);
+        }
+        return;
+      }
+      await SecureStore.setItemAsync(key, raw);
+    } catch (error) {
+      console.warn(`[SecureStore] Failed to save custom data for ${key}:`, error);
+    }
+  },
+
+  /**
+   * Checks whether onboarding is marked completed for a specific user ID.
+   */
+  async isOnboardingCompleted(userId: string): Promise<boolean> {
+    try {
+      const key = `lifeadmin_onboarded_${userId}`;
+      if (Platform.OS === 'web') {
+        if (typeof window !== 'undefined' && window.localStorage) {
+          return window.localStorage.getItem(key) === 'true';
+        }
+        return false;
+      }
+      const val = await SecureStore.getItemAsync(key);
+      return val === 'true';
+    } catch {
+      return false;
+    }
+  },
+
+  /**
+   * Sets onboarding completion state for a specific user ID.
+   */
+  async setOnboardingCompleted(userId: string, completed: boolean = true): Promise<void> {
+    try {
+      const key = `lifeadmin_onboarded_${userId}`;
+      const val = completed ? 'true' : 'false';
+      if (Platform.OS === 'web') {
+        if (typeof window !== 'undefined' && window.localStorage) {
+          window.localStorage.setItem(key, val);
+        }
+        return;
+      }
+      await SecureStore.setItemAsync(key, val);
+    } catch (error) {
+      console.warn('[SecureStore] Failed to set onboarding state:', error);
+    }
+  },
+
+  /**
+   * Checks whether onboarding is marked completed for the guest demo session.
+   */
+  async isGuestOnboardingCompleted(): Promise<boolean> {
+    return this.isOnboardingCompleted('guest');
+  },
+
+  /**
+   * Sets onboarding completion state for the guest demo session.
+   */
+  async setGuestOnboardingCompleted(completed: boolean = true): Promise<void> {
+    return this.setOnboardingCompleted('guest', completed);
+  },
 };
 
 export default secureStorage;
