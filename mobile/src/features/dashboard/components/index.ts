@@ -10,3 +10,4 @@ export * from './UpcomingTimelineSection';
 export * from './QuickActionModal';
 export * from './DashboardSkeleton';
 export * from './DashboardErrorState';
+export { LifeBuddyWidget } from '@/features/companions';

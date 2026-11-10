@@ -75,6 +75,8 @@ router.post(
           profilePicture: user.profilePicture,
           theme: user.theme,
           subscriptionTier: user.subscriptionTier,
+          preferredCurrency: user.preferredCurrency,
+          companion: user.companion,
         },
       });
     } catch (error: any) {
@@ -135,6 +137,8 @@ router.post(
           profilePicture: user.profilePicture,
           theme: user.theme,
           subscriptionTier: user.subscriptionTier,
+          preferredCurrency: user.preferredCurrency,
+          companion: user.companion,
         },
       });
     } catch (error: any) {
@@ -164,6 +168,8 @@ router.get('/me', authenticate, async (req: Request, res: Response): Promise<voi
         categories: user.categories,
         aiPreferences: user.aiPreferences,
         subscriptionTier: user.subscriptionTier,
+        preferredCurrency: user.preferredCurrency,
+        companion: user.companion,
         isDemo: user.isDemo,
         createdAt: user.createdAt,
       },
@@ -251,6 +257,15 @@ router.post('/guest', async (_req: Request, res: Response): Promise<void> => {
       isDemo: true,
       demoExpiresAt,
       categories: ['Personal', 'Work', 'Finance', 'Health', 'Education', 'Home'],
+      companion: {
+        activeId: 'aura',
+        customName: 'Aura',
+        xp: 380,
+        level: 3,
+        growthStage: 'Bloom',
+        streakDays: 4,
+        lastActiveDate: new Date().toISOString().split('T')[0],
+      },
     });
 
     // Seed all demo data under this user's isolated userId
@@ -273,6 +288,8 @@ router.post('/guest', async (_req: Request, res: Response): Promise<void> => {
         categories: user.categories,
         aiPreferences: user.aiPreferences,
         subscriptionTier: user.subscriptionTier,
+        preferredCurrency: user.preferredCurrency,
+        companion: user.companion,
         isDemo: true,
       },
     });

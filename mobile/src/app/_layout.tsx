@@ -25,12 +25,13 @@ import { AuthProvider, useAuth } from '@/context/AuthContext';
 import { AuthNavigator } from '@/features/auth/components/AuthNavigator';
 import { AuthLoadingScreen } from '@/features/auth/screens/AuthLoadingScreen';
 import { usePasswordResetDeepLink } from '@/features/auth';
+import { OnboardingScreen } from '@/features/onboarding';
 
 SplashScreen.preventAutoHideAsync();
 
 function RootNavigator() {
   const { isDark } = useAppTheme();
-  const { user, isLoading } = useAuth();
+  const { user, isLoading, isGuest, isOnboardingCompleted, completeOnboarding } = useAuth();
   const pathname = usePathname();
   const params = useLocalSearchParams<{ token?: string }>();
 
@@ -78,6 +79,19 @@ function RootNavigator() {
     return (
       <NavigationThemeProvider value={isDark ? DarkTheme : DefaultTheme}>
         <AuthNavigator />
+      </NavigationThemeProvider>
+    );
+  }
+
+  // If authenticated but onboarding not yet completed, present native onboarding flow
+  if (!isOnboardingCompleted) {
+    return (
+      <NavigationThemeProvider value={isDark ? DarkTheme : DefaultTheme}>
+        <OnboardingScreen
+          userId={user.id}
+          isGuest={isGuest}
+          onComplete={completeOnboarding}
+        />
       </NavigationThemeProvider>
     );
   }

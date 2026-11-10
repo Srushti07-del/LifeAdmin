@@ -1,5 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import api from '../lib/api';
+import { saveCompanionStorage } from '../lib/companions';
+import type { CompanionState } from '../lib/companions';
 
 interface User {
   id: string;
@@ -13,6 +15,7 @@ interface User {
   aiPreferences: { autoExtract: boolean; suggestionsEnabled: boolean };
   subscriptionTier: 'free' | 'premium' | 'premium_ai';
   preferredCurrency: string;
+  companion?: CompanionState;
   isDemo?: boolean;
 }
 
@@ -88,6 +91,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       try {
         const res = await api.get('/auth/me');
         setUser(res.data.user);
+        if (res.data.user.companion) {
+          saveCompanionStorage(res.data.user.companion, false);
+        }
         applyTheme(res.data.user.theme || 'system');
       } catch {
         localStorage.removeItem('lifeadmin_token');
@@ -99,10 +105,37 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     fetchUser();
   }, [token]);
 
+  // Cross-device focus synchronization: re-sync user & companion when browser tab gains focus
+  useEffect(() => {
+    const handleSyncOnFocus = () => {
+      if (token && document.visibilityState === 'visible') {
+        api.get('/auth/me').then((res) => {
+          if (res.data?.user) {
+            setUser(res.data.user);
+            if (res.data.user.companion) {
+              saveCompanionStorage(res.data.user.companion, false);
+            }
+          }
+        }).catch(() => {});
+      }
+    };
+
+    window.addEventListener('focus', handleSyncOnFocus);
+    document.addEventListener('visibilitychange', handleSyncOnFocus);
+
+    return () => {
+      window.removeEventListener('focus', handleSyncOnFocus);
+      document.removeEventListener('visibilitychange', handleSyncOnFocus);
+    };
+  }, [token]);
+
   const login = useCallback(async (email: string, password: string) => {
     const res = await api.post('/auth/login', { email, password });
     const { token: newToken, user: userData } = res.data;
     localStorage.setItem('lifeadmin_token', newToken);
+    if (userData.companion) {
+      saveCompanionStorage(userData.companion, false);
+    }
     setToken(newToken);
     setUser(userData);
     // Force light theme on login to avoid a dark-mode flash on the Dashboard.
@@ -115,18 +148,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const { token: newToken, user: userData } = res.data;
     localStorage.setItem('lifeadmin_token', newToken);
     // Seed an engaging companion state for the guest demo
-    localStorage.setItem(
-      'lifeadmin_companion_state',
-      JSON.stringify({
-        activeId: 'aura',
-        customName: 'Aura',
-        xp: 380,
-        level: 3,
-        growthStage: 'Bloom',
-        streakDays: 4,
-        lastActiveDate: new Date().toISOString().split('T')[0],
-      })
-    );
+    const guestCompanion = userData.companion || {
+      activeId: 'aura',
+      customName: 'Aura',
+      xp: 380,
+      level: 3,
+      growthStage: 'Bloom',
+      streakDays: 4,
+      lastActiveDate: new Date().toISOString().split('T')[0],
+    };
+    saveCompanionStorage(guestCompanion, false);
     setToken(newToken);
     setUser(userData);
     // Force light theme on guest login to avoid a dark-mode flash on the Dashboard.
@@ -137,6 +168,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const res = await api.post('/auth/register', { name, email, password });
     const { token: newToken, user: userData } = res.data;
     localStorage.setItem('lifeadmin_token', newToken);
+    if (userData.companion) {
+      saveCompanionStorage(userData.companion, false);
+    }
     setToken(newToken);
     setUser(userData);
     // Force light theme on register to avoid a dark-mode flash on the Dashboard.
@@ -145,6 +179,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const logout = useCallback(() => {
     localStorage.removeItem('lifeadmin_token');
+    localStorage.removeItem('lifeadmin_companion_state');
     setToken(null);
     setUser(null);
   }, []);

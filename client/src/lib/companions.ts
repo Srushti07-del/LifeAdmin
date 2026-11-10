@@ -3,6 +3,8 @@
  * Original virtual companions designed with soft 3D clay aesthetic.
  */
 
+import api from './api';
+
 export interface Companion {
   id: string;
   name: string;
@@ -138,11 +140,23 @@ export function getCompanionStorage(): CompanionState {
   return INITIAL_COMPANION_STATE;
 }
 
-export function saveCompanionStorage(state: CompanionState): void {
+export function saveCompanionStorage(state: CompanionState, syncRemote: boolean = true): void {
   try {
     localStorage.setItem('lifeadmin_companion_state', JSON.stringify(state));
   } catch {
     // Storage quota or error
+  }
+
+  // If user is logged in and syncRemote is enabled, sync companion state to the backend
+  if (syncRemote) {
+    try {
+      const token = localStorage.getItem('lifeadmin_token');
+      if (token) {
+        api.put('/users/companion', state).catch(() => {});
+      }
+    } catch {
+      // Ignore network or environment errors
+    }
   }
 }
 

@@ -8,6 +8,8 @@ import { Endpoints } from '@/services/endpoints';
 import { AuthResponse, LoginCredentials } from '@/types/api';
 import { RegisterPayload, User } from '@/types/auth';
 
+import { CompanionState } from '@/features/companions/types';
+
 export const authService = {
   /**
    * Log in with email and password
@@ -65,6 +67,27 @@ export const authService = {
    */
   async resetPassword(token: string, payload: { password: string; confirmPassword: string }): Promise<{ message: string }> {
     return apiClient.post<{ message: string }>(Endpoints.auth.resetPassword(token), payload);
+  },
+
+  /**
+   * Update user settings & preferences
+   */
+  async updateSettings(settings: {
+    categories?: string[];
+    notificationsEnabled?: boolean;
+    defaultReminderTiming?: number[];
+    preferredCurrency?: string;
+    theme?: 'light' | 'dark' | 'system';
+    companion?: Partial<CompanionState>;
+  }): Promise<{ message: string; user: User }> {
+    return apiClient.put<{ message: string; user: User }>(Endpoints.auth.updateSettings, settings);
+  },
+
+  /**
+   * Dedicated update for active companion state & progression
+   */
+  async updateCompanion(companion: Partial<CompanionState>): Promise<{ message: string; companion: CompanionState; user: User }> {
+    return apiClient.put<{ message: string; companion: CompanionState; user: User }>(Endpoints.auth.updateCompanion, companion);
   },
 };
 

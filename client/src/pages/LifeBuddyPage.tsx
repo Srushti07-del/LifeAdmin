@@ -1,5 +1,6 @@
-﻿import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../contexts/AuthContext';
 import { COMPANIONS, getCompanionStorage, saveCompanionStorage, getGrowthStage } from '../lib/companions';
 import type { Companion, CompanionState } from '../lib/companions';
 import CompanionAvatar from '../components/companions/CompanionAvatar';
@@ -21,12 +22,19 @@ function contextualLine(name: string, personality: string) {
 
 export default function LifeBuddyPage() {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [companionState, setCompanionState] = useState<CompanionState>(getCompanionStorage);
   const [editingName, setEditingName] = useState(false);
   const [nameInput, setNameInput] = useState(companionState.customName);
   const [selectedModalCompanion, setSelectedModalCompanion] = useState<Companion | null>(null);
 
   useEffect(() => { setCompanionState(getCompanionStorage()); }, []);
+  useEffect(() => {
+    if (user?.companion) {
+      setCompanionState(user.companion);
+      setNameInput(user.companion.customName);
+    }
+  }, [user?.companion]);
   const activeCompanion = COMPANIONS.find((c) => c.id === companionState.activeId) || COMPANIONS[0];
   const stage = getGrowthStage(companionState.level);
   const buddyLine = useMemo(() => contextualLine(companionState.customName, activeCompanion.personality), [companionState.customName, activeCompanion.personality]);

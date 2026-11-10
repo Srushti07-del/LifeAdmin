@@ -148,6 +148,12 @@ export default function DashboardPage() {
     setCompanionState(getCompanionStorage());
   }, []);
 
+  useEffect(() => {
+    if (user?.companion) {
+      setCompanionState(user.companion);
+    }
+  }, [user?.companion]);
+
   const getGreeting = () => {
     const hour = new Date().getHours();
     if (hour < 12) return 'Good morning';

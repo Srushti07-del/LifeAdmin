@@ -24,6 +24,16 @@ export interface IUser extends Document {
   
   preferredCurrency: string; // ISO 4217 currency code, default 'INR'
   
+  // LifeBuddy Companion state
+  companion?: {
+    activeId: string;
+    customName: string;
+    xp: number;
+    level: number;
+    growthStage: 'Sprout' | 'Bloom' | 'Ascended' | 'Luminary';
+    streakDays: number;
+    lastActiveDate: string;
+};  
   // Password reset
   resetPasswordToken?: string; // hashed reset token
   resetPasswordExpires?: Date; // token expiry
@@ -71,6 +81,20 @@ const userSchema = new Schema<IUser>(
     
     preferredCurrency: { type: String, default: 'INR' },
     
+    // LifeBuddy Companion state
+    companion: {
+      activeId: { type: String, default: 'aura' },
+      customName: { type: String, default: 'Aura' },
+      xp: { type: Number, default: 150 },
+      level: { type: Number, default: 1 },
+      growthStage: {
+        type: String,
+        enum: ['Sprout', 'Bloom', 'Ascended', 'Luminary'],
+        default: 'Sprout',
+      },
+      streakDays: { type: Number, default: 1 },
+      lastActiveDate: { type: String, default: () => new Date().toISOString().split('T')[0] },
+    },
     // Password reset
     resetPasswordToken: { type: String },
     resetPasswordExpires: { type: Date },

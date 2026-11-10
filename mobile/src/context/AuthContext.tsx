@@ -12,9 +12,12 @@ import React, {
   useCallback,
   useMemo,
 } from 'react';
+import { AppState } from 'react-native';
 import { apiConfig } from '@/services/config';
 import { secureStorage } from '@/services/secureStore';
 import { authService } from '@/features/auth/services/authService';
+import { onboardingService } from '@/features/onboarding/services/onboardingService';
+import { companionService } from '@/features/companions/services/companionService';
 import { AuthContextType, User } from '@/types/auth';
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -24,6 +27,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [token, setToken] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [isAuthenticating, setIsAuthenticating] = useState<boolean>(false);
+  const [isOnboardingCompleted, setIsOnboardingCompleted] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
 
   const clearError = useCallback(() => {
@@ -42,6 +46,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       apiConfig.setAuthToken(null);
       setToken(null);
       setUser(null);
+      setIsOnboardingCompleted(true);
     }
   }, []);
 
@@ -67,6 +72,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (res?.user) {
         setUser(res.user);
         await secureStorage.setCachedUser(res.user);
+        if (res.user.companion) {
+          await companionService.saveCompanionState(res.user.id, res.user.companion, false);
+        }
       }
     } catch (err: any) {
       console.warn('Failed to refresh user profile:', err);
@@ -103,6 +111,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           if (isMounted && res?.user) {
             setUser(res.user);
             await secureStorage.setCachedUser(res.user);
+            if (res.user.companion) {
+              await companionService.saveCompanionState(res.user.id, res.user.companion, false);
+            }
+
+            // Check onboarding completion status for hydrated session
+            const isGuestUser = Boolean(res.user.isDemo);
+            const isCompleted = await onboardingService.isOnboardingCompleted(res.user.id, isGuestUser);
+            if (isMounted) {
+              setIsOnboardingCompleted(isCompleted);
+            }
           }
         } catch (fetchErr: any) {
           // If token is invalid or expired (401), clear the session
@@ -113,6 +131,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             if (isMounted) {
               setToken(null);
               setUser(null);
+              setIsOnboardingCompleted(true);
             }
           }
         }
@@ -131,6 +150,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       isMounted = false;
     };
   }, []);
+
+  /**
+   * Focus/Resume synchronization: refreshes user profile and active companion
+   * when mobile application returns to active state from background.
+   */
+  useEffect(() => {
+    const subscription = AppState.addEventListener('change', (nextState) => {
+      if (nextState === 'active' && token) {
+        refreshUser();
+      }
+    });
+
+    return () => {
+      subscription.remove();
+    };
+  }, [token, refreshUser]);
 
   /**
    * Listen for 401 Unauthorized signals from API requests (session expired)
@@ -161,8 +196,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       await secureStorage.setCachedUser(userData);
       apiConfig.setAuthToken(newToken);
 
+      if (userData.companion) {
+        await companionService.saveCompanionState(userData.id, userData.companion, false);
+      }
+
+      // Existing user login: mark onboarding as completed if not previously flagged on this device
+      const wasCompleted = await secureStorage.isOnboardingCompleted(userData.id);
+      if (!wasCompleted) {
+        await secureStorage.setOnboardingCompleted(userData.id, true);
+      }
+
       setToken(newToken);
       setUser(userData);
+      setIsOnboardingCompleted(true);
     } catch (err: any) {
       const message =
         err?.message ||
@@ -187,10 +233,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       await secureStorage.setToken(newToken);
       await secureStorage.setCachedUser(userData);
+      await secureStorage.setOnboardingCompleted(userData.id, false);
       apiConfig.setAuthToken(newToken);
+
+      if (userData.companion) {
+        await companionService.saveCompanionState(userData.id, userData.companion, false);
+      }
 
       setToken(newToken);
       setUser(userData);
+      setIsOnboardingCompleted(false);
     } catch (err: any) {
       const message =
         err?.message ||
@@ -217,8 +269,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       await secureStorage.setCachedUser(userData);
       apiConfig.setAuthToken(newToken);
 
+      if (userData.companion) {
+        await companionService.saveCompanionState(userData.id, userData.companion, false);
+      }
+
+      const guestCompleted = await secureStorage.isGuestOnboardingCompleted();
+
       setToken(newToken);
       setUser(userData);
+      setIsOnboardingCompleted(guestCompleted);
     } catch (err: any) {
       const message =
         err?.message ||
@@ -229,6 +288,44 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } finally {
       setIsAuthenticating(false);
     }
+  }, []);
+
+  /**
+   * Complete onboarding and transition to dashboard
+   */
+  const completeOnboarding = useCallback(async (prefs?: any) => {
+    if (!user) return;
+    try {
+      const isGuestUser = Boolean(user.isDemo);
+      if (prefs) {
+        await onboardingService.completeOnboarding(user.id, prefs, isGuestUser);
+      } else {
+        await onboardingService.skipOnboarding(user.id, isGuestUser);
+      }
+    } catch (err) {
+      console.warn('Error completing onboarding:', err);
+    } finally {
+      setIsOnboardingCompleted(true);
+    }
+  }, [user]);
+
+  /**
+   * Skip onboarding
+   */
+  const skipOnboarding = useCallback(async () => {
+    if (!user) return;
+    try {
+      await onboardingService.skipOnboarding(user.id, Boolean(user.isDemo));
+    } finally {
+      setIsOnboardingCompleted(true);
+    }
+  }, [user]);
+
+  /**
+   * Restart onboarding manually (e.g. from Settings / More)
+   */
+  const restartOnboarding = useCallback(() => {
+    setIsOnboardingCompleted(false);
   }, []);
 
   /**
@@ -283,6 +380,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       isAuthenticating,
       error,
       isGuest,
+      isOnboardingCompleted,
+      completeOnboarding,
+      skipOnboarding,
+      restartOnboarding,
       login,
       register,
       loginAsGuest,
@@ -300,6 +401,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       isAuthenticating,
       error,
       isGuest,
+      isOnboardingCompleted,
+      completeOnboarding,
+      skipOnboarding,
+      restartOnboarding,
       login,
       register,
       loginAsGuest,

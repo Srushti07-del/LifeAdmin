@@ -4,6 +4,7 @@
  */
 
 import { RegisterCredentials } from './api';
+import { CompanionState } from '../features/companions/types';
 
 export interface User {
   id: string;
@@ -18,6 +19,8 @@ export interface User {
     autoExtract: boolean;
     suggestionsEnabled: boolean;
   };
+  preferredCurrency?: string;
+  companion?: CompanionState;
   subscriptionTier?: 'free' | 'premium' | 'premium_ai';
   isDemo?: boolean;
   createdAt?: string;
@@ -32,6 +35,10 @@ export interface AuthContextType {
   isAuthenticating: boolean;
   error: string | null;
   isGuest: boolean;
+  isOnboardingCompleted: boolean;
+  completeOnboarding: (prefs?: any) => Promise<void>;
+  skipOnboarding: () => Promise<void>;
+  restartOnboarding: () => void;
   login: (email: string, password: string) => Promise<void>;
   register: (name: string, email: string, password: string) => Promise<void>;
   loginAsGuest: () => Promise<void>;

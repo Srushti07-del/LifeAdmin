@@ -3,6 +3,8 @@
  * Synchronized with /shared/types.ts and LifeAdmin backend models
  */
 
+import type { CompanionState } from '@/features/companions/types';
+
 export type EntityType = 'task' | 'bill' | 'appointment' | 'reminder' | 'document' | 'event';
 
 export type Priority = 'low' | 'medium' | 'high' | 'urgent';
@@ -35,6 +37,7 @@ export interface UserSummary {
   theme: 'light' | 'dark' | 'system';
   subscriptionTier: 'free' | 'premium' | 'premium_ai';
   isDemo?: boolean;
+  companion?: CompanionState;
 }
 
 export interface Task {
