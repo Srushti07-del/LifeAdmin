@@ -10,3 +10,5 @@ export * from './screens/RegisterScreen';
 export * from './screens/ForgotPasswordScreen';
 export * from './screens/ResetPasswordScreen';
 export * from './screens/AuthLoadingScreen';
+export * from './hooks/usePasswordResetDeepLink';
+
