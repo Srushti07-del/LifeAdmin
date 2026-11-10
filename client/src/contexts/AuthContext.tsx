@@ -38,19 +38,26 @@ function getInitialTheme(): 'light' | 'dark' | 'system' {
       return saved;
     }
   } catch {}
-  return 'system';
+  return 'light';
 }
 
 function applyTheme(theme: 'light' | 'dark' | 'system') {
   const root = document.documentElement;
   if (theme === 'dark') {
     root.classList.add('dark');
+    root.style.colorScheme = 'dark';
   } else if (theme === 'light') {
     root.classList.remove('dark');
+    root.style.colorScheme = 'light';
   } else {
     const isDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-    if (isDark) root.classList.add('dark');
-    else root.classList.remove('dark');
+    if (isDark) {
+      root.classList.add('dark');
+      root.style.colorScheme = 'dark';
+    } else {
+      root.classList.remove('dark');
+      root.style.colorScheme = 'light';
+    }
   }
 }
 
