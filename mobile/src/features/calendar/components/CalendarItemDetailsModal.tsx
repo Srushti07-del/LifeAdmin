@@ -83,7 +83,7 @@ export function CalendarItemDetailsModal({
     } else if (item.type === 'task') {
       router.push('/tasks');
     } else if (item.source === 'appointment') {
-      router.push('/explore');
+      router.push('/appointments' as any);
     } else {
       router.push('/more');
     }

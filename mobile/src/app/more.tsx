@@ -5,6 +5,7 @@
 import React, { useState } from 'react';
 import { View, StyleSheet, Pressable, Alert, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useRouter } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
 import { useAppTheme } from '@/context/ThemeContext';
 import { useAuth } from '@/context/AuthContext';
@@ -31,6 +32,7 @@ interface MenuSection {
 export default function MoreScreen() {
   const { colors, isDark, themePreference, setThemePreference } = useAppTheme();
   const { user, isGuest, logout, exitGuest, restartOnboarding } = useAuth();
+  const router = useRouter();
   const [isSanctuaryVisible, setIsSanctuaryVisible] = useState(false);
 
   const handleLogout = () => {
@@ -77,8 +79,14 @@ export default function MoreScreen() {
       ],
     },
     {
-      title: 'Vault & Storage',
+      title: 'Responsibilities & Records',
       items: [
+        {
+          label: 'Appointments',
+          icon: 'calendar_month',
+          desc: 'Consultations, doctor visits & meetings',
+          action: () => router.push('/appointments' as any),
+        },
         { label: 'Documents Vault', icon: 'folder', desc: 'Secure storage & expiry dates' },
         { label: 'Reminders Timeline', icon: 'notifications', desc: 'Time-sensitive nudges' },
       ],
