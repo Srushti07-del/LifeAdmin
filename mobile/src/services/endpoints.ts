@@ -17,6 +17,8 @@ export const Endpoints = {
     profile: '/auth/me',
     updateProfile: '/users/profile',
     deleteAccount: '/users/account',
+    forgotPassword: '/auth/forgot-password',
+    resetPassword: (token: string) => `/auth/reset-password/${encodeURIComponent(token)}`,
   },
 
   // Dashboard (server/src/routes/dashboard.ts)

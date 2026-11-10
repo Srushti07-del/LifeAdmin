@@ -26,9 +26,15 @@ import { ForgotPasswordModal } from '../components/ForgotPasswordModal';
 
 interface LoginScreenProps {
   onNavigateToRegister?: () => void;
+  onNavigateToForgotPassword?: () => void;
+  onNavigateToResetPassword?: (token?: string) => void;
 }
 
-export function LoginScreen({ onNavigateToRegister }: LoginScreenProps) {
+export function LoginScreen({
+  onNavigateToRegister,
+  onNavigateToForgotPassword,
+  onNavigateToResetPassword,
+}: LoginScreenProps) {
   const { colors, isDark } = useAppTheme();
   const { login, loginAsGuest, isAuthenticating, error, clearError } = useAuth();
 
@@ -143,14 +149,34 @@ export function LoginScreen({ onNavigateToRegister }: LoginScreenProps) {
                   size={16}
                   tintColor={colors.notification}
                 />
-                <ThemedText
-                  style={[
-                    styles.errorText,
-                    { color: isDark ? '#FCA5A5' : '#B91C1C' },
-                  ]}
-                >
-                  {activeError}
-                </ThemedText>
+                <View style={{ flex: 1 }}>
+                  <ThemedText
+                    style={[
+                      styles.errorText,
+                      { color: isDark ? '#FCA5A5' : '#B91C1C' },
+                    ]}
+                  >
+                    {activeError}
+                  </ThemedText>
+                  {activeError.toLowerCase().includes('invalid email or password') && onNavigateToForgotPassword && (
+                    <Pressable
+                      onPress={onNavigateToForgotPassword}
+                      hitSlop={8}
+                      style={{ marginTop: Spacing.one }}
+                    >
+                      <ThemedText
+                        style={{
+                          fontSize: Typography.fontSize.xs,
+                          fontWeight: '600',
+                          color: isDark ? '#93C5FD' : '#1D4ED8',
+                          textDecorationLine: 'underline',
+                        }}
+                      >
+                        Forgot your password? Reset it here &rarr;
+                      </ThemedText>
+                    </Pressable>
+                  )}
+                </View>
               </View>
             )}
 
@@ -197,7 +223,13 @@ export function LoginScreen({ onNavigateToRegister }: LoginScreenProps) {
                   Password
                 </ThemedText>
                 <Pressable
-                  onPress={() => setIsForgotModalVisible(true)}
+                  onPress={() => {
+                    if (onNavigateToForgotPassword) {
+                      onNavigateToForgotPassword();
+                    } else {
+                      setIsForgotModalVisible(true);
+                    }
+                  }}
                   hitSlop={8}
                 >
                   <ThemedText

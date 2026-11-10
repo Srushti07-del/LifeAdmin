@@ -23,9 +23,6 @@ const config = {
   
   // Google Gemini AI
   geminiApiKey: process.env.GEMINI_API_KEY || '',
-  get geminiModel(): string {
-    return (process.env.GEMINI_MODEL || 'gemini-3.5-flash-lite').trim();
-  },
   
   // Client / Public Web Application URL (getter to reflect runtime environment updates)
   get clientUrl(): string {

@@ -1,6 +1,6 @@
 /**
  * LifeAdmin Mobile Spacing & Layout Tokens
- * Source of truth: docs/DESIGN_SYSTEM.md §3 & UI_UX_SPEC.md
+ * Synchronized with Website Authority (client/src/index.css & root DESIGN.md)
  */
 
 import { Platform } from 'react-native';
@@ -8,26 +8,27 @@ import { Platform } from 'react-native';
 export const Spacing = {
   zero: 0,
   half: 2,
-  one: 4,
-  two: 8,
-  three: 12,
-  four: 16,
-  five: 20,
-  six: 24,
-  seven: 32,
-  eight: 40,
-  nine: 48,
-  ten: 64,
+  one: 4,     // space-1 (micro)
+  two: 8,     // space-2 (compact elements, button padding)
+  three: 12,  // space-3 (input padding, list item spacing)
+  four: 16,   // space-4 (card padding, mobile gutters)
+  five: 20,   // space-5 (desktop card padding, prominent gaps)
+  six: 24,    // space-6 (modal padding, section gap)
+  seven: 32,  // space-8 (desktop header spacing)
+  eight: 40,  // space-10
+  nine: 48,   // space-12 (page vertical rhythm)
+  ten: 64,    // space-16 (editorial separation)
 } as const;
 
 export const Radius = {
   none: 0,
-  sm: 6,
-  md: 10,
-  lg: 14,
-  xl: 18,
-  '2xl': 24,
-  full: 9999,
+  xs: 4,
+  sm: 6,      // Pills, compact tags, badge indicators
+  md: 8,      // Compact controls, small inputs
+  lg: 12,     // Standard buttons, form fields, dropdowns
+  xl: 16,     // Primary cards, task containers, panels
+  '2xl': 24,  // Bottom sheet modal top corners, featured banners
+  full: 9999, // Circular avatars, full pills, urgency chips
 } as const;
 
 export const Layout = {
