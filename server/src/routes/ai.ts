@@ -10,19 +10,10 @@ import Reminder from '../models/Reminder';
 import DocumentModel from '../models/Document';
 import { authenticate } from '../middleware/auth';
 import config from '../config';
+import { getGeminiModel } from '../services/documentExtraction';
 
 const router = Router();
 router.use(authenticate);
-
-let geminiModel: any = null;
-if (config.geminiApiKey && process.env.NODE_ENV !== 'test' && process.env.DISABLE_AI_MODEL !== '1') {
-  try {
-    const genAI = new GoogleGenerativeAI(config.geminiApiKey);
-    geminiModel = genAI.getGenerativeModel({ model: process.env.GEMINI_MODEL || 'gemini-1.5-flash' });
-  } catch (err) {
-    console.warn('Could not initialize GoogleGenerativeAI:', err);
-  }
-}
 
 const ACTION_TYPES = new Set(['task', 'bill', 'appointment', 'reminder']);
 const PRIORITIES = new Set(['low', 'medium', 'high', 'urgent']);
@@ -269,6 +260,7 @@ router.post('/chat', [body('message').notEmpty().withMessage('Message is require
     let replyText = '';
     let proposedActions: any[] = [];
     let source: 'ai' | 'fallback' = 'fallback';
+    const geminiModel = getGeminiModel();
     if (geminiModel) {
       try {
         const result = await geminiModel.generateContent(buildGeminiPrompt(context, history, String(message)));
@@ -287,6 +279,7 @@ router.post('/plan', [body('goal').notEmpty().withMessage('Goal or scenario is r
   try {
     const { goal, targetDate } = req.body;
     const baseDate = targetDate ? new Date(targetDate) : new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+    const geminiModel = getGeminiModel();
     if (geminiModel) {
       try {
         const result = await geminiModel.generateContent(`Plan for: "${String(goal).slice(0, 300)}" targeting ${baseDate.toLocaleDateString('en-IN')}. Return ONLY JSON: {"plan":"...","tasks":[{"title":"...","dueDate":"YYYY-MM-DD","priority":"low|medium|high|urgent","category":"Personal"}]} (3-5 tasks).`);
@@ -306,6 +299,7 @@ router.post('/plan', [body('goal').notEmpty().withMessage('Goal or scenario is r
 router.post('/detect', [body('text').notEmpty().withMessage('Text snippet is required')], async (req: Request, res: Response): Promise<void> => {
   try {
     const text = String(req.body.text || '').slice(0, 4000);
+    const geminiModel = getGeminiModel();
     if (geminiModel) {
       try {
         const result = await geminiModel.generateContent(`Extract actionable LifeAdmin items from text. ONLY use information explicitly present. Return ONLY JSON: {"summary":"...","detectedItems":[{"type":"task|bill|appointment|reminder","title":"...","description":"...","dueDate":"YYYY-MM-DD?","amount":123,"currency":"INR","confidence":"high|medium|low"}]}\nText: """${text}"""`);
