@@ -14,6 +14,7 @@ import { Colors } from '@/constants/colors';
 import { Radius, Spacing } from '@/constants/spacing';
 import { Typography } from '@/constants/typography';
 import { useIsDark, useTheme } from '@/hooks/use-theme';
+import { getInputLayoutMetrics } from './inputLayout';
 
 export interface InputProps extends TextInputProps {
   label?: string;
@@ -40,6 +41,10 @@ export const Input = React.forwardRef<React.ComponentRef<typeof TextInput>, Inpu
       labelStyle,
       inputStyle,
       editable = true,
+      multiline = false,
+      numberOfLines,
+      textAlignVertical,
+      style,
       onFocus,
       onBlur,
       ...props
@@ -51,6 +56,10 @@ export const Input = React.forwardRef<React.ComponentRef<typeof TextInput>, Inpu
     const [isFocused, setIsFocused] = useState(false);
 
     const hasError = Boolean(error);
+    const layoutMetrics = getInputLayoutMetrics({
+      multiline: Boolean(multiline),
+      numberOfLines,
+    });
 
     const errorColor = isDark ? Colors.urgency.critical.darkText : Colors.urgency.critical.accent;
 
@@ -89,27 +98,50 @@ export const Input = React.forwardRef<React.ComponentRef<typeof TextInput>, Inpu
               backgroundColor: containerBg,
               borderColor: getBorderColor(),
               borderWidth: isFocused ? 1.5 : 1,
+              height: layoutMetrics.containerHeight,
+              minHeight: layoutMetrics.containerMinHeight,
+              alignItems: layoutMetrics.containerAlignItems,
             },
             !editable && styles.disabled,
             inputContainerStyle,
           ]}
         >
           {leftIcon ? (
-            <View style={styles.leftIconContainer}>{leftIcon}</View>
+            <View
+              style={[
+                styles.leftIconContainer,
+                multiline && {
+                  alignSelf: 'flex-start',
+                  paddingTop: layoutMetrics.paddingTop,
+                },
+              ]}
+            >
+              {leftIcon}
+            </View>
           ) : null}
 
           <TextInput
             ref={ref}
             editable={editable}
+            multiline={multiline}
+            numberOfLines={numberOfLines}
+            textAlignVertical={textAlignVertical ?? layoutMetrics.textAlignVertical}
             placeholderTextColor={colors.textMuted}
             style={[
               styles.textInput,
               {
                 color: colors.text,
+                height: layoutMetrics.textInputHeight,
+                minHeight: layoutMetrics.textInputMinHeight,
+                paddingTop: layoutMetrics.paddingTop,
+                paddingBottom: layoutMetrics.paddingBottom,
+                lineHeight: layoutMetrics.lineHeight,
+                textAlignVertical: textAlignVertical ?? layoutMetrics.textAlignVertical,
                 paddingLeft: leftIcon ? Spacing.one : Spacing.four,
                 paddingRight: rightIcon ? Spacing.one : Spacing.four,
               },
               inputStyle,
+              style,
             ]}
             onFocus={(e) => {
               setIsFocused(true);
@@ -123,7 +155,17 @@ export const Input = React.forwardRef<React.ComponentRef<typeof TextInput>, Inpu
           />
 
           {rightIcon ? (
-            <View style={styles.rightIconContainer}>{rightIcon}</View>
+            <View
+              style={[
+                styles.rightIconContainer,
+                multiline && {
+                  alignSelf: 'flex-start',
+                  paddingTop: layoutMetrics.paddingTop,
+                },
+              ]}
+            >
+              {rightIcon}
+            </View>
           ) : null}
         </View>
 
@@ -155,17 +197,15 @@ const styles = StyleSheet.create({
   inputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    height: 44,
+    minHeight: 44,
     borderRadius: Radius.lg,
     overflow: 'hidden',
   },
   textInput: {
     flex: 1,
     minWidth: 0,
-    height: '100%',
     fontFamily: Typography.fontFamilies.sans,
     fontSize: Typography.fontSize.sm,
-    paddingVertical: 0,
   },
   leftIconContainer: {
     paddingLeft: Spacing.four,

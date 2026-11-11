@@ -14,6 +14,7 @@ import {
   isTaskOverdue,
 } from '../features/tasks/services/taskCalculations.ts';
 import { getHorizontalOverflowState } from '../components/ui/scrollOverflow.ts';
+import { getInputLayoutMetrics } from '../components/ui/inputLayout.ts';
 import { Task } from '../types/entities.ts';
 
 function makeTask(overrides: Partial<Task> = {}): Task {
@@ -157,6 +158,33 @@ describe('Task Summary, Filtering, and Sorting', () => {
       getHorizontalOverflowState({ containerWidth: 328, contentWidth: 280, scrollX: 0 }),
       { hasOverflow: false, canScrollLeft: false, canScrollRight: false }
     );
+  });
+
+  it('keeps single-line Input centered at 44px while giving multiline Notes top-aligned unclipped spacing', () => {
+    const singleLine = getInputLayoutMetrics({ multiline: false });
+    assert.strictEqual(singleLine.containerHeight, 44);
+    assert.strictEqual(singleLine.containerAlignItems, 'center');
+    assert.strictEqual(singleLine.textInputHeight, '100%');
+    assert.strictEqual(singleLine.textAlignVertical, 'center');
+    assert.strictEqual(singleLine.paddingTop, 0);
+    assert.strictEqual(singleLine.paddingBottom, 0);
+
+    const taskNotes = getInputLayoutMetrics({ multiline: true, numberOfLines: 3 });
+    assert.strictEqual(taskNotes.containerHeight, undefined);
+    assert.ok(taskNotes.containerMinHeight >= 84);
+    assert.strictEqual(taskNotes.containerAlignItems, 'stretch');
+    assert.strictEqual(taskNotes.textInputHeight, undefined);
+    assert.strictEqual(taskNotes.textInputMinHeight, taskNotes.containerMinHeight);
+    assert.strictEqual(taskNotes.textAlignVertical, 'top');
+    assert.strictEqual(taskNotes.paddingTop, 12);
+    assert.strictEqual(taskNotes.paddingBottom, 12);
+    assert.strictEqual(taskNotes.lineHeight, 20);
+
+    const twoLine = getInputLayoutMetrics({ multiline: true, numberOfLines: 2 });
+    assert.ok(twoLine.containerMinHeight >= 76);
+
+    const sixLine = getInputLayoutMetrics({ multiline: true, numberOfLines: 6 });
+    assert.ok(sixLine.containerMinHeight >= 144);
   });
 });
 

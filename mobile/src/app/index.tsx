@@ -312,7 +312,7 @@ export default function DashboardScreen() {
             preferredCurrency={preferredCurrency}
             exchangeRates={exchangeRates}
             isLoadingOverview={loading}
-            onOpenAssistant={() => router.push('/ai' as any)}
+            sessionKey={user?.id || (isGuest ? 'guest' : 'anon')}
             onPressItem={(type) => navigateToEntityRoute(type)}
           />
         );

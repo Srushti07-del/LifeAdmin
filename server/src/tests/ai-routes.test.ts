@@ -7,8 +7,15 @@ import app from '../app';
 import User from '../models/User';
 import Task from '../models/Task';
 import Bill from '../models/Bill';
+import Appointment from '../models/Appointment';
 import Reminder from '../models/Reminder';
 import { generateToken } from '../middleware/auth';
+import {
+  addDaysToYMD,
+  buildStrictSevenDayContext,
+  buildStrictSevenDayGeminiPrompt,
+  resolveLocalTodayYMD,
+} from '../services/aiBriefingWindow';
 
 describe('AI assistant routes', () => {
   let mongoServer: MongoMemoryServer;
@@ -87,5 +94,176 @@ describe('AI assistant routes', () => {
     assert.equal(ok.status, 201);
     const created = await Task.findOne({ userId: user._id, title: 'Confirmed task' });
     assert.ok(created);
+  });
+
+  it('enforces a strict 7-day window on /api/ai/chat (excludes day 8+ tasks, bills, appointments, reminders and separates overdue)', async () => {
+    const scopedUser = await User.create({
+      name: 'Seven Day User',
+      email: 'sevenday@test.com',
+      password: 'hashedpassword123',
+      onboardingCompleted: true,
+    });
+    const scopedToken = generateToken(scopedUser._id.toString());
+    const localDate = '2026-11-11';
+    const timezoneOffsetMinutes = -330;
+
+    await Promise.all([
+      Task.create({
+        userId: scopedUser._id,
+        title: 'Overdue Task Day -2',
+        dueDate: new Date('2026-11-09T00:00:00.000Z'),
+        priority: 'high',
+        status: 'todo',
+        category: 'Work',
+      }),
+      Task.create({
+        userId: scopedUser._id,
+        title: 'Window Task Today',
+        dueDate: new Date('2026-11-11T00:00:00.000Z'),
+        priority: 'medium',
+        status: 'todo',
+        category: 'Work',
+      }),
+      Task.create({
+        userId: scopedUser._id,
+        title: 'Excluded Task Day 8',
+        dueDate: new Date('2026-11-18T00:00:00.000Z'),
+        priority: 'urgent',
+        status: 'todo',
+        category: 'Work',
+      }),
+      Bill.create({
+        userId: scopedUser._id,
+        name: 'Window Bill Day 7 Boundary',
+        amount: 1200,
+        currency: '₹',
+        dueDate: new Date('2026-11-17T00:00:00.000Z'),
+        paymentStatus: 'pending',
+        category: 'Utilities',
+      }),
+      Bill.create({
+        userId: scopedUser._id,
+        name: 'Excluded Bill Day 12',
+        amount: 4500,
+        currency: '₹',
+        dueDate: new Date('2026-11-22T00:00:00.000Z'),
+        paymentStatus: 'pending',
+        category: 'Finance',
+      }),
+      Appointment.create({
+        userId: scopedUser._id,
+        title: 'Past Appointment Yesterday',
+        date: new Date('2026-11-10T00:00:00.000Z'),
+        time: '09:00',
+        category: 'Personal',
+      }),
+      Appointment.create({
+        userId: scopedUser._id,
+        title: 'Window Appointment Day 4',
+        date: new Date('2026-11-14T00:00:00.000Z'),
+        time: '15:00',
+        category: 'Health',
+      }),
+      Appointment.create({
+        userId: scopedUser._id,
+        title: 'Excluded Appointment Day 8',
+        date: new Date('2026-11-18T00:00:00.000Z'),
+        time: '11:00',
+        category: 'Health',
+      }),
+      Reminder.create({
+        userId: scopedUser._id,
+        title: 'Window Reminder Day 5',
+        dueDate: new Date('2026-11-15T00:00:00.000Z'),
+        status: 'active',
+        priority: 'medium',
+        category: 'Personal',
+      }),
+      Reminder.create({
+        userId: scopedUser._id,
+        title: 'Excluded Reminder Day 15',
+        dueDate: new Date('2026-11-25T00:00:00.000Z'),
+        status: 'active',
+        priority: 'high',
+        category: 'Personal',
+      }),
+    ]);
+
+    const res = await fetch(`${baseUrl}/ai/chat`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${scopedToken}` },
+      body: JSON.stringify({
+        message: 'Give me my daily briefing for the next 7 calendar days only.',
+        scope: 'daily_briefing_7d',
+        windowDays: 7,
+        localDate,
+        timezoneOffsetMinutes,
+      }),
+    });
+
+    assert.equal(res.status, 200);
+    const data: any = await res.json();
+    assert.ok(/Window Task Today/.test(data.reply));
+    assert.ok(/Window Bill Day 7 Boundary/.test(data.reply));
+    assert.ok(/Window Appointment Day 4/.test(data.reply));
+    assert.ok(/Window Reminder Day 5/.test(data.reply));
+    assert.ok(/Overdue Task Day -2/.test(data.reply));
+    assert.ok(/Overdue/i.test(data.reply));
+
+    assert.ok(!/Excluded Task Day 8/.test(data.reply));
+    assert.ok(!/Excluded Bill Day 12/.test(data.reply));
+    assert.ok(!/Excluded Appointment Day 8/.test(data.reply));
+    assert.ok(!/Excluded Reminder Day 15/.test(data.reply));
+    assert.ok(!/Past Appointment Yesterday/.test(data.reply));
+    assert.ok(!/30 day|monthly/i.test(data.reply));
+  });
+
+  it('handles timezone rollovers cleanly for 7-day AI context and prompt construction', () => {
+    // EST (UTC-5, offset +300): UTC clock is already Nov 12 03:30Z, local date is Nov 11
+    const estNow = new Date('2026-11-12T03:30:00.000Z');
+    const resolvedEst = resolveLocalTodayYMD({ now: estNow, timezoneOffsetMinutes: 300 });
+    assert.equal(resolvedEst.localDate, '2026-11-11');
+    assert.equal(addDaysToYMD(resolvedEst.localDate, 6), '2026-11-17');
+
+    const estContext = buildStrictSevenDayContext(
+      {
+        tasks: [
+          { _id: '1', title: 'Late Night Local Today', dueDate: '2026-11-12T03:00:00.000Z', status: 'todo', priority: 'high' },
+          { _id: '2', title: 'Seventh Day EST Included', dueDate: '2026-11-17T00:00:00.000Z', status: 'todo', priority: 'medium' },
+          { _id: '3', title: 'Eighth Day EST Excluded', dueDate: '2026-11-18T00:00:00.000Z', status: 'todo', priority: 'urgent' },
+        ],
+        bills: [],
+        appointments: [],
+        reminders: [],
+      },
+      { now: estNow, timezoneOffsetMinutes: 300 }
+    );
+
+    assert.equal(estContext.scheduled.tasks.length, 2);
+    assert.equal(estContext.scheduled.tasks[0].daysFromToday, 0);
+    assert.equal(estContext.scheduled.tasks[1].daysFromToday, 6);
+
+    const prompt = buildStrictSevenDayGeminiPrompt(estContext, 'Daily briefing');
+    assert.ok(/2026-11-11 through 2026-11-17/.test(prompt));
+    assert.ok(!/Eighth Day EST Excluded/.test(prompt));
+
+    // IST (UTC+5:30, offset -330): UTC clock is Nov 11 19:00Z, local date is Nov 12 00:30 IST
+    const istNow = new Date('2026-11-11T19:00:00.000Z');
+    const resolvedIst = resolveLocalTodayYMD({ now: istNow, timezoneOffsetMinutes: -330 });
+    assert.equal(resolvedIst.localDate, '2026-11-12');
+    const istContext = buildStrictSevenDayContext(
+      {
+        tasks: [
+          { _id: '1', title: 'Yesterday IST Overdue', dueDate: '2026-11-11T00:00:00.000Z', status: 'todo', priority: 'high' },
+          { _id: '2', title: 'Eighth Day IST Excluded', dueDate: '2026-11-19T00:00:00.000Z', status: 'todo', priority: 'high' },
+        ],
+        bills: [],
+        appointments: [],
+        reminders: [],
+      },
+      { now: istNow, timezoneOffsetMinutes: -330 }
+    );
+    assert.equal(istContext.overdue.tasks.length, 1);
+    assert.equal(istContext.scheduled.tasks.length, 0);
   });
 });

@@ -5,6 +5,7 @@
 
 import { ApiError } from '@/types/api';
 import apiConfig from './config';
+import { extractServerErrorMessage } from './apiErrorUtils';
 
 export interface RequestOptions extends RequestInit {
   params?: Record<string, string | number | boolean | undefined>;
@@ -70,10 +71,7 @@ class ApiClient {
 
         const error: ApiError = {
           status: response.status,
-          message:
-            (typeof responseData === 'object' && responseData?.message) ||
-            response.statusText ||
-            `HTTP Error ${response.status}`,
+          message: extractServerErrorMessage(responseData, response.status, response.statusText),
           details: responseData,
         };
         throw error;

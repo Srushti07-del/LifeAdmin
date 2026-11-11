@@ -6,6 +6,7 @@
 
 import { apiClient } from '@/services/apiClient';
 import { Endpoints } from '@/services/endpoints';
+import { AIChatRequestOptions, buildAIChatPayload } from './aiCalculations';
 import {
   ProposedAction,
   ConversationSummary,
@@ -22,7 +23,8 @@ export class AIService {
    */
   public async chat(
     message: string,
-    conversationId?: string | null
+    conversationId?: string | null,
+    options?: AIChatRequestOptions
   ): Promise<{
     reply: string;
     proposedActions: ProposedAction[];
@@ -30,18 +32,14 @@ export class AIService {
     conversationId?: string;
     source?: 'ai' | 'fallback';
   }> {
+    const payload = buildAIChatPayload(message, conversationId, options);
     const res = await apiClient.post<{
       reply: string;
       proposedActions?: ProposedAction[];
       suggestions?: ProposedAction[];
       conversationId?: string;
       source?: 'ai' | 'fallback';
-    }>(Endpoints.ai.chat, {
-      body: JSON.stringify({
-        message,
-        conversationId: conversationId || undefined,
-      }),
-    });
+    }>(Endpoints.ai.chat, payload);
 
     const rawActions = res.proposedActions || res.suggestions || [];
     const sanitizedActions: ProposedAction[] = rawActions.map((a) => ({
@@ -89,10 +87,8 @@ export class AIService {
    */
   public async generatePlan(goal: string, targetDate?: string): Promise<PlanResponse> {
     const res = await apiClient.post<PlanResponse>(Endpoints.ai.plan, {
-      body: JSON.stringify({
-        goal,
-        targetDate: targetDate || undefined,
-      }),
+      goal,
+      targetDate: targetDate || undefined,
     });
 
     return {
@@ -110,7 +106,7 @@ export class AIService {
    */
   public async detectResponsibilities(text: string): Promise<DetectResponse> {
     const res = await apiClient.post<DetectResponse>(Endpoints.ai.detect, {
-      body: JSON.stringify({ text }),
+      text,
     });
 
     return {
@@ -129,10 +125,8 @@ export class AIService {
    */
   public async executeAction(action: ProposedAction): Promise<ActionExecuteResponse> {
     const res = await apiClient.post<ActionExecuteResponse>(Endpoints.ai.executeAction, {
-      body: JSON.stringify({
-        confirmed: true,
-        action,
-      }),
+      confirmed: true,
+      action,
     });
 
     return res;
@@ -145,10 +139,8 @@ export class AIService {
     const res = await apiClient.post<AcceptSuggestionsResponse>(
       Endpoints.ai.acceptSuggestions,
       {
-        body: JSON.stringify({
-          confirmed: true,
-          items,
-        }),
+        confirmed: true,
+        items,
       }
     );
 
