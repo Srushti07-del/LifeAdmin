@@ -10,6 +10,15 @@ import Reminder from '../models/Reminder';
 import DocumentModel from '../models/Document';
 import { authenticate, enforceOnboarding } from '../middleware/auth';
 import config from '../config';
+import {
+  addDaysToYMD,
+  buildStrictSevenDayContext,
+  buildStrictSevenDayFallbackReply,
+  buildStrictSevenDayGeminiPrompt,
+  isSevenDayBriefingQuery,
+  parseYMD,
+  resolveLocalTodayYMD,
+} from '../services/aiBriefingWindow';
 
 const router = Router();
 router.use(authenticate);
@@ -257,27 +266,105 @@ router.get('/conversations/:id', async (req: Request, res: Response): Promise<vo
   } catch (error) { console.error('AI conversation detail error:', error); res.status(500).json({ message: 'Failed to load conversation' }); }
 });
 
+async function getStrictSevenDayBriefingContext(
+  userId: mongoose.Types.ObjectId,
+  opts: { localDate?: unknown; timezoneOffsetMinutes?: unknown }
+) {
+  const tzOffset =
+    typeof opts.timezoneOffsetMinutes === 'number' &&
+    Number.isFinite(opts.timezoneOffsetMinutes)
+      ? opts.timezoneOffsetMinutes
+      : undefined;
+  const { localDate: resolvedToday, timezoneOffsetMinutes } = resolveLocalTodayYMD({
+    localDate: typeof opts.localDate === 'string' ? opts.localDate : undefined,
+    timezoneOffsetMinutes: tzOffset,
+  });
+
+  const startParts = parseYMD(resolvedToday)!;
+  const endYMD = addDaysToYMD(resolvedToday, 6);
+  const endParts = parseYMD(endYMD)!;
+
+  // Pad DB bounds by +/- 2 days to cover all client timezone boundaries safely before exact filtering
+  const dbApptLowerBound = new Date(
+    Date.UTC(startParts.year, startParts.month - 1, startParts.day - 2, 0, 0, 0, 0)
+  );
+  const dbUpperBound = new Date(
+    Date.UTC(endParts.year, endParts.month - 1, endParts.day + 2, 23, 59, 59, 999)
+  );
+
+  const [tasks, bills, appointments, reminders] = await Promise.all([
+    Task.find({ userId, status: { $ne: 'completed' }, dueDate: { $ne: null, $lte: dbUpperBound } })
+      .sort({ dueDate: 1, priority: -1 })
+      .limit(100)
+      .lean(),
+    Bill.find({ userId, paymentStatus: { $ne: 'paid' }, dueDate: { $ne: null, $lte: dbUpperBound } })
+      .sort({ dueDate: 1 })
+      .limit(100)
+      .lean(),
+    Appointment.find({ userId, date: { $gte: dbApptLowerBound, $lte: dbUpperBound } })
+      .sort({ date: 1, time: 1 })
+      .limit(100)
+      .lean(),
+    Reminder.find({ userId, status: { $ne: 'completed' }, dueDate: { $ne: null, $lte: dbUpperBound } })
+      .sort({ dueDate: 1, dueTime: 1 })
+      .limit(100)
+      .lean(),
+  ]);
+
+  return buildStrictSevenDayContext(
+    { tasks, bills, appointments, reminders },
+    { localDate: resolvedToday, timezoneOffsetMinutes }
+  );
+}
+
 router.post('/chat', [body('message').notEmpty().withMessage('Message is required')], async (req: Request, res: Response): Promise<void> => {
   try {
     const errors = validationResult(req);
     if (!errors.isEmpty()) { res.status(400).json({ errors: errors.array() }); return; }
-    const { message, conversationId } = req.body;
+    const { message, conversationId, scope, windowDays, localDate, timezoneOffsetMinutes } = req.body;
     const userId = req.user!._id as mongoose.Types.ObjectId;
-    const context = await getUserLifeAdminContext(userId);
-    let interaction: any = null;
-    if (conversationId && mongoose.Types.ObjectId.isValid(conversationId)) interaction = await AIInteraction.findOne({ _id: conversationId, userId, type: 'chat' }).lean();
-    const history = (interaction?.messages || []).map((m: any) => ({ role: m.role, content: m.content }));
+    const strictSevenDay = isSevenDayBriefingQuery(String(message), scope, windowDays);
+
     let replyText = '';
     let proposedActions: any[] = [];
     let source: 'ai' | 'fallback' = 'fallback';
-    if (geminiModel) {
-      try {
-        const result = await geminiModel.generateContent(buildGeminiPrompt(context, history, String(message)));
-        const parsed = parseGeminiAction(result.response.text() || '');
-        replyText = parsed.cleanText; proposedActions = parsed.proposedActions; source = 'ai';
-      } catch (apiErr) { console.warn('Gemini chat failed, using fallback:', apiErr); }
+
+    if (strictSevenDay) {
+      const scopedContext = await getStrictSevenDayBriefingContext(userId, {
+        localDate,
+        timezoneOffsetMinutes,
+      });
+      if (geminiModel) {
+        try {
+          const result = await geminiModel.generateContent(
+            buildStrictSevenDayGeminiPrompt(scopedContext, String(message))
+          );
+          const parsed = parseGeminiAction(result.response.text() || '');
+          replyText = parsed.cleanText;
+          proposedActions = parsed.proposedActions;
+          source = 'ai';
+        } catch (apiErr) {
+          console.warn('Gemini 7-day briefing failed, using fallback:', apiErr);
+        }
+      }
+      if (!replyText) {
+        replyText = buildStrictSevenDayFallbackReply(scopedContext);
+      }
+    } else {
+      const context = await getUserLifeAdminContext(userId);
+      let interaction: any = null;
+      if (conversationId && mongoose.Types.ObjectId.isValid(conversationId)) interaction = await AIInteraction.findOne({ _id: conversationId, userId, type: 'chat' }).lean();
+      const history = (interaction?.messages || []).map((m: any) => ({ role: m.role, content: m.content }));
+      if (geminiModel) {
+        try {
+          const result = await geminiModel.generateContent(buildGeminiPrompt(context, history, String(message)));
+          const parsed = parseGeminiAction(result.response.text() || '');
+          replyText = parsed.cleanText; proposedActions = parsed.proposedActions; source = 'ai';
+        } catch (apiErr) { console.warn('Gemini chat failed, using fallback:', apiErr); }
+      }
+      if (!replyText) { const fallback = generateFallbackResponse(String(message), context); replyText = fallback.text; proposedActions = fallback.proposedActions; }
     }
-    if (!replyText) { const fallback = generateFallbackResponse(String(message), context); replyText = fallback.text; proposedActions = fallback.proposedActions; }
+
     proposedActions = proposedActions.map((a) => ({ ...a, requiresConfirmation: true }));
     const saved = await saveInteraction(userId, conversationId, String(message).slice(0, 4000), replyText.slice(0, 8000));
     res.json({ reply: replyText, proposedActions, suggestions: proposedActions, conversationId: String(saved._id), source });

@@ -164,3 +164,83 @@ export function formatActionSubtitle(action: ProposedAction): string {
 
   return parts.join(' · ');
 }
+
+export interface AIChatRequestOptions {
+  scope?: 'daily_briefing_7d';
+  windowDays?: 7;
+  localDate?: string;
+  timezoneOffsetMinutes?: number;
+  referenceDate?: Date;
+}
+
+export interface AIChatRequestPayload {
+  message: string;
+  conversationId?: string;
+  scope?: 'daily_briefing_7d';
+  windowDays?: 7;
+  localDate?: string;
+  timezoneOffsetMinutes?: number;
+}
+
+export interface AIClientValidationError extends Error {
+  status: number;
+  code: 'INVALID_REQUEST';
+}
+
+function formatCurrentLocalYMD(date: Date): string {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, '0');
+  const d = String(date.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+}
+
+/**
+ * Validates and constructs a plain JSON payload object for POST /api/ai/chat.
+ * Note: apiClient.post serializes this object via JSON.stringify internally, so callers
+ * must pass this object directly rather than wrapping it in `{ body: JSON.stringify(...) }`.
+ */
+export function buildAIChatPayload(
+  message: string,
+  conversationId?: string | null,
+  options?: AIChatRequestOptions
+): AIChatRequestPayload {
+  const trimmedMessage = typeof message === 'string' ? message.trim() : '';
+  if (!trimmedMessage) {
+    throw Object.assign(new Error('Briefing prompt cannot be empty.'), {
+      status: 400,
+      code: 'INVALID_REQUEST' as const,
+    }) as AIClientValidationError;
+  }
+
+  const trimmedConversationId =
+    typeof conversationId === 'string' && conversationId.trim().length > 0
+      ? conversationId.trim()
+      : undefined;
+
+  const payload: AIChatRequestPayload = trimmedConversationId
+    ? { message: trimmedMessage, conversationId: trimmedConversationId }
+    : { message: trimmedMessage };
+
+  if (options?.scope === 'daily_briefing_7d' || options?.windowDays === 7) {
+    const ref =
+      options.referenceDate instanceof Date && !Number.isNaN(options.referenceDate.getTime())
+        ? options.referenceDate
+        : new Date();
+    const localDate =
+      typeof options.localDate === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(options.localDate.trim())
+        ? options.localDate.trim()
+        : formatCurrentLocalYMD(ref);
+    const timezoneOffsetMinutes =
+      typeof options.timezoneOffsetMinutes === 'number' &&
+      Number.isFinite(options.timezoneOffsetMinutes)
+        ? Math.trunc(options.timezoneOffsetMinutes)
+        : ref.getTimezoneOffset();
+
+    payload.scope = 'daily_briefing_7d';
+    payload.windowDays = 7;
+    payload.localDate = localDate;
+    payload.timezoneOffsetMinutes = timezoneOffsetMinutes;
+  }
+
+  return payload;
+}

@@ -15,7 +15,9 @@ import {
   SUGGESTED_PROMPTS,
   GOAL_TEMPLATES,
   SAMPLE_TEXT_SNIPPETS,
+  buildAIChatPayload,
 } from '../features/ai/services/aiCalculations.ts';
+import { extractServerErrorMessage } from '../services/apiErrorUtils.ts';
 import { ProposedAction } from '../features/ai/types.ts';
 
 describe('LifeBuddy AI — Action Validation Safeguards (validateProposedAction)', () => {
@@ -227,5 +229,96 @@ describe('LifeBuddy AI — Prompt & Template Integrity', () => {
     assert.ok(SAMPLE_TEXT_SNIPPETS.length >= 3);
     assert.ok(SAMPLE_TEXT_SNIPPETS.some((s) => s.title.includes('Medical') || s.text.includes('Dr.')));
     assert.ok(SAMPLE_TEXT_SNIPPETS.some((s) => s.title.includes('Bill') || s.text.includes('Rent')));
+  });
+});
+
+describe('LifeBuddy AI — HTTP 400 Serialization Regression & Server Error Parsing', () => {
+  it('reproduces why the legacy double-wrapped body failed backend validation and verifies plain payload fix', () => {
+    // Legacy bug serialized `{ body: JSON.stringify({ message }) }` inside ApiClient.post JSON.stringify
+    const legacyWireBody = JSON.parse(
+      JSON.stringify({ body: JSON.stringify({ message: 'What should I focus on today?' }) })
+    );
+    assert.strictEqual(legacyWireBody.message, undefined);
+    assert.strictEqual(typeof legacyWireBody.body, 'string');
+
+    // Fixed contract builds a plain object passed directly to ApiClient.post
+    const payload = buildAIChatPayload('  What should I focus on today?  ', '  conv-123  ');
+    const fixedWireBody = JSON.parse(JSON.stringify(payload));
+    assert.strictEqual(fixedWireBody.message, 'What should I focus on today?');
+    assert.strictEqual(fixedWireBody.conversationId, 'conv-123');
+    assert.strictEqual(fixedWireBody.body, undefined);
+  });
+
+  it('omits empty/null conversationId cleanly from the chat payload', () => {
+    const withoutConv = buildAIChatPayload('What should I focus on today?', null);
+    assert.deepStrictEqual(withoutConv, { message: 'What should I focus on today?' });
+
+    const blankConv = buildAIChatPayload('What should I focus on today?', '   ');
+    assert.deepStrictEqual(blankConv, { message: 'What should I focus on today?' });
+  });
+
+  it('rejects empty or whitespace-only chat prompts before network dispatch', () => {
+    assert.throws(
+      () => buildAIChatPayload('   '),
+      (err: any) => err?.status === 400 && err?.code === 'INVALID_REQUEST'
+    );
+    assert.throws(
+      () => buildAIChatPayload(''),
+      (err: any) => err?.status === 400 && err?.code === 'INVALID_REQUEST'
+    );
+  });
+
+  it('extracts express-validator 400 field messages instead of exposing raw "HTTP Error 400"', () => {
+    const express400Payload = {
+      errors: [
+        {
+          type: 'field',
+          msg: 'Message is required',
+          path: 'message',
+          location: 'body',
+        },
+      ],
+    };
+
+    const parsed = extractServerErrorMessage(express400Payload, 400, '');
+    assert.strictEqual(parsed, 'Message is required');
+    assert.ok(!/HTTP Error/i.test(parsed));
+  });
+
+  it('provides human-readable status fallbacks when response body is HTML or empty', () => {
+    const htmlGatewayError = extractServerErrorMessage('<html><body>502 Bad Gateway</body></html>', 502, '');
+    assert.ok(!/html/i.test(htmlGatewayError));
+    assert.ok(!/HTTP Error/i.test(htmlGatewayError));
+    assert.match(htmlGatewayError, /unavailable/i);
+
+    const empty400 = extractServerErrorMessage(null, 400, '');
+    assert.ok(!/HTTP Error/i.test(empty400));
+    assert.match(empty400, /could not be processed/i);
+  });
+
+  it('attaches strict 7-day scope and local date metadata only for daily briefing requests', () => {
+    const standardChat = buildAIChatPayload('Help me plan my week', 'conv-1');
+    assert.deepStrictEqual(standardChat, {
+      message: 'Help me plan my week',
+      conversationId: 'conv-1',
+    });
+
+    const sevenDayPayload = buildAIChatPayload(
+      'Give me my daily briefing for the next 7 calendar days only.',
+      undefined,
+      {
+        scope: 'daily_briefing_7d',
+        windowDays: 7,
+        localDate: '2026-11-11',
+        timezoneOffsetMinutes: -330,
+      }
+    );
+    assert.deepStrictEqual(sevenDayPayload, {
+      message: 'Give me my daily briefing for the next 7 calendar days only.',
+      scope: 'daily_briefing_7d',
+      windowDays: 7,
+      localDate: '2026-11-11',
+      timezoneOffsetMinutes: -330,
+    });
   });
 });

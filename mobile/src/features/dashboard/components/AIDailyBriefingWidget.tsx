@@ -4,7 +4,7 @@
  * bills requiring attention, and on-demand LifeBuddy AI summary via /api/ai/chat.
  */
 
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { View, StyleSheet, Pressable, ActivityIndicator } from 'react-native';
 import { SymbolView } from 'expo-symbols';
 import { useAppTheme } from '@/context/ThemeContext';
@@ -18,14 +18,23 @@ import { CurrencyCode, convertAmountTo, formatCurrency } from '@/utils/currency'
 import { formatShortDate } from '@/utils/date';
 import { aiService } from '@/features/ai';
 import { DashboardOverview } from '../types';
-import { buildDailyBriefing } from '../services/dashboardLayout';
+import {
+  buildDailyBriefing,
+  buildSevenDayBriefingPrompt,
+  canStartBriefingRequest,
+  classifyDailyBriefingError,
+  DailyBriefingErrorInfo,
+  getEmptyBriefingNotice,
+  getLocalCalendarYMD,
+} from '../services/dashboardLayout';
 
 interface AIDailyBriefingWidgetProps {
   overview: DashboardOverview | null;
   preferredCurrency: CurrencyCode;
   exchangeRates?: Record<string, number>;
   isLoadingOverview?: boolean;
-  onOpenAssistant: () => void;
+  sessionKey?: string;
+  onOpenAssistant?: () => void;
   onPressItem?: (type: string, id: string) => void;
 }
 
@@ -34,7 +43,7 @@ export function AIDailyBriefingWidget({
   preferredCurrency,
   exchangeRates = {},
   isLoadingOverview = false,
-  onOpenAssistant,
+  sessionKey,
   onPressItem,
 }: AIDailyBriefingWidgetProps) {
   const { colors, isDark } = useAppTheme();
@@ -43,42 +52,92 @@ export function AIDailyBriefingWidget({
   const [aiSource, setAiSource] = useState<'ai' | 'fallback' | null>(null);
   const [aiConversationId, setAiConversationId] = useState<string | undefined>(undefined);
   const [aiLoading, setAiLoading] = useState(false);
-  const [aiError, setAiError] = useState<string | null>(null);
+  const [aiErrorInfo, setAiErrorInfo] = useState<DailyBriefingErrorInfo | null>(null);
+
+  const mountedRef = useRef(true);
+  const inFlightRef = useRef(false);
+  const lastAttemptAtRef = useRef<number | null>(null);
+  const currentLocalDate = getLocalCalendarYMD();
+  const briefingSessionKey = `${sessionKey || 'anon'}:${currentLocalDate}`;
+
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    setAiReply(null);
+    setAiSource(null);
+    setAiConversationId(undefined);
+    setAiErrorInfo(null);
+    lastAttemptAtRef.current = null;
+  }, [briefingSessionKey]);
 
   const briefing = useMemo(
     () => buildDailyBriefing(overview, preferredCurrency, exchangeRates),
     [overview, preferredCurrency, exchangeRates]
   );
 
-  const handleFetchAIBriefing = async () => {
-    if (aiLoading) return;
+  const emptyNotice = useMemo(
+    () => getEmptyBriefingNotice(overview, isLoadingOverview),
+    [overview, isLoadingOverview]
+  );
+
+  const handleFetchAIBriefing = async (isRetry: boolean = false) => {
+    const nowMs = Date.now();
+    if (!canStartBriefingRequest(inFlightRef.current, lastAttemptAtRef.current, nowMs, isRetry)) {
+      return;
+    }
+
+    inFlightRef.current = true;
     setAiLoading(true);
-    setAiError(null);
+    setAiErrorInfo(null);
+
+    const activeConversationId =
+      isRetry && (aiErrorInfo?.category === 'invalid_request' || aiErrorInfo?.category === 'auth')
+        ? undefined
+        : aiConversationId;
+
+    if (isRetry && activeConversationId === undefined && aiConversationId !== undefined) {
+      setAiConversationId(undefined);
+    }
+
     try {
-      const res = await aiService.chat(
-        'What should I focus on today?',
-        aiConversationId
-      );
+      const requestDate = new Date();
+      const localDate = getLocalCalendarYMD(requestDate);
+      const prompt = buildSevenDayBriefingPrompt(requestDate);
+      const res = await aiService.chat(prompt, activeConversationId, {
+        scope: 'daily_briefing_7d',
+        windowDays: 7,
+        localDate,
+        timezoneOffsetMinutes: requestDate.getTimezoneOffset(),
+        referenceDate: requestDate,
+      });
+      if (!mountedRef.current) return;
+
       setAiReply(res.reply);
       setAiSource(res.source || 'fallback');
       if (res.conversationId) {
         setAiConversationId(res.conversationId);
       }
-    } catch (err: any) {
-      setAiError(
-        err?.message || 'Unable to generate AI briefing right now. Check connection and retry.'
-      );
+    } catch (err: unknown) {
+      if (!mountedRef.current) return;
+      setAiErrorInfo(classifyDailyBriefingError(err));
     } finally {
-      setAiLoading(false);
+      inFlightRef.current = false;
+      lastAttemptAtRef.current = Date.now();
+      if (mountedRef.current) {
+        setAiLoading(false);
+      }
     }
   };
 
   const isAllClear =
     briefing.pendingResponsibilities.length === 0 &&
     briefing.billsRequiringAttention.length === 0 &&
-    briefing.upcomingDeadlines.length === 0 &&
-    !overview?.stats?.overdueCount &&
-    !overview?.stats?.dueSoonCount;
+    briefing.upcomingDeadlines.length === 0;
 
   return (
     <View style={styles.wrapper}>
@@ -118,23 +177,6 @@ export function AIDailyBriefingWidget({
               </ThemedText>
             </View>
           </View>
-
-          <Pressable
-            onPress={onOpenAssistant}
-            hitSlop={8}
-            accessibilityRole="button"
-            accessibilityLabel="Open AI Planning Assistant"
-            style={({ pressed }) => [styles.openLinkBtn, pressed && { opacity: 0.7 }]}
-          >
-            <ThemedText style={[styles.openLinkText, { color: colors.primary }]}>
-              Assistant
-            </ThemedText>
-            <SymbolView
-              name={{ ios: 'chevron.right', android: 'chevron_right', web: 'chevron_right' }}
-              size={14}
-              tintColor={colors.primary}
-            />
-          </Pressable>
         </View>
 
         {isLoadingOverview ? (
@@ -272,54 +314,82 @@ export function AIDailyBriefingWidget({
               </View>
             )}
 
-            {aiError && !aiLoading && (
+            {emptyNotice && !aiLoading && !aiErrorInfo && !aiReply && (
               <View
                 style={[
-                  styles.aiErrorBox,
+                  styles.emptyNoticeBox,
                   {
                     backgroundColor: isDark
-                      ? Colors.urgency.critical.darkBg
-                      : Colors.urgency.critical.lightBg,
-                    borderColor: Colors.urgency.critical.accent,
+                      ? Colors.urgency.upcoming.darkBg
+                      : Colors.urgency.upcoming.lightBg,
+                    borderColor: Colors.urgency.upcoming.accent,
                   },
                 ]}
               >
                 <ThemedText
                   style={[
-                    styles.aiErrorText,
+                    styles.emptyNoticeText,
                     {
                       color: isDark
-                        ? Colors.urgency.critical.darkText
-                        : Colors.urgency.critical.lightText,
+                        ? Colors.urgency.upcoming.darkText
+                        : Colors.urgency.upcoming.lightText,
                     },
                   ]}
                 >
-                  {aiError}
+                  {emptyNotice}
                 </ThemedText>
-                <Pressable
-                  onPress={handleFetchAIBriefing}
-                  hitSlop={6}
-                  style={styles.retryPill}
-                  accessibilityRole="button"
-                  accessibilityLabel="Retry AI briefing"
-                >
-                  <ThemedText
-                    style={[
-                      styles.retryPillText,
-                      {
-                        color: isDark
-                          ? Colors.urgency.critical.darkText
-                          : Colors.urgency.critical.lightText,
-                      },
-                    ]}
-                  >
-                    Retry
-                  </ThemedText>
-                </Pressable>
               </View>
             )}
 
-            {aiReply && !aiLoading && !aiError && (
+            {aiErrorInfo && !aiLoading && (() => {
+              const tone =
+                aiErrorInfo.category === 'no_data'
+                  ? Colors.urgency.upcoming
+                  : aiErrorInfo.category === 'ai_unavailable' || aiErrorInfo.category === 'network'
+                    ? Colors.urgency.dueSoon
+                    : Colors.urgency.critical;
+              const textColor = isDark ? tone.darkText : tone.lightText;
+              const pillBg =
+                aiErrorInfo.category === 'no_data'
+                  ? 'rgba(22, 143, 145, 0.16)'
+                  : aiErrorInfo.category === 'ai_unavailable' || aiErrorInfo.category === 'network'
+                    ? 'rgba(245, 158, 11, 0.16)'
+                    : 'rgba(239, 68, 68, 0.16)';
+
+              return (
+                <View
+                  style={[
+                    styles.aiErrorBox,
+                    {
+                      backgroundColor: isDark ? tone.darkBg : tone.lightBg,
+                      borderColor: tone.accent,
+                    },
+                  ]}
+                >
+                  <View style={styles.aiErrorCopy}>
+                    <ThemedText style={[styles.aiErrorLabel, { color: textColor }]}>
+                      {aiErrorInfo.label}
+                    </ThemedText>
+                    <ThemedText style={[styles.aiErrorText, { color: textColor }]}>
+                      {aiErrorInfo.message}
+                    </ThemedText>
+                  </View>
+                  <Pressable
+                    onPress={() => handleFetchAIBriefing(true)}
+                    hitSlop={6}
+                    style={[styles.retryPill, { backgroundColor: pillBg }]}
+                    accessibilityRole="button"
+                    accessibilityLabel="Retry AI briefing"
+                  >
+                    <ThemedText style={[styles.retryPillText, { color: textColor }]}>
+                      Retry
+                    </ThemedText>
+                  </Pressable>
+                </View>
+              );
+            })()}
+
+            {aiReply && !aiLoading && !aiErrorInfo && (
               <View
                 style={[
                   styles.aiReplyCard,
@@ -345,48 +415,26 @@ export function AIDailyBriefingWidget({
               </View>
             )}
 
-            {/* Action Buttons Row */}
+            {/* Action Button Footer */}
             <View style={styles.actionsFooter}>
               <Pressable
-                onPress={handleFetchAIBriefing}
+                onPress={() => handleFetchAIBriefing(false)}
                 disabled={aiLoading}
-                style={({ pressed }) => [
-                  styles.actionBtn,
-                  {
-                    backgroundColor: colors.surfaceSecondary,
-                    borderColor: colors.border,
-                  },
-                  pressed && { opacity: 0.75 },
-                ]}
-                accessibilityRole="button"
-                accessibilityLabel="Generate AI focus summary"
-              >
-                <SymbolView
-                  name={{ ios: 'arrow.clockwise', android: 'refresh', web: 'refresh' }}
-                  size={13}
-                  tintColor={colors.primary}
-                />
-                <ThemedText style={[styles.actionBtnText, { color: colors.primary }]}>
-                  {aiReply ? 'Refresh AI Brief' : 'Generate AI Brief'}
-                </ThemedText>
-              </Pressable>
-
-              <Pressable
-                onPress={onOpenAssistant}
                 style={({ pressed }) => [
                   styles.actionBtn,
                   {
                     backgroundColor: colors.primary,
                     borderColor: colors.primary,
                   },
+                  aiLoading && { opacity: 0.7 },
                   pressed && { opacity: 0.85 },
                 ]}
                 accessibilityRole="button"
-                accessibilityLabel="Open AI Chat and Goal Planner"
+                accessibilityLabel={aiReply ? 'Refresh AI Brief' : 'Generate AI Brief'}
               >
                 <SymbolView
-                  name={{ ios: 'bubble.left.and.bubble.right.fill', android: 'smart_toy', web: 'smart_toy' }}
-                  size={13}
+                  name={{ ios: 'arrow.clockwise', android: 'refresh', web: 'refresh' }}
+                  size={14}
                   tintColor={getButtonForegroundColor('primary', colors, isDark)}
                 />
                 <ThemedText
@@ -395,7 +443,7 @@ export function AIDailyBriefingWidget({
                     { color: getButtonForegroundColor('primary', colors, isDark) },
                   ]}
                 >
-                  Open AI Assistant
+                  {aiReply ? 'Refresh AI Brief' : 'Generate AI Brief'}
                 </ThemedText>
               </Pressable>
             </View>
@@ -451,15 +499,6 @@ const styles = StyleSheet.create({
     fontFamily: Typography.fontFamilies.sans,
     fontSize: Typography.fontSize.xs,
     marginTop: 1,
-  },
-  openLinkBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 2,
-  },
-  openLinkText: {
-    fontFamily: Typography.fontFamilies.sansSemiBold,
-    fontSize: Typography.fontSize.xs,
   },
   loadingState: {
     flexDirection: 'row',
@@ -533,6 +572,17 @@ const styles = StyleSheet.create({
     fontSize: Typography.fontSize.xs,
     flex: 1,
   },
+  emptyNoticeBox: {
+    borderRadius: Radius.lg,
+    borderWidth: 1,
+    paddingHorizontal: Spacing.three,
+    paddingVertical: Spacing.two + 2,
+  },
+  emptyNoticeText: {
+    fontFamily: Typography.fontFamilies.sans,
+    fontSize: Typography.fontSize.xs,
+    lineHeight: 18,
+  },
   aiErrorBox: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -542,10 +592,20 @@ const styles = StyleSheet.create({
     borderRadius: Radius.lg,
     borderWidth: 1,
   },
+  aiErrorCopy: {
+    flex: 1,
+    gap: 2,
+  },
+  aiErrorLabel: {
+    fontFamily: Typography.fontFamilies.sansBold,
+    fontSize: Typography.fontSize.micro,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
   aiErrorText: {
     fontFamily: Typography.fontFamilies.sans,
     fontSize: Typography.fontSize.xs,
-    flex: 1,
+    lineHeight: 17,
   },
   retryPill: {
     paddingHorizontal: Spacing.three,

@@ -411,9 +411,11 @@ const styles = StyleSheet.create({
     gap: Spacing.four,
   },
   multilineInput: {
-    minHeight: 72,
+    minHeight: 88,
     textAlignVertical: 'top',
-    paddingTop: Spacing.two + 2,
+    paddingTop: Spacing.three,
+    paddingBottom: Spacing.three,
+    lineHeight: 20,
   },
   fieldGroup: {
     gap: Spacing.two,
