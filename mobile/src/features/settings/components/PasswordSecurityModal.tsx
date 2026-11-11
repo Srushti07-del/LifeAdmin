@@ -7,7 +7,7 @@ import React, { useEffect, useState } from 'react';
 import { View, StyleSheet, Pressable } from 'react-native';
 import { SymbolView } from 'expo-symbols';
 import { useAppTheme } from '@/context/ThemeContext';
-import { ModalSheet, Input, Button } from '@/components/ui';
+import { ModalSheet, Input, Button, getButtonForegroundColor } from '@/components/ui';
 import { ThemedText } from '@/components/themed-text';
 import { Colors } from '@/constants/colors';
 import { Typography } from '@/constants/typography';
@@ -240,7 +240,7 @@ export function PasswordSecurityModal({
                 <SymbolView
                   name={{ ios: 'envelope.badge', android: 'mail', web: 'mail' } as any}
                   size={17}
-                  tintColor="#FFFFFF"
+                  tintColor={getButtonForegroundColor('primary', colors, isDark)}
                 />
               }
             >

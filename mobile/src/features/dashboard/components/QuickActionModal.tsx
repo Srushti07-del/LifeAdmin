@@ -4,19 +4,16 @@
  */
 
 import React, { useState } from 'react';
-import {
-  Modal,
-  View,
-  StyleSheet,
-  TextInput,
-  Pressable,
-  ActivityIndicator,
-  KeyboardAvoidingView,
-  Platform,
-} from 'react-native';
-import { SymbolView } from 'expo-symbols';
+import { View, StyleSheet, Pressable } from 'react-native';
 import { useAppTheme } from '@/context/ThemeContext';
 import { ThemedText } from '@/components/themed-text';
+import {
+  ModalSheet,
+  Input,
+  Button,
+  getButtonForegroundColor,
+} from '@/components/ui';
+import { Colors } from '@/constants/colors';
 import { Typography } from '@/constants/typography';
 import { Spacing, Radius } from '@/constants/spacing';
 import { QuickActionType } from '../types';
@@ -65,35 +62,35 @@ export function QuickActionModal({
           title: 'Add New Bill',
           placeholder: 'e.g. Electricity, WiFi, Rent',
           buttonLabel: 'Add Bill',
-          accent: '#059669',
+          accent: isDark ? '#34D399' : '#059669',
         };
       case 'appointment':
         return {
           title: 'Add Appointment',
           placeholder: 'e.g. Dr. Sharma Dental Checkup',
           buttonLabel: 'Schedule Appointment',
-          accent: '#0284C7',
+          accent: isDark ? '#38BDF8' : '#0284C7',
         };
       case 'reminder':
         return {
           title: 'Add Reminder',
           placeholder: 'e.g. Water plants, Buy groceries',
           buttonLabel: 'Set Reminder',
-          accent: '#D97706',
+          accent: isDark ? '#FBBF24' : '#D97706',
         };
       case 'event':
         return {
           title: 'Add Calendar Event',
           placeholder: 'e.g. Team planning session',
           buttonLabel: 'Save Event',
-          accent: '#7C3AED',
+          accent: isDark ? '#A78BFA' : '#7C3AED',
         };
       case 'document':
         return {
           title: 'Upload Document',
           placeholder: 'Document title',
           buttonLabel: 'Upload',
-          accent: '#0D9488',
+          accent: isDark ? '#2DD4BF' : '#0D9488',
         };
       case 'task':
       default:
@@ -152,228 +149,139 @@ export function QuickActionModal({
     }
   };
 
+  const selectedFg = getButtonForegroundColor('primary', colors, isDark);
+
   return (
-    <Modal
-      visible={visible}
-      transparent
-      animationType="slide"
-      onRequestClose={onClose}
-    >
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        style={styles.overlay}
-      >
-        <Pressable style={styles.backdrop} onPress={onClose} />
-
-        <View
-          style={[
-            styles.sheet,
-            { backgroundColor: colors.surface, borderColor: colors.border },
-          ]}
-        >
-          {/* Header */}
-          <View style={styles.sheetHeader}>
-            <ThemedText style={[styles.sheetTitle, { color: colors.text }]}>
-              {meta.title}
-            </ThemedText>
-            <Pressable
-              onPress={onClose}
-              accessible
-              accessibilityRole="button"
-              accessibilityLabel="Close"
-              style={({ pressed }) => [styles.closeButton, pressed && styles.pressed]}
-            >
-              <SymbolView
-                name={{ ios: 'xmark', android: 'close', web: 'close' }}
-                size={20}
-                tintColor={colors.textSecondary}
-              />
-            </Pressable>
-          </View>
-
-          {errorMsg ? (
-            <View style={styles.errorContainer}>
-              <ThemedText style={styles.errorText}>{errorMsg}</ThemedText>
-            </View>
-          ) : null}
-
-          {/* Title Input */}
-          <View style={styles.fieldGroup}>
-            <ThemedText style={[styles.fieldLabel, { color: colors.textSecondary }]}>
-              Title
-            </ThemedText>
-            <TextInput
-              value={title}
-              onChangeText={setTitle}
-              placeholder={meta.placeholder}
-              placeholderTextColor={colors.textMuted}
-              style={[
-                styles.input,
-                {
-                  color: colors.text,
-                  backgroundColor: colors.surfaceSecondary,
-                  borderColor: colors.border,
-                },
-              ]}
-              autoFocus
-            />
-          </View>
-
-          {/* Amount Input for Bills */}
-          {type === 'bill' && (
-            <View style={styles.fieldGroup}>
-              <ThemedText style={[styles.fieldLabel, { color: colors.textSecondary }]}>
-                Amount (₹ INR)
-              </ThemedText>
-              <TextInput
-                value={amount}
-                onChangeText={setAmount}
-                placeholder="1450"
-                placeholderTextColor={colors.textMuted}
-                keyboardType="numeric"
-                style={[
-                  styles.input,
-                  {
-                    color: colors.text,
-                    backgroundColor: colors.surfaceSecondary,
-                    borderColor: colors.border,
-                  },
-                ]}
-              />
-            </View>
-          )}
-
-          {/* Date Presets */}
-          <View style={styles.fieldGroup}>
-            <ThemedText style={[styles.fieldLabel, { color: colors.textSecondary }]}>
-              Due / Target Date
-            </ThemedText>
-            <View style={styles.presetRow}>
-              {(['today', 'tomorrow', '3days', 'week'] as const).map((preset) => {
-                const isSelected = datePreset === preset;
-                const label =
-                  preset === 'today'
-                    ? 'Today'
-                    : preset === 'tomorrow'
-                    ? 'Tomorrow'
-                    : preset === '3days'
-                    ? 'In 3 Days'
-                    : 'Next Week';
-
-                return (
-                  <Pressable
-                    key={preset}
-                    onPress={() => setDatePreset(preset)}
-                    style={[
-                      styles.presetPill,
-                      {
-                        backgroundColor: isSelected ? colors.primary : colors.surfaceSecondary,
-                        borderColor: isSelected ? colors.primary : colors.border,
-                      },
-                    ]}
-                  >
-                    <ThemedText
-                      style={[
-                        styles.presetText,
-                        { color: isSelected ? '#FFFFFF' : colors.text },
-                      ]}
-                    >
-                      {label}
-                    </ThemedText>
-                  </Pressable>
-                );
-              })}
-            </View>
-          </View>
-
-          {/* Submit Button */}
-          <Pressable
-            onPress={handleSubmit}
-            disabled={loading}
-            accessible
-            accessibilityRole="button"
-            accessibilityLabel={meta.buttonLabel}
-            style={({ pressed }) => [
-              styles.submitButton,
-              { backgroundColor: meta.accent },
-              pressed && styles.pressed,
-              loading && styles.disabled,
+    <ModalSheet isOpen={visible} onClose={onClose} title={meta.title}>
+      <View style={styles.formBody}>
+        {errorMsg ? (
+          <View
+            style={[
+              styles.errorContainer,
+              {
+                backgroundColor: isDark
+                  ? Colors.urgency.critical.darkBg
+                  : Colors.urgency.critical.lightBg,
+                borderColor: Colors.urgency.critical.accent,
+              },
             ]}
           >
-            {loading ? (
-              <ActivityIndicator color="#FFFFFF" />
-            ) : (
-              <ThemedText style={styles.submitText}>{meta.buttonLabel}</ThemedText>
-            )}
-          </Pressable>
+            <ThemedText
+              style={[
+                styles.errorText,
+                {
+                  color: isDark
+                    ? Colors.urgency.critical.darkText
+                    : Colors.urgency.critical.lightText,
+                },
+              ]}
+            >
+              {errorMsg}
+            </ThemedText>
+          </View>
+        ) : null}
+
+        <Input
+          label="Title"
+          value={title}
+          onChangeText={setTitle}
+          placeholder={meta.placeholder}
+          autoFocus
+        />
+
+        {type === 'bill' && (
+          <Input
+            label="Amount (₹ INR)"
+            value={amount}
+            onChangeText={setAmount}
+            placeholder="1450"
+            keyboardType="numeric"
+          />
+        )}
+
+        {/* Date Presets */}
+        <View style={styles.fieldGroup}>
+          <ThemedText style={[styles.fieldLabel, { color: colors.textSecondary }]}>
+            Due / Target Date
+          </ThemedText>
+          <View style={styles.presetRow}>
+            {(['today', 'tomorrow', '3days', 'week'] as const).map((preset) => {
+              const isSelected = datePreset === preset;
+              const label =
+                preset === 'today'
+                  ? 'Today'
+                  : preset === 'tomorrow'
+                  ? 'Tomorrow'
+                  : preset === '3days'
+                  ? 'In 3 Days'
+                  : 'Next Week';
+
+              return (
+                <Pressable
+                  key={preset}
+                  onPress={() => setDatePreset(preset)}
+                  hitSlop={4}
+                  style={[
+                    styles.presetPill,
+                    {
+                      backgroundColor: isSelected ? colors.primary : colors.surfaceSecondary,
+                      borderColor: isSelected ? colors.primary : colors.border,
+                    },
+                  ]}
+                >
+                  <ThemedText
+                    style={[
+                      styles.presetText,
+                      { color: isSelected ? selectedFg : colors.text },
+                    ]}
+                  >
+                    {label}
+                  </ThemedText>
+                </Pressable>
+              );
+            })}
+          </View>
         </View>
-      </KeyboardAvoidingView>
-    </Modal>
+
+        {/* Submit Button */}
+        <Button
+          variant="primary"
+          size="md"
+          fullWidth
+          loading={loading}
+          disabled={loading}
+          onPress={handleSubmit}
+        >
+          {meta.buttonLabel}
+        </Button>
+      </View>
+    </ModalSheet>
   );
 }
 
 const styles = StyleSheet.create({
-  overlay: {
-    flex: 1,
-    justifyContent: 'flex-end',
-    backgroundColor: 'rgba(0,0,0,0.5)',
-  },
-  backdrop: {
-    flex: 1,
-  },
-  sheet: {
-    borderTopLeftRadius: Radius['2xl'],
-    borderTopRightRadius: Radius['2xl'],
-    padding: Spacing.six,
-    paddingBottom: Spacing.eight,
-    borderWidth: 1,
-    borderBottomWidth: 0,
-  },
-  sheetHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: Spacing.four,
-  },
-  sheetTitle: {
-    fontSize: Typography.fontSize.xl,
-    fontFamily: Typography.fontFamilies.editorial,
-    fontWeight: Typography.fontWeight.bold,
-  },
-  closeButton: {
-    width: 36,
-    height: 36,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: Radius.full,
+  formBody: {
+    gap: Spacing.three,
+    paddingBottom: Spacing.two,
   },
   errorContainer: {
-    padding: Spacing.two + 2,
-    backgroundColor: 'rgba(239, 68, 68, 0.1)',
+    padding: Spacing.three,
     borderRadius: Radius.md,
-    marginBottom: Spacing.three,
+    borderWidth: 1,
   },
   errorText: {
-    color: '#EF4444',
     fontSize: Typography.fontSize.xs,
     fontWeight: Typography.fontWeight.medium,
   },
   fieldGroup: {
-    marginBottom: Spacing.four,
+    marginBottom: Spacing.one,
   },
   fieldLabel: {
     fontSize: Typography.fontSize.xs,
     fontWeight: Typography.fontWeight.semibold,
-    marginBottom: Spacing.one,
+    marginBottom: Spacing.one + 2,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
-  },
-  input: {
-    paddingHorizontal: Spacing.four,
-    paddingVertical: Spacing.three,
-    borderRadius: Radius.lg,
-    borderWidth: 1,
-    fontSize: Typography.fontSize.base,
   },
   presetRow: {
     flexDirection: 'row',
@@ -381,35 +289,16 @@ const styles = StyleSheet.create({
   },
   presetPill: {
     flex: 1,
-    paddingVertical: Spacing.two,
+    paddingVertical: Spacing.two + 2,
     borderRadius: Radius.md,
     borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
+    minHeight: 40,
   },
   presetText: {
     fontSize: 11,
     fontWeight: Typography.fontWeight.semibold,
-  },
-  submitButton: {
-    paddingVertical: Spacing.four,
-    borderRadius: Radius.lg,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: Spacing.two,
-    minHeight: 48,
-  },
-  submitText: {
-    color: '#FFFFFF',
-    fontSize: Typography.fontSize.base,
-    fontWeight: Typography.fontWeight.bold,
-  },
-  pressed: {
-    opacity: 0.85,
-    transform: [{ scale: 0.98 }],
-  },
-  disabled: {
-    opacity: 0.6,
   },
 });
 

@@ -131,7 +131,7 @@ const userSchema = new Schema<IUser>(
     demoExpiresAt: { type: Date },
 
     // Onboarding
-    onboardingCompleted: { type: Boolean, default: false },
+    onboardingCompleted: { type: Boolean, default: true },
     onboardingStep: { type: Number, default: 1 },
     
     // Notification type preferences

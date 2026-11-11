@@ -8,6 +8,7 @@ import React, { useMemo } from 'react';
 import { View, StyleSheet, Pressable } from 'react-native';
 import { useAppTheme } from '@/context/ThemeContext';
 import { ThemedText } from '@/components/themed-text';
+import { getButtonForegroundColor } from '@/components/ui';
 import { Typography } from '@/constants/typography';
 import { Spacing, Radius } from '@/constants/spacing';
 import { CalendarDayCell, CalendarEventItem } from '../types';
@@ -101,9 +102,7 @@ export function MonthView({
                     styles.selectedCell,
                     {
                       borderColor: colors.primary,
-                      backgroundColor: isDark
-                        ? 'rgba(22, 143, 145, 0.15)'
-                        : 'rgba(22, 143, 145, 0.08)',
+                      backgroundColor: colors.primarySoft,
                     },
                   ],
                 ]}
@@ -125,16 +124,14 @@ export function MonthView({
                       styles.dayNumberText,
                       {
                         color: cell.isToday
-                          ? '#FFFFFF'
+                          ? getButtonForegroundColor('primary', colors, isDark)
                           : !cell.isCurrentMonth
-                          ? isDark
-                            ? 'rgba(255, 255, 255, 0.25)'
-                            : 'rgba(0, 0, 0, 0.25)'
+                          ? colors.textMuted
                           : colors.text,
-                        fontWeight:
+                        fontFamily:
                           cell.isToday || cell.isSelected
-                            ? Typography.fontWeight.bold
-                            : Typography.fontWeight.medium,
+                            ? Typography.fontFamilies.sansBold
+                            : Typography.fontFamilies.sansMedium,
                       },
                     ]}
                   >
@@ -156,7 +153,7 @@ export function MonthView({
                   })}
                   {dayEvents.length > 3 && (
                     <View style={styles.moreDot}>
-                      <ThemedText style={styles.moreDotText}>
+                      <ThemedText style={[styles.moreDotText, { color: colors.textSecondary }]}>
                         +{dayEvents.length - 3}
                       </ThemedText>
                     </View>
@@ -188,12 +185,11 @@ export function MonthView({
 
             <Pressable
               onPress={() => onAddEvent(selectedDate)}
+              hitSlop={8}
               style={[
                 styles.addDayEventBtn,
                 {
-                  backgroundColor: isDark
-                    ? 'rgba(22, 143, 145, 0.2)'
-                    : 'rgba(22, 143, 145, 0.1)',
+                  backgroundColor: colors.primarySoft,
                   borderColor: colors.primary,
                 },
               ]}
@@ -298,6 +294,7 @@ const styles = StyleSheet.create({
   },
   dayNumberText: {
     fontSize: Typography.fontSize.xs,
+    fontVariant: ['tabular-nums'],
   },
   dotsRow: {
     flexDirection: 'row',
@@ -317,9 +314,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   moreDotText: {
+    fontFamily: Typography.fontFamilies.sansBold,
     fontSize: 8,
-    fontWeight: Typography.fontWeight.bold,
-    color: '#888888',
+    fontVariant: ['tabular-nums'],
   },
   agendaSection: {
     gap: Spacing.three,

@@ -58,7 +58,18 @@ export interface CalendarItemCardProps {
 export function CalendarItemCard({ item, onPress }: CalendarItemCardProps) {
   const { colors, isDark } = useAppTheme();
   const config = ENTITY_CONFIG[item.type] || ENTITY_CONFIG.event;
-  const itemColor = item.color || config.color;
+  const darkAdjustedAccent =
+    item.color ||
+    (isDark
+      ? item.type === 'appointment'
+        ? '#A78BFA'
+        : item.type === 'reminder'
+        ? '#38BDF8'
+        : item.type === 'event'
+        ? colors.primary
+        : config.color
+      : config.color);
+  const itemColor = darkAdjustedAccent;
 
   return (
     <Pressable
@@ -67,9 +78,7 @@ export function CalendarItemCard({ item, onPress }: CalendarItemCardProps) {
         styles.card,
         {
           backgroundColor: colors.surface,
-          borderColor: isDark ? 'rgba(255, 255, 255, 0.08)' : colors.border,
-          borderLeftColor: itemColor,
-          borderLeftWidth: 4,
+          borderColor: colors.border,
           opacity: pressed ? 0.85 : 1,
         },
       ]}

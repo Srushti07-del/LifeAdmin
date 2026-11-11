@@ -22,8 +22,10 @@ import { useAppTheme } from '@/context/ThemeContext';
 import { useAuth } from '@/context/AuthContext';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
+import { getButtonForegroundColor } from '@/components/ui/Button';
 import { Typography } from '@/constants/typography';
 import { Spacing, Radius } from '@/constants/spacing';
+import { createShadow } from '@/constants/shadows';
 import { BottomTabInset, MaxContentWidth } from '@/constants/theme';
 import { DEFAULT_CURRENCY, normalizeCurrencyCode } from '@/utils/currency';
 import {
@@ -297,7 +299,11 @@ export default function DashboardScreen() {
           />
         );
       case 'lifebuddy':
-        return <LifeBuddyWidget key="lifebuddy" />;
+        return (
+          <View key="lifebuddy" style={styles.lifebuddyWrapper}>
+            <LifeBuddyWidget />
+          </View>
+        );
       case 'ai_briefing':
         return (
           <AIDailyBriefingWidget
@@ -377,7 +383,7 @@ export default function DashboardScreen() {
             style={styles.scrollView}
             contentContainerStyle={[
               styles.scrollContent,
-              { paddingBottom: BottomTabInset + Spacing.eight },
+              { paddingBottom: BottomTabInset + Spacing.six },
             ]}
             showsVerticalScrollIndicator={false}
             refreshControl={
@@ -404,7 +410,7 @@ export default function DashboardScreen() {
                 style={[
                   styles.guestBanner,
                   {
-                    backgroundColor: isDark ? colors.surfaceElevated || '#285968' : '#D3EAE7',
+                    backgroundColor: colors.primarySoft,
                     borderColor: colors.border,
                   },
                 ]}
@@ -443,7 +449,7 @@ export default function DashboardScreen() {
               </View>
             )}
 
-            {/* Quick Metrics Bar (2x2: Overdue, Due Soon, Upcoming, Active Alerts) */}
+            {/* Quick Metrics Strip (single row: Overdue, Due Soon, Upcoming, Alerts) */}
             {data?.stats && (
               <StatsOverview
                 stats={data.stats}
@@ -455,7 +461,39 @@ export default function DashboardScreen() {
               />
             )}
 
-            {/* Layout Preset & Customize Strip */}
+            {/* Dynamically Ordered & Toggled Dashboard Widgets */}
+            {visibleWidgets.length > 0 ? (
+              visibleWidgets.map(renderWidget)
+            ) : (
+              <View
+                style={[
+                  styles.emptyLayoutCard,
+                  { backgroundColor: colors.surface, borderColor: colors.border },
+                ]}
+              >
+                <ThemedText style={[styles.emptyLayoutTitle, { color: colors.text }]}>
+                  All dashboard widgets are hidden
+                </ThemedText>
+                <ThemedText style={[styles.emptyLayoutDesc, { color: colors.textSecondary }]}>
+                  Open Customize Layout to restore widgets or switch to a preset.
+                </ThemedText>
+                <Pressable
+                  onPress={() => setIsCustomizeVisible(true)}
+                  style={[styles.emptyLayoutBtn, { backgroundColor: colors.primary }]}
+                >
+                  <ThemedText
+                    style={[
+                      styles.emptyLayoutBtnText,
+                      { color: getButtonForegroundColor('primary', colors, isDark) },
+                    ]}
+                  >
+                    Customize Layout
+                  </ThemedText>
+                </Pressable>
+              </View>
+            )}
+
+            {/* Layout Preset & Customize Strip (quiet footer, below content) */}
             <Pressable
               onPress={() => setIsCustomizeVisible(true)}
               accessible
@@ -490,31 +528,6 @@ export default function DashboardScreen() {
                 </ThemedText>
               </View>
             </Pressable>
-
-            {/* Dynamically Ordered & Toggled Dashboard Widgets */}
-            {visibleWidgets.length > 0 ? (
-              visibleWidgets.map(renderWidget)
-            ) : (
-              <View
-                style={[
-                  styles.emptyLayoutCard,
-                  { backgroundColor: colors.surface, borderColor: colors.border },
-                ]}
-              >
-                <ThemedText style={[styles.emptyLayoutTitle, { color: colors.text }]}>
-                  All dashboard widgets are hidden
-                </ThemedText>
-                <ThemedText style={[styles.emptyLayoutDesc, { color: colors.textSecondary }]}>
-                  Open Customize Layout to restore widgets or switch to a preset.
-                </ThemedText>
-                <Pressable
-                  onPress={() => setIsCustomizeVisible(true)}
-                  style={[styles.emptyLayoutBtn, { backgroundColor: colors.primary }]}
-                >
-                  <ThemedText style={styles.emptyLayoutBtnText}>Customize Layout</ThemedText>
-                </Pressable>
-              </View>
-            )}
 
             {/* Expanded Quick Actions & Module Navigation Grid (all 6 modules) */}
             <QuickActionsSection
@@ -583,6 +596,7 @@ export default function DashboardScreen() {
             <View
               style={[
                 styles.notifSheet,
+                createShadow(isDark, 'modal'),
                 { backgroundColor: colors.surface, borderColor: colors.border },
               ]}
             >
@@ -655,14 +669,17 @@ const styles = StyleSheet.create({
     alignSelf: 'center',
     width: '100%',
   },
+  lifebuddyWrapper: {
+    paddingHorizontal: Spacing.four,
+  },
   layoutBar: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     marginHorizontal: Spacing.four,
-    marginBottom: Spacing.five,
+    marginBottom: Spacing.four,
     paddingHorizontal: Spacing.three + 2,
-    paddingVertical: Spacing.two + 2,
+    paddingVertical: Spacing.two,
     borderRadius: Radius.lg,
     borderWidth: 1,
   },
@@ -683,6 +700,7 @@ const styles = StyleSheet.create({
   },
   layoutBarMeta: {
     fontSize: Typography.fontSize.xs,
+    fontVariant: ['tabular-nums'],
   },
   layoutBarRight: {
     flexDirection: 'row',
@@ -717,9 +735,8 @@ const styles = StyleSheet.create({
     borderRadius: Radius.full,
   },
   emptyLayoutBtnText: {
-    color: '#FFFFFF',
+    fontFamily: Typography.fontFamilies.sansSemiBold,
     fontSize: Typography.fontSize.xs,
-    fontWeight: Typography.fontWeight.bold,
   },
   modalOverlay: {
     flex: 1,
@@ -735,11 +752,6 @@ const styles = StyleSheet.create({
     borderRadius: Radius['2xl'],
     borderWidth: 1,
     padding: Spacing.five,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 12,
-    elevation: 4,
   },
   notifHeader: {
     flexDirection: 'row',
@@ -749,7 +761,6 @@ const styles = StyleSheet.create({
   },
   notifTitle: {
     fontSize: Typography.fontSize.lg,
-    fontWeight: Typography.fontWeight.bold,
     fontFamily: Typography.fontFamilies.editorial,
   },
   closeIcon: {
@@ -783,7 +794,7 @@ const styles = StyleSheet.create({
     paddingVertical: Spacing.two,
     borderRadius: Radius.md,
     borderWidth: 1,
-    marginBottom: Spacing.four,
+    marginBottom: Spacing.three,
   },
   guestBannerLeft: {
     flexDirection: 'row',

@@ -7,8 +7,9 @@ import { Platform } from 'react-native';
 
 export const Typography = {
   fontFamilies: {
-    // Editorial headings (DM Serif Display 400 Regular)
+    // Editorial headings (DM Serif Display 400 Regular / Italic)
     editorial: 'DMSerifDisplay_400Regular',
+    editorialItalic: 'DMSerifDisplay_400Regular_Italic',
 
     // Inter UI & body text variants
     sansLight: 'Inter_300Light',

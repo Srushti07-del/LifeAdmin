@@ -11,6 +11,7 @@ import { ThemedText } from '@/components/themed-text';
 import { Colors } from '@/constants/colors';
 import { Typography } from '@/constants/typography';
 import { Spacing, Radius } from '@/constants/spacing';
+import { createShadow } from '@/constants/shadows';
 import { formatShortDate } from '@/utils/date';
 import { AttentionItem, UpcomingItem } from '../types';
 
@@ -72,6 +73,7 @@ export function DashboardTasksWidget({
       <View
         style={[
           styles.card,
+          createShadow(isDark, 'card'),
           {
             backgroundColor: colors.surface,
             borderColor: colors.border,
@@ -84,9 +86,7 @@ export function DashboardTasksWidget({
               style={[
                 styles.iconBox,
                 {
-                  backgroundColor: isDark
-                    ? 'rgba(22, 143, 145, 0.2)'
-                    : '#E0F2F1',
+                  backgroundColor: colors.primarySoft,
                 },
               ]}
             >
@@ -136,7 +136,13 @@ export function DashboardTasksWidget({
                   <SymbolView
                     name={{ ios: 'circle', android: 'radio_button_unchecked', web: 'radio_button_unchecked' }}
                     size={18}
-                    tintColor={task.isUrgent ? Colors.urgency.critical.accent : colors.primary}
+                    tintColor={
+                      task.isUrgent
+                        ? isDark
+                          ? Colors.urgency.critical.darkText
+                          : Colors.urgency.critical.accent
+                        : colors.primary
+                    }
                   />
                 </Pressable>
 
@@ -152,7 +158,9 @@ export function DashboardTasksWidget({
                       styles.rowMeta,
                       {
                         color: task.isUrgent
-                          ? Colors.urgency.critical.accent
+                          ? isDark
+                            ? Colors.urgency.critical.darkText
+                            : Colors.urgency.critical.lightText
                           : colors.textSecondary,
                       },
                     ]}
@@ -189,25 +197,20 @@ export function DashboardTasksWidget({
 const styles = StyleSheet.create({
   wrapper: {
     paddingHorizontal: Spacing.four,
-    marginBottom: Spacing.five,
+    marginBottom: Spacing.four,
   },
   card: {
     borderRadius: Radius['2xl'],
     borderWidth: 1,
-    padding: Spacing.four,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.04,
-    shadowRadius: 6,
-    elevation: 2,
+    padding: Spacing.three + 2,
   },
   headerRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingBottom: Spacing.three,
+    paddingBottom: Spacing.two + 2,
     borderBottomWidth: StyleSheet.hairlineWidth,
-    marginBottom: Spacing.three,
+    marginBottom: Spacing.two + 2,
   },
   headerLeft: {
     flexDirection: 'row',
@@ -241,7 +244,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: Spacing.three,
-    paddingVertical: Spacing.two + 2,
+    paddingVertical: Spacing.two,
     borderRadius: Radius.lg,
     borderWidth: StyleSheet.hairlineWidth,
     gap: Spacing.two,
@@ -267,11 +270,14 @@ const styles = StyleSheet.create({
     fontSize: Typography.fontSize.micro,
   },
   emptyBox: {
+    flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: Spacing.three,
+    justifyContent: 'space-between',
+    paddingVertical: Spacing.one,
     gap: Spacing.two,
   },
   emptyText: {
+    flex: 1,
     fontFamily: Typography.fontFamilies.sans,
     fontSize: Typography.fontSize.xs,
   },

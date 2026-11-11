@@ -151,7 +151,7 @@ const styles = StyleSheet.create({
   card: {
     borderRadius: Radius.xl,
     borderWidth: 1,
-    padding: Spacing.four,
+    padding: Spacing.three + 2,
     overflow: 'hidden',
     width: '100%',
   },
@@ -169,7 +169,6 @@ const styles = StyleSheet.create({
     fontFamily: Typography.fontFamilies.sansSemiBold,
     fontSize: Typography.fontSize.xs,
     letterSpacing: 0.5,
-    fontWeight: '600',
   },
   dot: {
     width: 8,
@@ -182,10 +181,10 @@ const styles = StyleSheet.create({
   },
   value: {
     fontFamily: Typography.fontFamilies.sansBold,
-    fontSize: Typography.fontSize['3xl'],
-    lineHeight: 34,
-    fontWeight: '700',
+    fontSize: Typography.fontSize['2xl'],
+    lineHeight: 28,
     letterSpacing: -0.5,
+    fontVariant: ['tabular-nums'],
   },
   subtitle: {
     fontFamily: Typography.fontFamilies.sans,

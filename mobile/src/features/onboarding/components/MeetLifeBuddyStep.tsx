@@ -10,7 +10,7 @@ import { View, StyleSheet, ScrollView, Pressable, TextInput } from 'react-native
 import { SymbolView } from 'expo-symbols';
 import { useAppTheme } from '@/context/ThemeContext';
 import { ThemedText } from '@/components/themed-text';
-import { Button } from '@/components/ui';
+import { Button, getButtonForegroundColor } from '@/components/ui';
 import { COMPANIONS, CompanionAvatar } from '@/features/companions';
 import { OnboardingPreferences } from '../types';
 import { Typography } from '@/constants/typography';
@@ -102,7 +102,7 @@ export function MeetLifeBuddyStep({
                   <SymbolView
                     name={{ ios: 'checkmark', android: 'check', web: 'check' } as any}
                     size={12}
-                    tintColor="#FFFFFF"
+                    tintColor={getButtonForegroundColor('primary', colors, isDark)}
                   />
                 </View>
               )}
@@ -188,7 +188,7 @@ export function MeetLifeBuddyStep({
             <SymbolView
               name={{ ios: 'arrow.right', android: 'arrow_forward', web: 'arrow_forward' } as any}
               size={16}
-              tintColor="#FFFFFF"
+              tintColor={getButtonForegroundColor('primary', colors, isDark)}
             />
           }
         >

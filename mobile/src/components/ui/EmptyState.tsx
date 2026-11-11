@@ -44,7 +44,7 @@ export function EmptyState({
       style={[
         styles.container,
         {
-          backgroundColor: isDark ? colors.surfaceSecondary : 'rgba(255, 255, 255, 0.7)',
+          backgroundColor: isDark ? colors.surface : 'rgba(255, 255, 255, 0.78)',
           borderColor: colors.border,
         },
         style,
@@ -101,7 +101,7 @@ const styles = StyleSheet.create({
   container: {
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: Spacing.seven,
+    paddingVertical: Spacing.six,
     paddingHorizontal: Spacing.five,
     borderRadius: Radius.xl,
     borderWidth: 1,

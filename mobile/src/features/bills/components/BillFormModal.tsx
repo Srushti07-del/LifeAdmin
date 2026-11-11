@@ -19,7 +19,7 @@ import {
 import { SymbolView } from 'expo-symbols';
 import { useAppTheme } from '@/context/ThemeContext';
 import { ThemedText } from '@/components/themed-text';
-import { ModalSheet, Input, Button } from '@/components/ui';
+import { ModalSheet, Input, Button, getButtonForegroundColor } from '@/components/ui';
 import { Typography } from '@/constants/typography';
 import { Spacing, Radius } from '@/constants/spacing';
 import { CURRENCIES, CurrencyCode, DEFAULT_CURRENCY } from '@/utils/currency';
@@ -209,9 +209,7 @@ export function BillFormModal({
                       {
                         backgroundColor: isSelected
                           ? colors.primary
-                          : isDark
-                          ? colors.surfaceElevated || '#143440'
-                          : '#F1F5F9',
+                          : colors.surfaceSecondary,
                         borderColor: isSelected ? colors.primary : colors.border,
                       },
                     ]}
@@ -219,7 +217,11 @@ export function BillFormModal({
                     <ThemedText
                       style={[
                         styles.currencyChipText,
-                        { color: isSelected ? '#FFFFFF' : colors.text },
+                        {
+                          color: isSelected
+                            ? getButtonForegroundColor('primary', colors, isDark)
+                            : colors.text,
+                        },
                       ]}
                     >
                       {CURRENCIES[cCode].symbol} {cCode}
@@ -253,7 +255,7 @@ export function BillFormModal({
               onPress={() => setDateOffset(0)}
               style={[
                 styles.quickDateBtn,
-                { backgroundColor: isDark ? colors.surfaceElevated : '#F1F5F9', borderColor: colors.border },
+                { backgroundColor: colors.surfaceSecondary, borderColor: colors.border },
               ]}
             >
               <ThemedText style={[styles.quickDateText, { color: colors.textSecondary }]}>
@@ -264,7 +266,7 @@ export function BillFormModal({
               onPress={() => setDateOffset(7)}
               style={[
                 styles.quickDateBtn,
-                { backgroundColor: isDark ? colors.surfaceElevated : '#F1F5F9', borderColor: colors.border },
+                { backgroundColor: colors.surfaceSecondary, borderColor: colors.border },
               ]}
             >
               <ThemedText style={[styles.quickDateText, { color: colors.textSecondary }]}>
@@ -275,7 +277,7 @@ export function BillFormModal({
               onPress={() => setDateOffset(30)}
               style={[
                 styles.quickDateBtn,
-                { backgroundColor: isDark ? colors.surfaceElevated : '#F1F5F9', borderColor: colors.border },
+                { backgroundColor: colors.surfaceSecondary, borderColor: colors.border },
               ]}
             >
               <ThemedText style={[styles.quickDateText, { color: colors.textSecondary }]}>
@@ -302,11 +304,7 @@ export function BillFormModal({
                   style={[
                     styles.chip,
                     {
-                      backgroundColor: isSelected
-                        ? colors.primary
-                        : isDark
-                        ? colors.surfaceElevated || '#143440'
-                        : '#F1F5F9',
+                      backgroundColor: isSelected ? colors.primary : colors.surfaceSecondary,
                       borderColor: isSelected ? colors.primary : colors.border,
                     },
                   ]}
@@ -314,7 +312,11 @@ export function BillFormModal({
                   <ThemedText
                     style={[
                       styles.chipText,
-                      { color: isSelected ? '#FFFFFF' : colors.text },
+                      {
+                        color: isSelected
+                          ? getButtonForegroundColor('primary', colors, isDark)
+                          : colors.text,
+                      },
                     ]}
                   >
                     {cat}
@@ -342,11 +344,7 @@ export function BillFormModal({
                   style={[
                     styles.chip,
                     {
-                      backgroundColor: isSelected
-                        ? colors.primary
-                        : isDark
-                        ? colors.surfaceElevated || '#143440'
-                        : '#F1F5F9',
+                      backgroundColor: isSelected ? colors.primary : colors.surfaceSecondary,
                       borderColor: isSelected ? colors.primary : colors.border,
                     },
                   ]}
@@ -354,7 +352,11 @@ export function BillFormModal({
                   <ThemedText
                     style={[
                       styles.chipText,
-                      { color: isSelected ? '#FFFFFF' : colors.text },
+                      {
+                        color: isSelected
+                          ? getButtonForegroundColor('primary', colors, isDark)
+                          : colors.text,
+                      },
                     ]}
                   >
                     {rec.label}

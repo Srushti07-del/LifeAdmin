@@ -9,7 +9,8 @@ import { View, StyleSheet, ScrollView, Pressable } from 'react-native';
 import { SymbolView } from 'expo-symbols';
 import { useAppTheme } from '@/context/ThemeContext';
 import { ThemedText } from '@/components/themed-text';
-import { ModalSheet, Button, Input } from '@/components/ui';
+import { ModalSheet, Button, Input, getButtonForegroundColor } from '@/components/ui';
+import { Colors } from '@/constants/colors';
 import { Typography } from '@/constants/typography';
 import { Spacing, Radius } from '@/constants/spacing';
 import { DocumentItem, CreateEntityFromDocParams } from '../types';
@@ -115,8 +116,29 @@ export function DocumentEntityConversionModal({
       >
         {/* Error Box */}
         {error && (
-          <View style={[styles.errorBox, { backgroundColor: '#FEE2E2', borderColor: '#FCA5A5' }]}>
-            <ThemedText style={styles.errorText}>{error}</ThemedText>
+          <View
+            style={[
+              styles.errorBox,
+              {
+                backgroundColor: isDark
+                  ? Colors.urgency.critical.darkBg
+                  : Colors.urgency.critical.lightBg,
+                borderColor: Colors.urgency.critical.accent,
+              },
+            ]}
+          >
+            <ThemedText
+              style={[
+                styles.errorText,
+                {
+                  color: isDark
+                    ? Colors.urgency.critical.darkText
+                    : Colors.urgency.critical.lightText,
+                },
+              ]}
+            >
+              {error}
+            </ThemedText>
           </View>
         )}
 
@@ -128,6 +150,7 @@ export function DocumentEntityConversionModal({
           <View style={styles.typeSelectorRow}>
             {(['task', 'bill', 'reminder'] as const).map((type) => {
               const isSelected = entityType === type;
+              const selectedFg = getButtonForegroundColor('primary', colors, isDark);
               const label = type === 'task' ? 'Task' : type === 'bill' ? 'Bill' : 'Reminder';
               const icon = type === 'task' ? 'checklist' : type === 'bill' ? 'payments' : 'notifications';
 
@@ -138,28 +161,20 @@ export function DocumentEntityConversionModal({
                   style={[
                     styles.typeBtn,
                     {
-                      backgroundColor: isSelected
-                        ? colors.primary
-                        : isDark
-                        ? '#26383E'
-                        : colors.backgroundElement,
-                      borderColor: isSelected
-                        ? colors.primary
-                        : isDark
-                        ? '#354E57'
-                        : colors.border,
+                      backgroundColor: isSelected ? colors.primary : colors.surfaceSecondary,
+                      borderColor: isSelected ? colors.primary : colors.border,
                     },
                   ]}
                 >
                   <SymbolView
                     name={{ ios: icon as any, android: icon as any }}
                     size={16}
-                    tintColor={isSelected ? '#FFFFFF' : colors.text}
+                    tintColor={isSelected ? selectedFg : colors.text}
                   />
                   <ThemedText
                     style={[
                       styles.typeBtnText,
-                      { color: isSelected ? '#FFFFFF' : colors.text },
+                      { color: isSelected ? selectedFg : colors.text },
                     ]}
                   >
                     {label}
@@ -218,30 +233,24 @@ export function DocumentEntityConversionModal({
             <View style={styles.priorityRow}>
               {(['low', 'medium', 'high', 'urgent'] as const).map((p) => {
                 const isSelected = priority === p;
+                const selectedFg = getButtonForegroundColor('primary', colors, isDark);
                 return (
                   <Pressable
                     key={p}
                     onPress={() => setPriority(p)}
+                    hitSlop={6}
                     style={[
                       styles.priorityPill,
                       {
-                        backgroundColor: isSelected
-                          ? colors.primary
-                          : isDark
-                          ? '#26383E'
-                          : colors.backgroundElement,
-                        borderColor: isSelected
-                          ? colors.primary
-                          : isDark
-                          ? '#354E57'
-                          : colors.border,
+                        backgroundColor: isSelected ? colors.primary : colors.surfaceSecondary,
+                        borderColor: isSelected ? colors.primary : colors.border,
                       },
                     ]}
                   >
                     <ThemedText
                       style={[
                         styles.priorityPillText,
-                        { color: isSelected ? '#FFFFFF' : colors.textSecondary },
+                        { color: isSelected ? selectedFg : colors.textSecondary },
                       ]}
                     >
                       {p.toUpperCase()}

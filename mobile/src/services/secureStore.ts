@@ -163,7 +163,6 @@ export const secureStorage = {
   },
 
   /**
-<<<<<<< HEAD
    * Deletes custom preference/state data by key.
    */
   async removeCustomData(key: string): Promise<void> {
@@ -181,8 +180,6 @@ export const secureStorage = {
   },
 
   /**
-=======
->>>>>>> origin/main
    * Checks whether onboarding is marked completed for a specific user ID.
    */
   async isOnboardingCompleted(userId: string): Promise<boolean> {

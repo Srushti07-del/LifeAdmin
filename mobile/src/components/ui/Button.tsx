@@ -12,11 +12,30 @@ import {
 } from 'react-native';
 
 import { Radius } from '@/constants/spacing';
+import { ThemeColors } from '@/constants/colors';
 import { Typography } from '@/constants/typography';
 import { useIsDark, useTheme } from '@/hooks/use-theme';
 
 export type ButtonVariant = 'primary' | 'secondary' | 'outline' | 'ghost' | 'danger';
 export type ButtonSize = 'sm' | 'md' | 'lg';
+
+/** Returns high-contrast foreground color for button text and icons. */
+export function getButtonForegroundColor(
+  variant: ButtonVariant,
+  colors: ThemeColors,
+  isDark: boolean
+): string {
+  switch (variant) {
+    case 'primary':
+      return isDark ? colors.surfaceSecondary : '#FFFFFF';
+    case 'danger':
+      return '#FFFFFF';
+    case 'ghost':
+      return colors.textSecondary;
+    default:
+      return colors.text;
+  }
+}
 
 export interface ButtonProps extends Omit<PressableProps, 'style'> {
   variant?: ButtonVariant;
@@ -77,23 +96,20 @@ export const Button = React.forwardRef<React.ComponentRef<typeof Pressable>, But
     const currentSize = sizeStyles[size];
 
     const getVariantColors = (pressed: boolean) => {
+      const fg = getButtonForegroundColor(variant, colors, isDark);
       switch (variant) {
         case 'primary': {
-          const bg = isDark
-            ? pressed ? colors.primaryDeep : colors.primary
-            : pressed ? colors.primaryDeep : colors.primary;
-          const text = isDark ? colors.surfaceSecondary : '#FFFFFF';
+          const bg = pressed ? colors.primaryDeep : colors.primary;
           return {
             container: {
               backgroundColor: bg,
               borderWidth: 0,
             },
             text: {
-              color: text,
+              color: fg,
               fontFamily: Typography.fontFamilies.sansSemiBold,
-              fontWeight: '600' as const,
             },
-            spinnerColor: text,
+            spinnerColor: fg,
           };
         }
         case 'secondary': {
@@ -107,17 +123,14 @@ export const Button = React.forwardRef<React.ComponentRef<typeof Pressable>, But
               borderColor: colors.border,
             },
             text: {
-              color: colors.text,
+              color: fg,
               fontFamily: Typography.fontFamilies.sansMedium,
-              fontWeight: '500' as const,
             },
-            spinnerColor: colors.text,
+            spinnerColor: fg,
           };
         }
         case 'outline': {
-          const bg = pressed
-            ? isDark ? colors.surfaceSecondary : colors.surfaceSecondary
-            : 'transparent';
+          const bg = pressed ? colors.surfaceSecondary : 'transparent';
           return {
             container: {
               backgroundColor: bg,
@@ -125,26 +138,22 @@ export const Button = React.forwardRef<React.ComponentRef<typeof Pressable>, But
               borderColor: colors.border,
             },
             text: {
-              color: colors.text,
+              color: fg,
               fontFamily: Typography.fontFamilies.sansMedium,
-              fontWeight: '500' as const,
             },
-            spinnerColor: colors.text,
+            spinnerColor: fg,
           };
         }
         case 'ghost': {
-          const bg = pressed
-            ? isDark ? colors.surfaceSecondary : colors.surfaceSecondary
-            : 'transparent';
+          const bg = pressed ? colors.surfaceSecondary : 'transparent';
           return {
             container: {
               backgroundColor: bg,
               borderWidth: 0,
             },
             text: {
-              color: isDark ? colors.textSecondary : colors.textSecondary,
+              color: fg,
               fontFamily: Typography.fontFamilies.sansMedium,
-              fontWeight: '500' as const,
             },
             spinnerColor: colors.text,
           };
@@ -157,21 +166,28 @@ export const Button = React.forwardRef<React.ComponentRef<typeof Pressable>, But
               borderWidth: 0,
             },
             text: {
-              color: '#FFFFFF',
+              color: fg,
               fontFamily: Typography.fontFamilies.sansSemiBold,
-              fontWeight: '600' as const,
             },
-            spinnerColor: '#FFFFFF',
+            spinnerColor: fg,
           };
         }
       }
     };
+
+    const touchHitSlop =
+      size === 'sm'
+        ? { top: 8, bottom: 8, left: 6, right: 6 }
+        : size === 'md'
+          ? { top: 4, bottom: 4, left: 4, right: 4 }
+          : undefined;
 
     return (
       <Pressable
         ref={ref}
         disabled={isDisabled}
         onPress={onPress}
+        hitSlop={touchHitSlop}
         accessibilityRole="button"
         accessibilityState={{ disabled: isDisabled, busy: loading }}
         style={({ pressed }) => {

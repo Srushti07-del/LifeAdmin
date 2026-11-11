@@ -27,12 +27,12 @@ describe('Dashboard Layout Presets & Widget Definitions', () => {
     const ids = DEFAULT_WIDGETS.map((w) => w.id);
     assert.deepEqual(ids, [
       'needs_attention',
-      'lifebuddy',
       'ai_briefing',
       'tasks',
       'bills',
       'schedule',
       'reminders',
+      'lifebuddy',
     ]);
     assert.equal(DEFAULT_WIDGETS.every((w) => w.visible === true), true);
   });
@@ -40,12 +40,12 @@ describe('Dashboard Layout Presets & Widget Definitions', () => {
   it('defines Standard, Focus, and Finance presets covering all 7 widgets', () => {
     assert.deepEqual(DASHBOARD_PRESETS.standard.order, [
       'needs_attention',
-      'lifebuddy',
       'ai_briefing',
       'tasks',
       'bills',
       'schedule',
       'reminders',
+      'lifebuddy',
     ]);
     assert.deepEqual(DASHBOARD_PRESETS.focus.order, [
       'needs_attention',

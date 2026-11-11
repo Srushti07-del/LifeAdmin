@@ -11,6 +11,7 @@ import { ThemedText } from '@/components/themed-text';
 import { Colors } from '@/constants/colors';
 import { Typography } from '@/constants/typography';
 import { Spacing, Radius } from '@/constants/spacing';
+import { createShadow } from '@/constants/shadows';
 import {
   CurrencyCode,
   convertAmountTo,
@@ -91,6 +92,7 @@ export function DashboardBillsWidget({
             backgroundColor: colors.surface,
             borderColor: colors.border,
           },
+          createShadow(isDark, 'card'),
         ]}
       >
         <View style={[styles.headerRow, { borderBottomColor: colors.borderSubtle }]}>
@@ -108,7 +110,7 @@ export function DashboardBillsWidget({
               <SymbolView
                 name={{ ios: 'creditcard.fill', android: 'receipt_long', web: 'receipt_long' }}
                 size={18}
-                tintColor="#059669"
+                tintColor={isDark ? '#34D399' : '#059669'}
               />
             </View>
             <View>
@@ -162,7 +164,9 @@ export function DashboardBillsWidget({
                         styles.rowMeta,
                         {
                           color: bill.isUrgent
-                            ? Colors.urgency.critical.accent
+                            ? isDark
+                              ? Colors.urgency.critical.darkText
+                              : Colors.urgency.critical.lightText
                             : colors.textSecondary,
                         },
                       ]}
@@ -181,7 +185,7 @@ export function DashboardBillsWidget({
                         hitSlop={6}
                         style={[
                           styles.payPill,
-                          { backgroundColor: isDark ? '#143440' : '#E0F2F1' },
+                          { backgroundColor: colors.primarySoft },
                         ]}
                         accessibilityRole="button"
                         accessibilityLabel={`Mark bill ${bill.title} paid`}
@@ -211,25 +215,20 @@ export function DashboardBillsWidget({
 const styles = StyleSheet.create({
   wrapper: {
     paddingHorizontal: Spacing.four,
-    marginBottom: Spacing.five,
+    marginBottom: Spacing.four,
   },
   card: {
     borderRadius: Radius['2xl'],
     borderWidth: 1,
-    padding: Spacing.four,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.04,
-    shadowRadius: 6,
-    elevation: 2,
+    padding: Spacing.three + 2,
   },
   headerRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingBottom: Spacing.three,
+    paddingBottom: Spacing.two + 2,
     borderBottomWidth: StyleSheet.hairlineWidth,
-    marginBottom: Spacing.three,
+    marginBottom: Spacing.two + 2,
   },
   headerLeft: {
     flexDirection: 'row',
@@ -264,7 +263,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: Spacing.three,
-    paddingVertical: Spacing.two + 2,
+    paddingVertical: Spacing.two,
     borderRadius: Radius.lg,
     borderWidth: StyleSheet.hairlineWidth,
     gap: Spacing.two,
@@ -290,6 +289,7 @@ const styles = StyleSheet.create({
   amountText: {
     fontFamily: Typography.fontFamilies.sansBold,
     fontSize: Typography.fontSize.sm,
+    fontVariant: ['tabular-nums'],
   },
   payPill: {
     paddingHorizontal: Spacing.two + 2,
@@ -301,8 +301,7 @@ const styles = StyleSheet.create({
     fontSize: Typography.fontSize.micro,
   },
   emptyBox: {
-    alignItems: 'center',
-    paddingVertical: Spacing.three,
+    paddingVertical: Spacing.one,
   },
   emptyText: {
     fontFamily: Typography.fontFamilies.sans,

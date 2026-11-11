@@ -20,6 +20,7 @@ import { Typography } from '@/constants/typography';
 import { Spacing, Radius } from '@/constants/spacing';
 import { CalendarEventItem, EventFormData } from '../types';
 import { toLocalISODate } from '../services/calendarCalculations';
+import { EventDatePickerField } from './EventDatePickerField';
 
 const CATEGORIES = ['Personal', 'Work/Study', 'Health', 'Household', 'Finance'];
 
@@ -167,13 +168,12 @@ export function EventFormModal({
           error={errors.title}
         />
 
-        {/* Date Input with Quick Presets */}
+        {/* Date Picker with Quick Presets */}
         <View style={styles.fieldWrapper}>
-          <Input
-            label="Start Date (YYYY-MM-DD)"
-            placeholder="YYYY-MM-DD"
+          <EventDatePickerField
+            label="Start Date *"
             value={formData.startDate}
-            onChangeText={(val) => {
+            onChange={(val) => {
               setFormData((prev) => ({ ...prev, startDate: val }));
               if (errors.startDate) setErrors((prev) => ({ ...prev, startDate: undefined }));
             }}
@@ -190,11 +190,7 @@ export function EventFormModal({
                 onPress={() => handleQuickDatePreset(p.days)}
                 style={[
                   styles.presetChip,
-                  {
-                    backgroundColor: isDark
-                      ? 'rgba(255, 255, 255, 0.05)'
-                      : '#F1F5F9',
-                  },
+                  { backgroundColor: colors.surfaceSecondary },
                 ]}
               >
                 <ThemedText style={[styles.presetText, { color: colors.primary }]}>
@@ -210,7 +206,7 @@ export function EventFormModal({
           style={[
             styles.switchRow,
             {
-              backgroundColor: isDark ? 'rgba(255, 255, 255, 0.03)' : '#F8FAFC',
+              backgroundColor: colors.surfaceSecondary,
               borderColor: colors.border,
             },
           ]}
@@ -281,13 +277,9 @@ export function EventFormModal({
                     styles.categoryChip,
                     {
                       backgroundColor: isSelected
-                        ? isDark
-                          ? 'rgba(22, 143, 145, 0.25)'
-                          : '#D3EAE7'
-                        : isDark
-                        ? 'rgba(255, 255, 255, 0.05)'
-                        : '#F1F5F9',
-                      borderColor: isSelected ? colors.primary : 'transparent',
+                        ? colors.primarySoft
+                        : colors.surfaceSecondary,
+                      borderColor: isSelected ? colors.primary : colors.borderSubtle,
                     },
                   ]}
                 >
@@ -296,9 +288,9 @@ export function EventFormModal({
                       styles.categoryChipText,
                       {
                         color: isSelected ? colors.primary : colors.textSecondary,
-                        fontWeight: isSelected
-                          ? Typography.fontWeight.semibold
-                          : Typography.fontWeight.normal,
+                        fontFamily: isSelected
+                          ? Typography.fontFamilies.sansSemiBold
+                          : Typography.fontFamilies.sans,
                       },
                     ]}
                   >

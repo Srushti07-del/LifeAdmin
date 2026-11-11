@@ -12,6 +12,12 @@ import {
   CalendarViewType,
 } from '../types';
 
+const SHORT_WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+const SHORT_MONTHS = [
+  'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+  'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+];
+
 /**
  * Returns YYYY-MM-DD in local device time
  */
@@ -20,6 +26,63 @@ export function toLocalISODate(date: Date): string {
   const m = String(date.getMonth() + 1).padStart(2, '0');
   const d = String(date.getDate()).padStart(2, '0');
   return `${y}-${m}-${d}`;
+}
+
+/**
+ * Strictly parses a YYYY-MM-DD string into a local-midnight Date.
+ * Returns null for malformed strings or invalid calendar dates (e.g. Feb 31).
+ */
+export function parseLocalISODate(isoDate?: string | null): Date | null {
+  if (!isoDate || typeof isoDate !== 'string') return null;
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(isoDate.trim());
+  if (!match) return null;
+
+  const year = Number(match[1]);
+  const month = Number(match[2]);
+  const day = Number(match[3]);
+  const candidate = new Date(year, month - 1, day);
+
+  if (
+    Number.isNaN(candidate.getTime()) ||
+    candidate.getFullYear() !== year ||
+    candidate.getMonth() !== month - 1 ||
+    candidate.getDate() !== day
+  ) {
+    return null;
+  }
+
+  return candidate;
+}
+
+/**
+ * Formats a YYYY-MM-DD date into a readable label (e.g. 'Sun, Nov 15, 2026').
+ */
+export function formatDisplayDate(
+  isoDate?: string | null,
+  fallback = 'Select a date'
+): string {
+  const parsed = parseLocalISODate(isoDate);
+  if (!parsed) return fallback;
+  return `${SHORT_WEEKDAYS[parsed.getDay()]}, ${SHORT_MONTHS[parsed.getMonth()]} ${parsed.getDate()}, ${parsed.getFullYear()}`;
+}
+
+/**
+ * Resolves a date-picker interaction into YYYY-MM-DD, preserving currentIsoDate
+ * on cancellation or invalid dates.
+ */
+export function resolveDatePickerSelection(
+  currentIsoDate: string,
+  pickedDate?: Date | null,
+  cancelled = false
+): string {
+  if (
+    cancelled ||
+    !(pickedDate instanceof Date) ||
+    Number.isNaN(pickedDate.getTime())
+  ) {
+    return currentIsoDate;
+  }
+  return toLocalISODate(pickedDate);
 }
 
 /**

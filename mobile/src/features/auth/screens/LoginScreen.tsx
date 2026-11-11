@@ -20,6 +20,7 @@ import { SymbolView } from 'expo-symbols';
 import { useAppTheme } from '@/context/ThemeContext';
 import { useAuth } from '@/context/AuthContext';
 import { ThemedText } from '@/components/themed-text';
+import { getButtonForegroundColor } from '@/components/ui/Button';
 import { Typography } from '@/constants/typography';
 import { Spacing, Radius } from '@/constants/spacing';
 import { ForgotPasswordModal } from '../components/ForgotPasswordModal';
@@ -93,7 +94,7 @@ export function LoginScreen({
       style={[styles.container, { backgroundColor: colors.background }]}
     >
       <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={styles.keyboardView}
       >
         <ScrollView
@@ -112,7 +113,14 @@ export function LoginScreen({
                 },
               ]}
             >
-              <ThemedText style={styles.brandLetter}>L</ThemedText>
+              <ThemedText
+                style={[
+                  styles.brandLetter,
+                  { color: getButtonForegroundColor('primary', colors, isDark) },
+                ]}
+              >
+                L
+              </ThemedText>
             </View>
 
             <ThemedText style={[styles.title, { color: colors.text }]}>
@@ -297,14 +305,24 @@ export function LoginScreen({
               ]}
             >
               {isAuthenticating && !isGuestLoading ? (
-                <ActivityIndicator color="#FFFFFF" size="small" />
+                <ActivityIndicator
+                  color={getButtonForegroundColor('primary', colors, isDark)}
+                  size="small"
+                />
               ) : (
                 <View style={styles.submitBtnContent}>
-                  <ThemedText style={styles.submitBtnText}>Sign In</ThemedText>
+                  <ThemedText
+                    style={[
+                      styles.submitBtnText,
+                      { color: getButtonForegroundColor('primary', colors, isDark) },
+                    ]}
+                  >
+                    Sign In
+                  </ThemedText>
                   <SymbolView
                     name={{ ios: 'arrow.right', android: 'arrow_forward', web: 'arrow_forward' } as any}
                     size={16}
-                    tintColor="#FFFFFF"
+                    tintColor={getButtonForegroundColor('primary', colors, isDark)}
                   />
                 </View>
               )}
@@ -428,15 +446,12 @@ const styles = StyleSheet.create({
     elevation: 4,
   },
   brandLetter: {
-    color: '#FFFFFF',
     fontSize: 26,
-    fontWeight: '800',
     fontFamily: Typography.fontFamilies.editorial,
   },
   title: {
     fontSize: Typography.fontSize['2xl'],
     fontFamily: Typography.fontFamilies.editorial,
-    fontWeight: Typography.fontWeight.bold,
     textAlign: 'center',
     marginBottom: Spacing.one,
   },
@@ -522,9 +537,8 @@ const styles = StyleSheet.create({
     gap: Spacing.two,
   },
   submitBtnText: {
-    color: '#FFFFFF',
+    fontFamily: Typography.fontFamilies.sansBold,
     fontSize: Typography.fontSize.base,
-    fontWeight: Typography.fontWeight.bold,
   },
   dividerRow: {
     flexDirection: 'row',

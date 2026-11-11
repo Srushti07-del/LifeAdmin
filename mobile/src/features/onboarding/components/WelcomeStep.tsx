@@ -8,7 +8,7 @@ import { View, StyleSheet, ScrollView } from 'react-native';
 import { SymbolView } from 'expo-symbols';
 import { useAppTheme } from '@/context/ThemeContext';
 import { ThemedText } from '@/components/themed-text';
-import { Button } from '@/components/ui';
+import { Button, getButtonForegroundColor } from '@/components/ui';
 import { Typography } from '@/constants/typography';
 import { Spacing, Radius } from '@/constants/spacing';
 
@@ -157,7 +157,7 @@ export function WelcomeStep({ onNext }: WelcomeStepProps) {
             <SymbolView
               name={{ ios: 'arrow.right', android: 'arrow_forward', web: 'arrow_forward' } as any}
               size={18}
-              tintColor="#FFFFFF"
+              tintColor={getButtonForegroundColor('primary', colors, isDark)}
             />
           }
         >

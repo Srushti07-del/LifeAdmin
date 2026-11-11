@@ -8,8 +8,10 @@ import { View, StyleSheet, Pressable } from 'react-native';
 import { SymbolView } from 'expo-symbols';
 import { useAppTheme } from '@/context/ThemeContext';
 import { ThemedText } from '@/components/themed-text';
+import { Colors } from '@/constants/colors';
 import { Typography } from '@/constants/typography';
 import { Spacing, Radius } from '@/constants/spacing';
+import { createShadow } from '@/constants/shadows';
 import { DocumentItem } from '../types';
 import {
   formatFileSize,
@@ -45,8 +47,21 @@ export function DocumentCard({
 
   const statusInfo = getExtractionStatusInfo(
     document.aiExtractionStatus,
-    document.aiProcessed
+    document.aiProcessed,
+    isDark
   );
+
+  const isFailed = document.aiExtractionStatus === 'failed';
+  const isProcessing = document.aiExtractionStatus === 'processing';
+
+  const ext = document.originalName?.split('.').pop()?.toUpperCase();
+  const fileBadgeLabel = isPdf
+    ? 'PDF'
+    : isImage
+    ? 'IMG'
+    : ext && ext.length <= 4
+    ? ext
+    : 'DOC';
 
   const hasExtractedDates = (document.aiExtracted?.importantDates?.length || 0) > 0;
   const hasExtractedAmounts = (document.aiExtracted?.amounts?.length || 0) > 0;
@@ -55,16 +70,30 @@ export function DocumentCard({
   const firstDate = document.aiExtracted?.importantDates?.[0];
   const firstAmount = document.aiExtracted?.amounts?.[0];
 
+  const dateColor = isDark ? Colors.urgency.completed.darkText : Colors.urgency.completed.lightText;
+  const dateBg = isDark ? Colors.urgency.completed.darkBg : Colors.urgency.completed.lightBg;
+  const amountColor = isDark ? Colors.urgency.dueSoon.darkText : Colors.urgency.dueSoon.lightText;
+  const amountBg = isDark ? Colors.urgency.dueSoon.darkBg : Colors.urgency.dueSoon.lightBg;
+  const pdfColor = isDark ? Colors.urgency.critical.darkText : Colors.urgency.critical.accent;
+  const pdfBg = isDark ? Colors.urgency.critical.darkBg : Colors.urgency.critical.lightBg;
+  const imgColor = isDark ? '#93C5FD' : '#2563EB';
+  const imgBg = isDark ? 'rgba(59, 130, 246, 0.2)' : '#DBEAFE';
+
   return (
     <Pressable
       onPress={onPress}
       style={({ pressed }) => [
         styles.cardContainer,
         {
-          backgroundColor: isDark ? '#1C292D' : colors.surface,
-          borderColor: isDark ? '#304247' : colors.border,
+          backgroundColor: colors.surface,
+          borderColor: isFailed
+            ? Colors.urgency.critical.accent
+            : isProcessing
+            ? Colors.urgency.dueSoon.accent
+            : colors.border,
           opacity: pressed ? 0.94 : 1,
         },
+        createShadow(isDark, 'card'),
       ]}
     >
       {/* Top Header: File Icon, Name, Category & Action menu */}
@@ -73,17 +102,7 @@ export function DocumentCard({
           style={[
             styles.fileIconBox,
             {
-              backgroundColor: isPdf
-                ? isDark
-                  ? 'rgba(239, 68, 68, 0.15)'
-                  : '#FEE2E2'
-                : isImage
-                ? isDark
-                  ? 'rgba(59, 130, 246, 0.15)'
-                  : '#DBEAFE'
-                : isDark
-                ? 'rgba(85, 189, 181, 0.15)'
-                : 'rgba(13, 110, 110, 0.1)',
+              backgroundColor: isPdf ? pdfBg : isImage ? imgBg : colors.primarySoft,
             },
           ]}
         >
@@ -92,9 +111,17 @@ export function DocumentCard({
               ios: isPdf ? 'doc.text.fill' : isImage ? 'photo.fill' : 'doc.fill',
               android: isPdf ? 'description' : isImage ? 'image' : 'insert_drive_file',
             }}
-            size={22}
-            tintColor={isPdf ? '#EF4444' : isImage ? '#3B82F6' : colors.primary}
+            size={20}
+            tintColor={isPdf ? pdfColor : isImage ? imgColor : colors.primary}
           />
+          <ThemedText
+            style={[
+              styles.fileExtLabel,
+              { color: isPdf ? pdfColor : isImage ? imgColor : colors.primary },
+            ]}
+          >
+            {fileBadgeLabel}
+          </ThemedText>
         </View>
 
         <View style={styles.nameContainer}>
@@ -110,7 +137,7 @@ export function DocumentCard({
               <View
                 style={[
                   styles.typeChip,
-                  { backgroundColor: isDark ? '#26383E' : colors.backgroundElement },
+                  { backgroundColor: colors.surfaceSecondary },
                 ]}
               >
                 <ThemedText
@@ -124,7 +151,7 @@ export function DocumentCard({
             <View
               style={[
                 styles.categoryChip,
-                { backgroundColor: isDark ? 'rgba(85, 189, 181, 0.15)' : 'rgba(13, 110, 110, 0.08)' },
+                { backgroundColor: colors.primarySoft },
               ]}
             >
               <ThemedText style={[styles.categoryChipText, { color: colors.primary }]}>
@@ -138,7 +165,11 @@ export function DocumentCard({
         <View
           style={[
             styles.statusBadge,
-            { backgroundColor: isDark ? 'rgba(0,0,0,0.3)' : statusInfo.bg },
+            {
+              backgroundColor: statusInfo.bg,
+              borderColor: isFailed || isProcessing ? statusInfo.color : 'transparent',
+              borderWidth: isFailed || isProcessing ? 1 : 0,
+            },
           ]}
         >
           <ThemedText style={[styles.statusText, { color: statusInfo.color }]}>
@@ -153,8 +184,8 @@ export function DocumentCard({
           style={[
             styles.summaryBox,
             {
-              backgroundColor: isDark ? '#213035' : '#F8FAFC',
-              borderColor: isDark ? '#2E434A' : '#E2E8F0',
+              backgroundColor: colors.surfaceSecondary,
+              borderColor: colors.borderSubtle,
             },
           ]}
         >
@@ -186,15 +217,15 @@ export function DocumentCard({
             <View
               style={[
                 styles.extractedPill,
-                { backgroundColor: isDark ? '#26383E' : '#F0FDF4' },
+                { backgroundColor: dateBg },
               ]}
             >
               <SymbolView
                 name={{ ios: 'calendar', android: 'calendar_today' }}
                 size={12}
-                tintColor="#16A34A"
+                tintColor={dateColor}
               />
-              <ThemedText style={[styles.extractedPillText, { color: '#16A34A' }]}>
+              <ThemedText style={[styles.extractedPillText, { color: dateColor }]}>
                 {firstDate.label || 'Date'}: {formatDocumentDate(firstDate.date)}
               </ThemedText>
             </View>
@@ -204,16 +235,16 @@ export function DocumentCard({
             <View
               style={[
                 styles.extractedPill,
-                { backgroundColor: isDark ? '#26383E' : '#FEF3C7' },
+                { backgroundColor: amountBg },
               ]}
             >
               <SymbolView
                 name={{ ios: 'creditcard', android: 'payments' }}
                 size={12}
-                tintColor="#D97706"
+                tintColor={amountColor}
               />
-              <ThemedText style={[styles.extractedPillText, { color: '#D97706' }]}>
-                {firstAmount.label || 'Amount'}: ₹{firstAmount.amount.toLocaleString()}
+              <ThemedText style={[styles.extractedPillText, { color: amountColor }]}>
+                {firstAmount.label || 'Amount'}: ₹{firstAmount.amount.toLocaleString('en-IN')}
               </ThemedText>
             </View>
           )}
@@ -224,7 +255,7 @@ export function DocumentCard({
       <View
         style={[
           styles.footerRow,
-          { borderTopColor: isDark ? '#304247' : colors.border },
+          { borderTopColor: colors.borderSubtle },
         ]}
       >
         <ThemedText style={[styles.dateText, { color: colors.textSecondary }]}>
@@ -241,7 +272,7 @@ export function DocumentCard({
             hitSlop={8}
             style={[
               styles.iconBtn,
-              { backgroundColor: isDark ? '#26383E' : colors.backgroundElement },
+              { backgroundColor: colors.surfaceSecondary },
             ]}
           >
             <SymbolView
@@ -261,7 +292,7 @@ export function DocumentCard({
               hitSlop={8}
               style={[
                 styles.iconBtn,
-                { backgroundColor: isDark ? '#26383E' : 'rgba(13, 110, 110, 0.1)' },
+                { backgroundColor: colors.primarySoft },
               ]}
             >
               <SymbolView
@@ -281,7 +312,7 @@ export function DocumentCard({
             hitSlop={8}
             style={[
               styles.iconBtn,
-              { backgroundColor: isDark ? '#26383E' : colors.backgroundElement },
+              { backgroundColor: colors.surfaceSecondary },
             ]}
           >
             <SymbolView
@@ -300,13 +331,13 @@ export function DocumentCard({
             hitSlop={8}
             style={[
               styles.iconBtn,
-              { backgroundColor: isDark ? '#26383E' : colors.backgroundElement },
+              { backgroundColor: colors.surfaceSecondary },
             ]}
           >
             <SymbolView
               name={{ ios: 'trash', android: 'delete' }}
               size={16}
-              tintColor="#EF4444"
+              tintColor={Colors.urgency.critical.accent}
             />
           </Pressable>
         </View>
@@ -321,11 +352,6 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     padding: Spacing.four,
     marginBottom: Spacing.four,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.04,
-    shadowRadius: 6,
-    elevation: 2,
   },
   topRow: {
     flexDirection: 'row',
@@ -338,6 +364,12 @@ const styles = StyleSheet.create({
     borderRadius: Radius.md,
     alignItems: 'center',
     justifyContent: 'center',
+    gap: 1,
+  },
+  fileExtLabel: {
+    fontSize: 9,
+    fontFamily: Typography.fontFamilies.sansBold,
+    letterSpacing: 0.4,
   },
   nameContainer: {
     flex: 1,
@@ -420,6 +452,7 @@ const styles = StyleSheet.create({
   extractedPillText: {
     fontSize: 11,
     fontFamily: Typography.fontFamilies.sansMedium,
+    fontVariant: ['tabular-nums'],
   },
   footerRow: {
     flexDirection: 'row',
@@ -432,6 +465,7 @@ const styles = StyleSheet.create({
   dateText: {
     fontSize: Typography.fontSize.xs,
     fontFamily: Typography.fontFamilies.sans,
+    fontVariant: ['tabular-nums'],
   },
   actionButtons: {
     flexDirection: 'row',
@@ -439,8 +473,8 @@ const styles = StyleSheet.create({
     gap: Spacing.one,
   },
   iconBtn: {
-    width: 32,
-    height: 32,
+    width: 34,
+    height: 34,
     borderRadius: Radius.md,
     alignItems: 'center',
     justifyContent: 'center',

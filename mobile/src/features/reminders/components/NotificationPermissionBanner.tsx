@@ -9,6 +9,8 @@ import { View, StyleSheet, Pressable } from 'react-native';
 import { SymbolView } from 'expo-symbols';
 import { useAppTheme } from '@/context/ThemeContext';
 import { ThemedText } from '@/components/themed-text';
+import { getButtonForegroundColor } from '@/components/ui';
+import { Colors } from '@/constants/colors';
 import { Typography } from '@/constants/typography';
 import { Spacing, Radius } from '@/constants/spacing';
 import { PermissionBannerType } from '../types';
@@ -42,16 +44,25 @@ export function NotificationPermissionBanner({
     : { ios: 'bell.badge.fill', android: 'notification_important' as any };
 
   const iconTint = isExactAlarm
-    ? isDark ? '#FBBF24' : '#D97706'
+    ? isDark
+      ? Colors.urgency.dueSoon.darkText
+      : Colors.urgency.dueSoon.lightText
     : colors.primary;
 
   const bannerBg = isExactAlarm
-    ? isDark ? '#2E2818' : '#FEF3C7'
-    : isDark ? '#26383E' : '#E8F2F0';
+    ? isDark
+      ? Colors.urgency.dueSoon.darkBg
+      : Colors.urgency.dueSoon.lightBg
+    : colors.surfaceSecondary;
 
   const bannerBorder = isExactAlarm
-    ? isDark ? '#594318' : '#FDE68A'
-    : isDark ? '#354E57' : colors.primarySoft;
+    ? Colors.urgency.dueSoon.accent
+    : colors.border;
+
+  const enableBg = isExactAlarm ? Colors.urgency.dueSoon.accent : colors.primary;
+  const enableFg = isExactAlarm
+    ? '#FFFFFF'
+    : getButtonForegroundColor('primary', colors, isDark);
 
   return (
     <View
@@ -63,7 +74,16 @@ export function NotificationPermissionBanner({
         },
       ]}
     >
-      <View style={[styles.iconBox, { backgroundColor: isExactAlarm ? 'rgba(217, 119, 6, 0.12)' : 'rgba(13, 110, 110, 0.1)' }]}>
+      <View
+        style={[
+          styles.iconBox,
+          {
+            backgroundColor: isExactAlarm
+              ? 'rgba(245, 158, 11, 0.16)'
+              : colors.primarySoft,
+          },
+        ]}
+      >
         <SymbolView
           name={iconName as any}
           size={20}
@@ -83,9 +103,12 @@ export function NotificationPermissionBanner({
       <View style={styles.actions}>
         <Pressable
           onPress={onEnable}
-          style={[styles.enableBtn, { backgroundColor: isExactAlarm ? (isDark ? '#D97706' : '#B45309') : colors.primary }]}
+          hitSlop={6}
+          style={[styles.enableBtn, { backgroundColor: enableBg }]}
         >
-          <ThemedText style={styles.enableBtnText}>{buttonText}</ThemedText>
+          <ThemedText style={[styles.enableBtnText, { color: enableFg }]}>
+            {buttonText}
+          </ThemedText>
         </Pressable>
 
         <Pressable onPress={onDismiss} hitSlop={8} style={styles.closeBtn}>

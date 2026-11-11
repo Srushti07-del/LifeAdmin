@@ -14,6 +14,8 @@ import { SymbolView } from 'expo-symbols';
 import { useAppTheme } from '@/context/ThemeContext';
 import { ThemedText } from '@/components/themed-text';
 import { Typography } from '@/constants/typography';
+import { Colors } from '@/constants/colors';
+import { createShadow } from '@/constants/shadows';
 import { Spacing, Radius } from '@/constants/spacing';
 import { formatCurrency, CurrencyCode } from '@/utils/currency';
 import { BillTotals } from '../types';
@@ -39,13 +41,14 @@ export function BillSummaryCard({
           backgroundColor: colors.surface,
           borderColor: colors.border,
         },
+        createShadow(isDark, 'card'),
       ]}
     >
       {/* Header: Monthly Overview & Progress */}
       <View style={styles.headerRow}>
         <View style={styles.headerLeft}>
           <ThemedText style={[styles.eyebrow, { color: colors.textSecondary }]}>
-            MONTHLY OBLIGATIONS
+            Monthly Obligations
           </ThemedText>
           <ThemedText style={[styles.monthlyAmount, { color: colors.text }]}>
             {formatCurrency(totals.dueThisMonthAmount, preferredCurrency)}
@@ -56,8 +59,8 @@ export function BillSummaryCard({
           style={[
             styles.progressBadge,
             {
-              backgroundColor: isDark ? 'rgba(22, 143, 145, 0.2)' : '#D3EAE7',
-              borderColor: colors.primary,
+              backgroundColor: colors.primarySoft,
+              borderColor: isDark ? colors.border : colors.primary,
             },
           ]}
         >
@@ -77,7 +80,7 @@ export function BillSummaryCard({
         <View
           style={[
             styles.progressBarTrack,
-            { backgroundColor: isDark ? '#143440' : '#E2E8F0' },
+            { backgroundColor: colors.surfaceSecondary },
           ]}
         >
           <View
@@ -99,13 +102,13 @@ export function BillSummaryCard({
           style={[
             styles.metricTile,
             {
-              backgroundColor: colors.surfaceElevated || colors.background,
-              borderColor: colors.border,
+              backgroundColor: colors.surfaceSecondary,
+              borderColor: colors.borderSubtle,
             },
           ]}
         >
           <View style={styles.metricLabelRow}>
-            <View style={[styles.dot, { backgroundColor: '#10B981' }]} />
+            <View style={[styles.dot, { backgroundColor: Colors.urgency.completed.accent }]} />
             <ThemedText style={[styles.metricLabel, { color: colors.textSecondary }]}>
               Paid
             </ThemedText>
@@ -123,13 +126,13 @@ export function BillSummaryCard({
           style={[
             styles.metricTile,
             {
-              backgroundColor: colors.surfaceElevated || colors.background,
-              borderColor: colors.border,
+              backgroundColor: colors.surfaceSecondary,
+              borderColor: colors.borderSubtle,
             },
           ]}
         >
           <View style={styles.metricLabelRow}>
-            <View style={[styles.dot, { backgroundColor: '#F59E0B' }]} />
+            <View style={[styles.dot, { backgroundColor: Colors.urgency.dueSoon.accent }]} />
             <ThemedText style={[styles.metricLabel, { color: colors.textSecondary }]}>
               Due Soon
             </ThemedText>
@@ -150,25 +153,27 @@ export function BillSummaryCard({
               backgroundColor:
                 totals.overdueCount > 0
                   ? isDark
-                    ? 'rgba(239, 68, 68, 0.15)'
-                    : '#FEF2F2'
-                  : colors.surfaceElevated || colors.background,
+                    ? Colors.urgency.critical.darkBg
+                    : Colors.urgency.critical.lightBg
+                  : colors.surfaceSecondary,
               borderColor:
                 totals.overdueCount > 0
-                  ? colors.notification || '#EF4444'
-                  : colors.border,
+                  ? Colors.urgency.critical.accent
+                  : colors.borderSubtle,
             },
           ]}
         >
           <View style={styles.metricLabelRow}>
-            <View style={[styles.dot, { backgroundColor: '#EF4444' }]} />
+            <View style={[styles.dot, { backgroundColor: Colors.urgency.critical.accent }]} />
             <ThemedText
               style={[
                 styles.metricLabel,
                 {
                   color:
                     totals.overdueCount > 0
-                      ? colors.notification || '#EF4444'
+                      ? isDark
+                        ? Colors.urgency.critical.darkText
+                        : Colors.urgency.critical.lightText
                       : colors.textSecondary,
                 },
               ]}
@@ -182,7 +187,9 @@ export function BillSummaryCard({
               {
                 color:
                   totals.overdueCount > 0
-                    ? colors.notification || '#EF4444'
+                    ? isDark
+                      ? Colors.urgency.critical.darkText
+                      : Colors.urgency.critical.lightText
                     : colors.text,
               },
             ]}
@@ -195,7 +202,9 @@ export function BillSummaryCard({
               {
                 color:
                   totals.overdueCount > 0
-                    ? colors.notification || '#EF4444'
+                    ? isDark
+                      ? Colors.urgency.critical.darkText
+                      : Colors.urgency.critical.lightText
                     : colors.textSecondary,
               },
             ]}
@@ -213,7 +222,6 @@ const styles = StyleSheet.create({
     borderRadius: Radius['2xl'],
     borderWidth: 1,
     padding: Spacing.four,
-    marginBottom: Spacing.four,
   },
   headerRow: {
     flexDirection: 'row',
@@ -224,31 +232,32 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   eyebrow: {
-    fontFamily: Typography.fontFamilies.sansBold,
-    fontSize: Typography.fontSize.micro,
-    letterSpacing: 0.8,
+    fontFamily: Typography.fontFamilies.sansSemiBold,
+    fontSize: Typography.fontSize.xs,
   },
   monthlyAmount: {
     fontFamily: Typography.fontFamilies.editorial,
     fontSize: Typography.fontSize['3xl'],
     marginTop: 2,
+    fontVariant: ['tabular-nums'],
   },
   progressBadge: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    paddingHorizontal: Spacing.two,
-    paddingVertical: 3,
+    paddingHorizontal: Spacing.two + 2,
+    paddingVertical: 4,
     borderRadius: Radius.full,
     borderWidth: 1,
   },
   progressText: {
     fontFamily: Typography.fontFamilies.sansBold,
     fontSize: Typography.fontSize.micro,
+    fontVariant: ['tabular-nums'],
   },
   progressSection: {
     marginTop: Spacing.three,
-    marginBottom: Spacing.four,
+    marginBottom: Spacing.three,
   },
   progressBarTrack: {
     height: 6,
@@ -268,7 +277,7 @@ const styles = StyleSheet.create({
     flex: 1,
     borderRadius: Radius.lg,
     borderWidth: 1,
-    padding: Spacing.two,
+    padding: Spacing.two + 2,
   },
   metricLabelRow: {
     flexDirection: 'row',
@@ -288,6 +297,7 @@ const styles = StyleSheet.create({
   metricValue: {
     fontFamily: Typography.fontFamilies.sansBold,
     fontSize: Typography.fontSize.sm,
+    fontVariant: ['tabular-nums'],
   },
   metricSub: {
     fontFamily: Typography.fontFamilies.sans,

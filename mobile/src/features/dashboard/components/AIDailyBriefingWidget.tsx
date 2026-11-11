@@ -9,8 +9,11 @@ import { View, StyleSheet, Pressable, ActivityIndicator } from 'react-native';
 import { SymbolView } from 'expo-symbols';
 import { useAppTheme } from '@/context/ThemeContext';
 import { ThemedText } from '@/components/themed-text';
+import { getButtonForegroundColor } from '@/components/ui';
+import { Colors } from '@/constants/colors';
 import { Typography } from '@/constants/typography';
 import { Spacing, Radius } from '@/constants/spacing';
+import { createShadow } from '@/constants/shadows';
 import { CurrencyCode, convertAmountTo, formatCurrency } from '@/utils/currency';
 import { formatShortDate } from '@/utils/date';
 import { aiService } from '@/features/ai';
@@ -70,6 +73,13 @@ export function AIDailyBriefingWidget({
     }
   };
 
+  const isAllClear =
+    briefing.pendingResponsibilities.length === 0 &&
+    briefing.billsRequiringAttention.length === 0 &&
+    briefing.upcomingDeadlines.length === 0 &&
+    !overview?.stats?.overdueCount &&
+    !overview?.stats?.dueSoonCount;
+
   return (
     <View style={styles.wrapper}>
       <View
@@ -79,6 +89,7 @@ export function AIDailyBriefingWidget({
             backgroundColor: colors.surface,
             borderColor: colors.border,
           },
+          createShadow(isDark, 'card'),
         ]}
       >
         {/* Header Row */}
@@ -88,9 +99,7 @@ export function AIDailyBriefingWidget({
               style={[
                 styles.iconBox,
                 {
-                  backgroundColor: isDark
-                    ? 'rgba(85, 189, 181, 0.18)'
-                    : '#E0F2F1',
+                  backgroundColor: colors.primarySoft,
                 },
               ]}
             >
@@ -235,24 +244,23 @@ export function AIDailyBriefingWidget({
               </View>
             )}
 
-            {/* Contextual suggestion derived strictly from real counts/items */}
-            <View
-              style={[
-                styles.suggestionBox,
-                {
-                  backgroundColor: isDark
-                    ? 'rgba(22, 143, 145, 0.14)'
-                    : '#F0F9F9',
-                  borderColor: isDark
-                    ? 'rgba(85, 189, 181, 0.25)'
-                    : '#C5DDDE',
-                },
-              ]}
-            >
-              <ThemedText style={[styles.suggestionText, { color: colors.text }]}>
-                {briefing.suggestion}
-              </ThemedText>
-            </View>
+            {/* Contextual suggestion derived strictly from real counts/items.
+                Hidden when everything is clear: the headline and Needs Attention already say so. */}
+            {!isAllClear && (
+              <View
+                style={[
+                  styles.suggestionBox,
+                  {
+                    backgroundColor: colors.surfaceSecondary,
+                    borderColor: colors.border,
+                  },
+                ]}
+              >
+                <ThemedText style={[styles.suggestionText, { color: colors.text }]}>
+                  {briefing.suggestion}
+                </ThemedText>
+              </View>
+            )}
 
             {/* Optional Live AI Summary section (via existing /api/ai/chat endpoint) */}
             {aiLoading && (
@@ -269,19 +277,44 @@ export function AIDailyBriefingWidget({
                 style={[
                   styles.aiErrorBox,
                   {
-                    backgroundColor: isDark ? '#3D2020' : '#FEF2F2',
-                    borderColor: '#EF4444',
+                    backgroundColor: isDark
+                      ? Colors.urgency.critical.darkBg
+                      : Colors.urgency.critical.lightBg,
+                    borderColor: Colors.urgency.critical.accent,
                   },
                 ]}
               >
-                <ThemedText style={styles.aiErrorText}>{aiError}</ThemedText>
+                <ThemedText
+                  style={[
+                    styles.aiErrorText,
+                    {
+                      color: isDark
+                        ? Colors.urgency.critical.darkText
+                        : Colors.urgency.critical.lightText,
+                    },
+                  ]}
+                >
+                  {aiError}
+                </ThemedText>
                 <Pressable
                   onPress={handleFetchAIBriefing}
+                  hitSlop={6}
                   style={styles.retryPill}
                   accessibilityRole="button"
                   accessibilityLabel="Retry AI briefing"
                 >
-                  <ThemedText style={styles.retryPillText}>Retry</ThemedText>
+                  <ThemedText
+                    style={[
+                      styles.retryPillText,
+                      {
+                        color: isDark
+                          ? Colors.urgency.critical.darkText
+                          : Colors.urgency.critical.lightText,
+                      },
+                    ]}
+                  >
+                    Retry
+                  </ThemedText>
                 </Pressable>
               </View>
             )}
@@ -354,9 +387,14 @@ export function AIDailyBriefingWidget({
                 <SymbolView
                   name={{ ios: 'bubble.left.and.bubble.right.fill', android: 'smart_toy', web: 'smart_toy' }}
                   size={13}
-                  tintColor="#FFFFFF"
+                  tintColor={getButtonForegroundColor('primary', colors, isDark)}
                 />
-                <ThemedText style={[styles.actionBtnText, { color: '#FFFFFF' }]}>
+                <ThemedText
+                  style={[
+                    styles.actionBtnText,
+                    { color: getButtonForegroundColor('primary', colors, isDark) },
+                  ]}
+                >
                   Open AI Assistant
                 </ThemedText>
               </Pressable>
@@ -371,25 +409,20 @@ export function AIDailyBriefingWidget({
 const styles = StyleSheet.create({
   wrapper: {
     paddingHorizontal: Spacing.four,
-    marginBottom: Spacing.five,
+    marginBottom: Spacing.four,
   },
   card: {
     borderRadius: Radius['2xl'],
     borderWidth: 1,
-    padding: Spacing.four,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.04,
-    shadowRadius: 6,
-    elevation: 2,
+    padding: Spacing.three + 2,
   },
   headerRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingBottom: Spacing.three,
+    paddingBottom: Spacing.two + 2,
     borderBottomWidth: StyleSheet.hairlineWidth,
-    marginBottom: Spacing.three,
+    marginBottom: Spacing.two + 2,
     gap: Spacing.two,
   },
   headerLeft: {
@@ -440,7 +473,7 @@ const styles = StyleSheet.create({
     fontSize: Typography.fontSize.xs,
   },
   body: {
-    gap: Spacing.three,
+    gap: Spacing.two + 2,
   },
   groupBlock: {
     gap: 6,
@@ -464,7 +497,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: Spacing.three,
-    paddingVertical: Spacing.two,
+    paddingVertical: Spacing.one + 2,
     borderRadius: Radius.md,
     borderWidth: StyleSheet.hairlineWidth,
     gap: Spacing.two,
@@ -482,7 +515,7 @@ const styles = StyleSheet.create({
   suggestionBox: {
     borderRadius: Radius.lg,
     borderWidth: 1,
-    padding: Spacing.three,
+    padding: Spacing.two + 2,
   },
   suggestionText: {
     fontFamily: Typography.fontFamilies.sans,
@@ -512,19 +545,17 @@ const styles = StyleSheet.create({
   aiErrorText: {
     fontFamily: Typography.fontFamilies.sans,
     fontSize: Typography.fontSize.xs,
-    color: '#EF4444',
     flex: 1,
   },
   retryPill: {
     paddingHorizontal: Spacing.three,
     paddingVertical: 4,
     borderRadius: Radius.md,
-    backgroundColor: 'rgba(239, 68, 68, 0.14)',
+    backgroundColor: 'rgba(239, 68, 68, 0.16)',
   },
   retryPillText: {
     fontFamily: Typography.fontFamilies.sansBold,
     fontSize: Typography.fontSize.xs,
-    color: '#EF4444',
   },
   aiReplyCard: {
     borderRadius: Radius.lg,

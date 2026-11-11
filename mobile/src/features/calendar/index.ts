@@ -6,6 +6,9 @@ export * from './types';
 export * from './services/calendarService';
 export {
   toLocalISODate,
+  parseLocalISODate,
+  formatDisplayDate,
+  resolveDatePickerSelection,
   endOfDay,
   addDays,
   startOfWeek,

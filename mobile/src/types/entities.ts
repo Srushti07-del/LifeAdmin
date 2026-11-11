@@ -48,6 +48,7 @@ export interface Task {
   status: TaskStatus;
   priority: Priority;
   dueDate?: string;
+  dueTime?: string;
   category?: string;
   tags?: string[];
   subtasks?: {
@@ -55,6 +56,8 @@ export interface Task {
     title: string;
     completed: boolean;
   }[];
+  completedAt?: string;
+  aiGenerated?: boolean;
   createdAt: string;
   updatedAt: string;
 }

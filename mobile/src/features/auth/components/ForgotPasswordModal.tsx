@@ -13,6 +13,7 @@ import {
 import { SymbolView } from 'expo-symbols';
 import { useAppTheme } from '@/context/ThemeContext';
 import { ThemedText } from '@/components/themed-text';
+import { getButtonForegroundColor } from '@/components/ui/Button';
 import { Typography } from '@/constants/typography';
 import { Spacing, Radius } from '@/constants/spacing';
 
@@ -102,7 +103,12 @@ export function ForgotPasswordModal({
                 pressed && { opacity: 0.85 },
               ]}
             >
-              <ThemedText style={styles.primaryBtnText}>
+              <ThemedText
+                style={[
+                  styles.primaryBtnText,
+                  { color: getButtonForegroundColor('primary', colors, isDark) },
+                ]}
+              >
                 Try Guest Demo Mode
               </ThemedText>
             </Pressable>
@@ -179,7 +185,6 @@ const styles = StyleSheet.create({
   title: {
     fontSize: Typography.fontSize.xl,
     fontFamily: Typography.fontFamilies.editorial,
-    fontWeight: Typography.fontWeight.bold,
     textAlign: 'center',
     marginBottom: Spacing.two,
   },
@@ -213,9 +218,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   primaryBtnText: {
-    color: '#FFFFFF',
+    fontFamily: Typography.fontFamilies.sansBold,
     fontSize: Typography.fontSize.sm,
-    fontWeight: Typography.fontWeight.bold,
   },
   secondaryBtn: {
     width: '100%',

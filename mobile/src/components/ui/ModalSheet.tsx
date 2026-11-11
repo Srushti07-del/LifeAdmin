@@ -6,7 +6,6 @@ import {
   ModalProps,
   Platform,
   Pressable,
-  SafeAreaView,
   ScrollView,
   StyleProp,
   StyleSheet,
@@ -15,7 +14,9 @@ import {
   View,
   ViewStyle,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { createShadow } from '@/constants/shadows';
 import { Radius, Spacing } from '@/constants/spacing';
 import { Typography } from '@/constants/typography';
 import { useIsDark, useTheme } from '@/hooks/use-theme';
@@ -26,6 +27,7 @@ export interface ModalSheetProps extends Omit<ModalProps, 'visible' | 'children'
   title?: string;
   description?: string;
   children: React.ReactNode;
+  footer?: React.ReactNode;
   scrollable?: boolean;
   containerStyle?: StyleProp<ViewStyle>;
   sheetStyle?: StyleProp<ViewStyle>;
@@ -39,6 +41,7 @@ export function ModalSheet({
   title,
   description,
   children,
+  footer,
   scrollable = true,
   containerStyle,
   sheetStyle,
@@ -48,6 +51,8 @@ export function ModalSheet({
 }: ModalSheetProps) {
   const colors = useTheme();
   const isDark = useIsDark();
+  const insets = useSafeAreaInsets();
+  const bottomPad = Math.max(insets.bottom, Spacing.four);
 
   if (!isOpen) return null;
 
@@ -61,7 +66,7 @@ export function ModalSheet({
       {...props}
     >
       <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={styles.keyboardAvoid}
       >
         <View style={styles.overlay}>
@@ -84,6 +89,7 @@ export function ModalSheet({
                 backgroundColor: colors.surface,
                 borderColor: colors.border,
               },
+              createShadow(isDark, 'modal'),
               sheetStyle,
             ]}
           >
@@ -156,15 +162,40 @@ export function ModalSheet({
               <ScrollView
                 showsVerticalScrollIndicator={false}
                 keyboardShouldPersistTaps="handled"
-                contentContainerStyle={[styles.scrollContent, containerStyle]}
+                contentContainerStyle={[
+                  styles.scrollContent,
+                  { paddingBottom: footer ? Spacing.four : bottomPad + Spacing.three },
+                  containerStyle,
+                ]}
               >
                 {children}
               </ScrollView>
             ) : (
-              <View style={[styles.staticContent, containerStyle]}>{children}</View>
+              <View
+                style={[
+                  styles.staticContent,
+                  { paddingBottom: footer ? Spacing.four : bottomPad + Spacing.three },
+                  containerStyle,
+                ]}
+              >
+                {children}
+              </View>
             )}
 
-            <SafeAreaView />
+            {footer ? (
+              <View
+                style={[
+                  styles.footer,
+                  {
+                    borderTopColor: colors.borderSubtle,
+                    backgroundColor: colors.surface,
+                    paddingBottom: bottomPad,
+                  },
+                ]}
+              >
+                {footer}
+              </View>
+            ) : null}
           </View>
         </View>
       </KeyboardAvoidingView>
@@ -193,7 +224,7 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderLeftWidth: 1,
     borderRightWidth: 1,
-    maxHeight: '90%',
+    maxHeight: '92%',
     width: '100%',
     overflow: 'hidden',
   },
@@ -231,8 +262,8 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   closeButton: {
-    width: 32,
-    height: 32,
+    width: 38,
+    height: 38,
     borderRadius: Radius.lg,
     alignItems: 'center',
     justifyContent: 'center',
@@ -241,12 +272,17 @@ const styles = StyleSheet.create({
     opacity: 0.7,
   },
   scrollContent: {
-    padding: Spacing.five,
-    paddingBottom: Spacing.eight,
+    paddingHorizontal: Spacing.five,
+    paddingTop: Spacing.five,
   },
   staticContent: {
-    padding: Spacing.five,
-    paddingBottom: Spacing.eight,
+    paddingHorizontal: Spacing.five,
+    paddingTop: Spacing.five,
+  },
+  footer: {
+    borderTopWidth: 1,
+    paddingHorizontal: Spacing.five,
+    paddingTop: Spacing.three,
   },
 });
 

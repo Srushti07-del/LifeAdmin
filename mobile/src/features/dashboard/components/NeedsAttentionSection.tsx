@@ -12,6 +12,7 @@ import { ThemedText } from '@/components/themed-text';
 import { Colors } from '@/constants/colors';
 import { Typography } from '@/constants/typography';
 import { Spacing, Radius } from '@/constants/spacing';
+import { createShadow } from '@/constants/shadows';
 import { CurrencyCode, convertAmountTo, formatCurrency } from '@/utils/currency';
 import { formatShortDate } from '@/utils/date';
 import { AttentionItem } from '../types';
@@ -69,7 +70,7 @@ export function NeedsAttentionSection({
             Needs Attention
           </ThemedText>
           <View style={[styles.countBadge, { backgroundColor: colors.primarySoft }]}>
-            <ThemedText style={[styles.countBadgeText, { color: colors.primaryDeep }]}>
+            <ThemedText style={[styles.countBadgeText, { color: colors.primary }]}>
               {items.length}
             </ThemedText>
           </View>
@@ -117,19 +118,19 @@ export function NeedsAttentionSection({
                 styles.itemCard,
                 {
                   backgroundColor: colors.surface,
-                  borderColor: isDark ? colors.border : colors.borderSubtle,
+                  borderColor:
+                    item.severity === 'overdue'
+                      ? isDark
+                        ? 'rgba(248, 113, 113, 0.5)'
+                        : urgencyConfig.accent
+                      : isDark
+                      ? colors.border
+                      : colors.borderSubtle,
                 },
+                createShadow(isDark, 'card'),
                 pressed && styles.pressed,
               ]}
             >
-              {/* Left Urgency Accent Indicator Bar */}
-              <View
-                style={[
-                  styles.urgencyBar,
-                  { backgroundColor: urgencyConfig.accent },
-                ]}
-              />
-
               {/* Card Body */}
               <View style={styles.cardContent}>
                 <View style={styles.cardTopRow}>
@@ -138,13 +139,13 @@ export function NeedsAttentionSection({
                     <View
                       style={[
                         styles.iconCircle,
-                        { backgroundColor: isDark ? colors.surfaceSecondary : colors.surfaceSecondary },
+                        { backgroundColor: badgeBg },
                       ]}
                     >
                       <SymbolView
                         name={iconName as any}
                         size={18}
-                        tintColor={urgencyConfig.accent}
+                        tintColor={isDark ? urgencyConfig.darkText : urgencyConfig.accent}
                       />
                     </View>
                     <View style={styles.textColumn}>
@@ -172,7 +173,7 @@ export function NeedsAttentionSection({
                 </View>
 
                 {/* Footer with Amount (if bill) or Action Button */}
-                <View style={styles.cardFooter}>
+                <View style={[styles.cardFooter, { borderTopColor: colors.borderSubtle }]}>
                   {item.amount !== undefined ? (
                     <ThemedText style={[styles.amountText, { color: colors.text }]}>
                       {preferredCurrency
@@ -195,17 +196,24 @@ export function NeedsAttentionSection({
                     accessibilityLabel={item.type === 'bill' ? 'Pay Bill' : 'Mark Done'}
                     style={({ pressed }) => [
                       styles.actionButton,
-                      { backgroundColor: colors.surfaceSecondary },
+                      {
+                        backgroundColor: isDark ? colors.surfaceElevated : colors.surfaceSecondary,
+                      },
                       pressed && styles.pressed,
                     ]}
                   >
-                    <ThemedText style={[styles.actionButtonText, { color: colors.primaryDeep }]}>
+                    <ThemedText
+                      style={[
+                        styles.actionButtonText,
+                        { color: isDark ? colors.primary : colors.primaryDeep },
+                      ]}
+                    >
                       {item.type === 'bill' ? 'Pay' : item.type === 'task' ? 'Done' : 'View'}
                     </ThemedText>
                     <SymbolView
                       name={{ ios: 'chevron.right', android: 'chevron_right', web: 'chevron_right' }}
                       size={14}
-                      tintColor={colors.primaryDeep}
+                      tintColor={isDark ? colors.primary : colors.primaryDeep}
                     />
                   </Pressable>
                 </View>
@@ -221,10 +229,10 @@ export function NeedsAttentionSection({
 const styles = StyleSheet.create({
   container: {
     paddingHorizontal: Spacing.four,
-    marginBottom: Spacing.six,
+    marginBottom: Spacing.four,
   },
   sectionHeader: {
-    marginBottom: Spacing.three,
+    marginBottom: Spacing.two + 2,
   },
   titleRow: {
     flexDirection: 'row',
@@ -234,7 +242,6 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: Typography.fontSize.xl,
     fontFamily: Typography.fontFamilies.editorial,
-    fontWeight: Typography.fontWeight.bold,
   },
   sectionSubtitle: {
     fontSize: Typography.fontSize.xs,
@@ -248,6 +255,7 @@ const styles = StyleSheet.create({
   countBadgeText: {
     fontSize: Typography.fontSize.xs,
     fontWeight: Typography.fontWeight.bold,
+    fontVariant: ['tabular-nums'],
   },
   emptyCard: {
     flexDirection: 'row',
@@ -269,29 +277,15 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   itemsList: {
-    gap: Spacing.three,
+    gap: Spacing.two,
   },
   itemCard: {
     borderRadius: Radius.xl,
     borderWidth: 1,
     overflow: 'hidden',
-    position: 'relative',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.04,
-    shadowRadius: 6,
-    elevation: 2,
-  },
-  urgencyBar: {
-    position: 'absolute',
-    left: 0,
-    top: 0,
-    bottom: 0,
-    width: 4,
   },
   cardContent: {
-    padding: Spacing.four,
-    paddingLeft: Spacing.four + 4,
+    padding: Spacing.three + 2,
   },
   cardTopRow: {
     flexDirection: 'row',
@@ -344,14 +338,14 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginTop: Spacing.three,
+    marginTop: Spacing.two + 2,
     paddingTop: Spacing.two,
     borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: 'rgba(0,0,0,0.06)',
   },
   amountText: {
     fontSize: Typography.fontSize.base,
     fontWeight: Typography.fontWeight.bold,
+    fontVariant: ['tabular-nums'],
   },
   dueDateText: {
     fontSize: Typography.fontSize.xs,

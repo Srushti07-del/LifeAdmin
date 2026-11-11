@@ -20,6 +20,7 @@ import { SymbolView } from 'expo-symbols';
 import { useAppTheme } from '@/context/ThemeContext';
 import { useAuth } from '@/context/AuthContext';
 import { ThemedText } from '@/components/themed-text';
+import { getButtonForegroundColor } from '@/components/ui/Button';
 import { Typography } from '@/constants/typography';
 import { Spacing, Radius } from '@/constants/spacing';
 
@@ -71,7 +72,7 @@ export function ForgotPasswordScreen({
       style={[styles.container, { backgroundColor: colors.background }]}
     >
       <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={styles.keyboardView}
       >
         <ScrollView
@@ -93,7 +94,7 @@ export function ForgotPasswordScreen({
               <SymbolView
                 name={{ ios: 'lock.fill', android: 'lock', web: 'lock' } as any}
                 size={24}
-                tintColor="#FFFFFF"
+                tintColor={getButtonForegroundColor('primary', colors, isDark)}
               />
             </View>
 
@@ -189,11 +190,18 @@ export function ForgotPasswordScreen({
                   ]}
                 >
                   <View style={styles.submitBtnContent}>
-                    <ThemedText style={styles.submitBtnText}>Have Token? Reset Password</ThemedText>
+                    <ThemedText
+                      style={[
+                        styles.submitBtnText,
+                        { color: getButtonForegroundColor('primary', colors, isDark) },
+                      ]}
+                    >
+                      Have Token? Reset Password
+                    </ThemedText>
                     <SymbolView
                       name={{ ios: 'arrow.right', android: 'arrow_forward', web: 'arrow_forward' } as any}
                       size={16}
-                      tintColor="#FFFFFF"
+                      tintColor={getButtonForegroundColor('primary', colors, isDark)}
                     />
                   </View>
                 </Pressable>
@@ -264,14 +272,24 @@ export function ForgotPasswordScreen({
                   ]}
                 >
                   {isAuthenticating ? (
-                    <ActivityIndicator color="#FFFFFF" size="small" />
+                    <ActivityIndicator
+                      color={getButtonForegroundColor('primary', colors, isDark)}
+                      size="small"
+                    />
                   ) : (
                     <View style={styles.submitBtnContent}>
-                      <ThemedText style={styles.submitBtnText}>Send Reset Link</ThemedText>
+                      <ThemedText
+                        style={[
+                          styles.submitBtnText,
+                          { color: getButtonForegroundColor('primary', colors, isDark) },
+                        ]}
+                      >
+                        Send Reset Link
+                      </ThemedText>
                       <SymbolView
                         name={{ ios: 'arrow.right', android: 'arrow_forward', web: 'arrow_forward' } as any}
                         size={16}
-                        tintColor="#FFFFFF"
+                        tintColor={getButtonForegroundColor('primary', colors, isDark)}
                       />
                     </View>
                   )}
@@ -371,7 +389,6 @@ const styles = StyleSheet.create({
   title: {
     fontSize: Typography.fontSize['2xl'],
     fontFamily: Typography.fontFamilies.editorial,
-    fontWeight: Typography.fontWeight.bold,
     textAlign: 'center',
     marginBottom: Spacing.one,
   },
@@ -450,9 +467,7 @@ const styles = StyleSheet.create({
     gap: Spacing.two,
   },
   submitBtnText: {
-    color: '#FFFFFF',
     fontSize: Typography.fontSize.sm,
-    fontWeight: Typography.fontWeight.semibold,
     fontFamily: Typography.fontFamilies.sansSemiBold,
   },
   dividerRow: {
@@ -496,7 +511,6 @@ const styles = StyleSheet.create({
   },
   successTitle: {
     fontSize: Typography.fontSize.lg,
-    fontWeight: Typography.fontWeight.bold,
     fontFamily: Typography.fontFamilies.editorial,
     textAlign: 'center',
     marginBottom: Spacing.one,

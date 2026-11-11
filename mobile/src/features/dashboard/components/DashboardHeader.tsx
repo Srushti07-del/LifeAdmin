@@ -62,7 +62,11 @@ export function DashboardHeader({
             accessibilityRole="button"
             style={({ pressed }) => [
               styles.iconButton,
-              { backgroundColor: colors.surfaceSecondary },
+              {
+                backgroundColor: isDark ? colors.surface : colors.surfaceSecondary,
+                borderColor: colors.border,
+                borderWidth: isDark ? 1 : 0,
+              },
               pressed && styles.pressed,
             ]}
           >
@@ -82,7 +86,11 @@ export function DashboardHeader({
           accessibilityRole="button"
           style={({ pressed }) => [
             styles.iconButton,
-            { backgroundColor: isDark ? colors.surfaceSecondary : colors.surfaceSecondary },
+            {
+              backgroundColor: isDark ? colors.surface : colors.surfaceSecondary,
+              borderColor: colors.border,
+              borderWidth: isDark ? 1 : 0,
+            },
             pressed && styles.pressed,
           ]}
         >
@@ -92,22 +100,23 @@ export function DashboardHeader({
             tintColor={colors.text}
           />
           {unreadCount > 0 && (
-            <View
-              style={[
-                styles.badge,
-                { backgroundColor: colors.notification, borderColor: colors.background },
-              ]}
-            >
-              <ThemedText style={styles.badgeText}>
-                {unreadCount > 9 ? '9+' : unreadCount}
-              </ThemedText>
-            </View>
-          )}
-        </Pressable>
+          <View
+            style={[
+              styles.badge,
+              { backgroundColor: colors.notification, borderColor: colors.background },
+            ]}
+          >
+            <ThemedText style={styles.badgeText}>
+              {unreadCount > 9 ? '9+' : unreadCount}
+            </ThemedText>
+          </View>
+        )}
+      </Pressable>
 
         {/* Profile Avatar */}
         <Pressable
           onPress={onAvatarPress}
+          hitSlop={4}
           accessible
           accessibilityLabel="User Profile"
           accessibilityRole="button"
@@ -117,7 +126,7 @@ export function DashboardHeader({
             pressed && styles.pressed,
           ]}
         >
-          <ThemedText style={[styles.avatarText, { color: colors.primaryDeep }]}>
+          <ThemedText style={[styles.avatarText, { color: colors.primary }]}>
             {userInitial}
           </ThemedText>
         </Pressable>
@@ -132,8 +141,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: Spacing.four,
-    paddingTop: Spacing.three,
-    paddingBottom: Spacing.four,
+    paddingTop: Spacing.two,
+    paddingBottom: Spacing.three,
   },
   leftContent: {
     flex: 1,
@@ -151,8 +160,8 @@ const styles = StyleSheet.create({
   },
   nameText: {
     fontSize: Typography.fontSize['3xl'],
+    lineHeight: 34,
     fontFamily: Typography.fontFamilies.editorial,
-    fontWeight: Typography.fontWeight.bold,
     letterSpacing: -0.5,
   },
   rightContent: {
@@ -184,6 +193,7 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 10,
     fontWeight: Typography.fontWeight.bold,
+    fontVariant: ['tabular-nums'],
   },
   avatarButton: {
     width: 44,

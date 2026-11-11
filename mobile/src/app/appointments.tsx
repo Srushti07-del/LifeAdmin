@@ -27,6 +27,7 @@ import {
   FilterItem,
   Button,
   EmptyState,
+  getButtonForegroundColor,
 } from '@/components/ui';
 import { Typography } from '@/constants/typography';
 import { Spacing, Radius } from '@/constants/spacing';
@@ -205,7 +206,7 @@ export default function AppointmentsScreen() {
               <SymbolView
                 name={{ ios: 'plus', android: 'add', web: 'add' }}
                 size={16}
-                tintColor="#FFFFFF"
+                tintColor={getButtonForegroundColor('primary', colors, isDark)}
               />
             }
           >
@@ -218,7 +219,7 @@ export default function AppointmentsScreen() {
           style={styles.scrollArea}
           contentContainerStyle={[
             styles.scrollContent,
-            { paddingBottom: BottomTabInset + Spacing.eight },
+            { paddingBottom: BottomTabInset + Spacing.six },
           ]}
           showsVerticalScrollIndicator={false}
           refreshControl={
@@ -262,7 +263,11 @@ export default function AppointmentsScreen() {
                   web: 'sort',
                 }}
                 size={16}
-                tintColor={showSortPicker ? '#FFFFFF' : colors.text}
+                tintColor={
+                  showSortPicker
+                    ? getButtonForegroundColor('primary', colors, isDark)
+                    : colors.text
+                }
               />
             </Pressable>
           </View>
@@ -273,7 +278,7 @@ export default function AppointmentsScreen() {
               style={[
                 styles.sortTray,
                 {
-                  backgroundColor: isDark ? colors.surfaceSecondary : '#F8FAFC',
+                  backgroundColor: isDark ? colors.surface : colors.surfaceSecondary,
                   borderColor: colors.border,
                 },
               ]}
@@ -284,6 +289,7 @@ export default function AppointmentsScreen() {
               <View style={styles.sortOptionsGrid}>
                 {SORT_OPTIONS.map((opt) => {
                   const isSelected = activeSort === opt.key;
+                  const selectedFg = getButtonForegroundColor('primary', colors, isDark);
                   return (
                     <Pressable
                       key={opt.key}
@@ -291,16 +297,15 @@ export default function AppointmentsScreen() {
                         setActiveSort(opt.key);
                         setShowSortPicker(false);
                       }}
+                      hitSlop={6}
                       style={[
                         styles.sortOptionChip,
                         {
                           backgroundColor: isSelected
-                            ? isDark
-                              ? colors.primary
-                              : '#168F91'
+                            ? colors.primary
                             : isDark
-                            ? 'rgba(255, 255, 255, 0.05)'
-                            : '#FFFFFF',
+                            ? colors.surfaceElevated
+                            : colors.surface,
                           borderColor: isSelected ? colors.primary : colors.border,
                         },
                       ]}
@@ -309,10 +314,10 @@ export default function AppointmentsScreen() {
                         style={[
                           styles.sortOptionText,
                           {
-                            color: isSelected ? '#FFFFFF' : colors.text,
-                            fontWeight: isSelected
-                              ? Typography.fontWeight.semibold
-                              : Typography.fontWeight.normal,
+                            color: isSelected ? selectedFg : colors.text,
+                            fontFamily: isSelected
+                              ? Typography.fontFamilies.sansSemiBold
+                              : Typography.fontFamilies.sans,
                           },
                         ]}
                       >
@@ -346,17 +351,16 @@ export default function AppointmentsScreen() {
                 <Pressable
                   key={cat}
                   onPress={() => setSelectedCategory(cat)}
+                  hitSlop={6}
                   style={[
                     styles.categoryChip,
                     {
                       backgroundColor: isSelected
-                        ? isDark
-                          ? 'rgba(139, 92, 246, 0.25)'
-                          : 'rgba(139, 92, 246, 0.15)'
+                        ? colors.primarySoft
                         : isDark
-                        ? 'rgba(255, 255, 255, 0.04)'
-                        : '#F1F5F9',
-                      borderColor: isSelected ? '#8B5CF6' : 'transparent',
+                        ? colors.surface
+                        : colors.surfaceSecondary,
+                      borderColor: isSelected ? colors.primary : colors.border,
                     },
                   ]}
                   accessibilityRole="button"
@@ -366,10 +370,10 @@ export default function AppointmentsScreen() {
                     style={[
                       styles.categoryChipText,
                       {
-                        color: isSelected ? '#8B5CF6' : colors.textSecondary,
-                        fontWeight: isSelected
-                          ? Typography.fontWeight.semibold
-                          : Typography.fontWeight.normal,
+                        color: isSelected ? colors.primary : colors.textSecondary,
+                        fontFamily: isSelected
+                          ? Typography.fontFamilies.sansSemiBold
+                          : Typography.fontFamilies.sans,
                       },
                     ]}
                   >
@@ -509,9 +513,9 @@ const styles = StyleSheet.create({
     marginRight: Spacing.three,
   },
   title: {
-    fontSize: Typography.fontSize['2xl'],
+    fontSize: Typography.fontSize['3xl'],
+    lineHeight: 34,
     fontFamily: Typography.fontFamilies.editorial,
-    fontWeight: Typography.fontWeight.bold,
   },
   subtitle: {
     fontSize: Typography.fontSize.xs,
@@ -522,7 +526,7 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     paddingHorizontal: Spacing.four,
-    gap: Spacing.four,
+    gap: Spacing.three,
   },
   searchSortRow: {
     flexDirection: 'row',
@@ -593,6 +597,7 @@ const styles = StyleSheet.create({
   },
   listCountText: {
     fontSize: Typography.fontSize.xs,
+    fontVariant: ['tabular-nums'],
   },
   loadingContainer: {
     alignItems: 'center',

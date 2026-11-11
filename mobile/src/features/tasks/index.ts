@@ -1,10 +1,11 @@
 /**
- * Tasks Feature Module
+ * Tasks Feature Barrel Export
  */
 
-export const TasksFeature = {
-  name: 'Tasks',
-  description: 'Manage tasks, subtasks, priorities, and status in List and Board views',
-};
-
-export default TasksFeature;
+export * from './types';
+export * from './services/taskService';
+export * from './components/TaskSummaryCard';
+export * from './components/TaskCard';
+export * from './components/TaskBoardView';
+export * from './components/TaskFormModal';
+export * from './components/TaskDetailsModal';

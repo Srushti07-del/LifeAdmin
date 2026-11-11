@@ -9,8 +9,10 @@ import { SymbolView } from 'expo-symbols';
 import { useAppTheme } from '@/context/ThemeContext';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
+import { Colors } from '@/constants/colors';
 import { Typography } from '@/constants/typography';
 import { Spacing, Radius } from '@/constants/spacing';
+import { createShadow } from '@/constants/shadows';
 import { DocumentTotals } from '../types';
 
 interface DocumentSummaryCardProps {
@@ -25,9 +27,10 @@ export function DocumentSummaryCard({ totals }: DocumentSummaryCardProps) {
       style={[
         styles.container,
         {
-          backgroundColor: isDark ? '#1C292D' : colors.surface,
-          borderColor: isDark ? '#304247' : colors.border,
+          backgroundColor: colors.surface,
+          borderColor: colors.border,
         },
+        createShadow(isDark, 'card'),
       ]}
     >
       <View style={styles.header}>
@@ -35,7 +38,7 @@ export function DocumentSummaryCard({ totals }: DocumentSummaryCardProps) {
           <View
             style={[
               styles.iconWrapper,
-              { backgroundColor: isDark ? 'rgba(85, 189, 181, 0.15)' : 'rgba(13, 110, 110, 0.1)' },
+              { backgroundColor: colors.primarySoft },
             ]}
           >
             <SymbolView
@@ -56,15 +59,33 @@ export function DocumentSummaryCard({ totals }: DocumentSummaryCardProps) {
         </View>
 
         {totals.processingCount > 0 && (
-          <View style={[styles.processingBadge, { backgroundColor: '#FEF3C7' }]}>
-            <ThemedText style={styles.processingText}>
+          <View
+            style={[
+              styles.processingBadge,
+              {
+                backgroundColor: isDark
+                  ? Colors.urgency.dueSoon.darkBg
+                  : Colors.urgency.dueSoon.lightBg,
+              },
+            ]}
+          >
+            <ThemedText
+              style={[
+                styles.processingText,
+                {
+                  color: isDark
+                    ? Colors.urgency.dueSoon.darkText
+                    : Colors.urgency.dueSoon.lightText,
+                },
+              ]}
+            >
               {totals.processingCount} Analyzing
             </ThemedText>
           </View>
         )}
       </View>
 
-      <View style={[styles.divider, { backgroundColor: isDark ? '#304247' : colors.border }]} />
+      <View style={[styles.divider, { backgroundColor: colors.border }]} />
 
       <View style={styles.statsRow}>
         <View style={styles.statItem}>
@@ -76,10 +97,10 @@ export function DocumentSummaryCard({ totals }: DocumentSummaryCardProps) {
           </ThemedText>
         </View>
 
-        <View style={[styles.statDivider, { backgroundColor: isDark ? '#304247' : colors.border }]} />
+        <View style={[styles.statDivider, { backgroundColor: colors.border }]} />
 
         <View style={styles.statItem}>
-          <ThemedText style={[styles.statValue, { color: '#0D9488' }]}>
+          <ThemedText style={[styles.statValue, { color: colors.primary }]}>
             {totals.processedCount}
           </ThemedText>
           <ThemedText style={[styles.statLabel, { color: colors.textSecondary }]}>
@@ -87,10 +108,10 @@ export function DocumentSummaryCard({ totals }: DocumentSummaryCardProps) {
           </ThemedText>
         </View>
 
-        <View style={[styles.statDivider, { backgroundColor: isDark ? '#304247' : colors.border }]} />
+        <View style={[styles.statDivider, { backgroundColor: colors.border }]} />
 
         <View style={styles.statItem}>
-          <ThemedText style={[styles.statValue, { color: colors.primary }]}>
+          <ThemedText style={[styles.statValue, { color: colors.text }]}>
             {totals.totalSizeFormatted}
           </ThemedText>
           <ThemedText style={[styles.statLabel, { color: colors.textSecondary }]}>
@@ -108,11 +129,6 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     padding: Spacing.four,
     marginBottom: Spacing.four,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    elevation: 2,
   },
   header: {
     flexDirection: 'row',
@@ -132,14 +148,14 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   title: {
-    fontSize: Typography.fontSize.base,
+    fontSize: Typography.fontSize.lg,
     fontFamily: Typography.fontFamilies.editorial,
-    fontWeight: Typography.fontWeight.bold,
     letterSpacing: -0.2,
   },
   subtitle: {
     fontSize: Typography.fontSize.xs,
     fontFamily: Typography.fontFamilies.sans,
+    fontVariant: ['tabular-nums'],
     marginTop: 2,
   },
   processingBadge: {
@@ -150,7 +166,7 @@ const styles = StyleSheet.create({
   processingText: {
     fontSize: Typography.fontSize.xs,
     fontFamily: Typography.fontFamilies.sansMedium,
-    color: '#D97706',
+    fontVariant: ['tabular-nums'],
   },
   divider: {
     height: 1,
@@ -168,6 +184,7 @@ const styles = StyleSheet.create({
   statValue: {
     fontSize: Typography.fontSize.lg,
     fontFamily: Typography.fontFamilies.sansBold,
+    fontVariant: ['tabular-nums'],
   },
   statLabel: {
     fontSize: Typography.fontSize.xs,

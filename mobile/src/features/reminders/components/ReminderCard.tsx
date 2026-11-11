@@ -9,8 +9,10 @@ import { View, StyleSheet, Pressable } from 'react-native';
 import { SymbolView } from 'expo-symbols';
 import { useAppTheme } from '@/context/ThemeContext';
 import { ThemedText } from '@/components/themed-text';
+import { Colors } from '@/constants/colors';
 import { Typography } from '@/constants/typography';
 import { Spacing, Radius } from '@/constants/spacing';
+import { createShadow } from '@/constants/shadows';
 import { Reminder } from '../types';
 import {
   getReminderSection,
@@ -27,12 +29,20 @@ interface ReminderCardProps {
   onDelete: () => void;
 }
 
-const PRIORITY_COLORS: Record<string, { color: string; bg: string }> = {
-  urgent: { color: '#EF4444', bg: '#FEE2E2' },
-  high: { color: '#F97316', bg: '#FFEDD5' },
-  medium: { color: '#0D9488', bg: '#CCFBF1' },
-  low: { color: '#6B7280', bg: '#F3F4F6' },
-};
+function formatRecurrenceLabel(recurrence?: Reminder['recurrence']): string {
+  if (!recurrence || recurrence.type === 'none') return '';
+  const unit = recurrence.type.charAt(0).toUpperCase() + recurrence.type.slice(1);
+  if (recurrence.interval && recurrence.interval > 1) {
+    const nounMap: Record<string, string> = {
+      daily: 'days',
+      weekly: 'weeks',
+      monthly: 'months',
+      yearly: 'years',
+    };
+    return `Every ${recurrence.interval} ${nounMap[recurrence.type] || unit}`;
+  }
+  return `Repeats ${unit}`;
+}
 
 export function ReminderCard({
   reminder,
@@ -47,13 +57,47 @@ export function ReminderCard({
   const section = getReminderSection(reminder);
   const isOverdue = section === 'overdue';
 
-  const priorityStyle = PRIORITY_COLORS[reminder.priority] || PRIORITY_COLORS.medium;
+  const priorityMap = {
+    urgent: {
+      color: isDark ? Colors.urgency.critical.darkText : Colors.urgency.critical.lightText,
+      bg: isDark ? Colors.urgency.critical.darkBg : Colors.urgency.critical.lightBg,
+    },
+    high: {
+      color: isDark ? Colors.urgency.urgent.darkText : Colors.urgency.urgent.lightText,
+      bg: isDark ? Colors.urgency.urgent.darkBg : Colors.urgency.urgent.lightBg,
+    },
+    medium: {
+      color: isDark ? Colors.urgency.upcoming.darkText : Colors.urgency.upcoming.lightText,
+      bg: isDark ? Colors.urgency.upcoming.darkBg : Colors.urgency.upcoming.lightBg,
+    },
+    low: {
+      color: colors.textSecondary,
+      bg: colors.surfaceSecondary,
+    },
+  };
+  const priorityStyle = priorityMap[reminder.priority] || priorityMap.medium;
+
   const formattedDate = formatReminderDueDate(reminder.dueDate, reminder.dueTime);
   const formattedTime = formatReminderDueTime(reminder.dueTime);
 
-  const hasOffsets = (reminder.reminderOffsetMinutes?.length || 0) > 0;
+  const offsetCount = reminder.reminderOffsetMinutes?.length || 0;
+  const hasOffsets = offsetCount > 0;
   const firstOffset = hasOffsets ? reminder.reminderOffsetMinutes![0] : 0;
-  const isRecurring = reminder.recurrence && reminder.recurrence.type !== 'none';
+  const recurrenceLabel = formatRecurrenceLabel(reminder.recurrence);
+  const isRecurring = Boolean(recurrenceLabel);
+
+  const overdueColor = isDark
+    ? Colors.urgency.critical.darkText
+    : Colors.urgency.critical.lightText;
+  const overdueBg = isDark
+    ? Colors.urgency.critical.darkBg
+    : Colors.urgency.critical.lightBg;
+  const alertColor = isDark
+    ? Colors.urgency.dueSoon.darkText
+    : Colors.urgency.dueSoon.lightText;
+  const alertBg = isDark
+    ? Colors.urgency.dueSoon.darkBg
+    : Colors.urgency.dueSoon.lightBg;
 
   return (
     <Pressable
@@ -61,10 +105,14 @@ export function ReminderCard({
       style={({ pressed }) => [
         styles.cardContainer,
         {
-          backgroundColor: isDark ? '#1C292D' : colors.surface,
-          borderColor: isOverdue && !isCompleted ? '#EF4444' : isDark ? '#304247' : colors.border,
-          opacity: isCompleted ? 0.65 : pressed ? 0.94 : 1,
+          backgroundColor: colors.surface,
+          borderColor:
+            isOverdue && !isCompleted
+              ? Colors.urgency.critical.accent
+              : colors.border,
+          opacity: isCompleted ? 0.68 : pressed ? 0.94 : 1,
         },
+        createShadow(isDark, 'card'),
       ]}
     >
       <View style={styles.mainRow}>
@@ -74,16 +122,16 @@ export function ReminderCard({
             e.stopPropagation();
             onToggleComplete();
           }}
-          hitSlop={8}
+          hitSlop={10}
           style={[
             styles.checkbox,
             {
               backgroundColor: isCompleted
-                ? '#10B981'
-                : isDark
-                ? '#26383E'
-                : colors.backgroundElement,
-              borderColor: isCompleted ? '#10B981' : isDark ? '#354E57' : colors.border,
+                ? Colors.urgency.completed.accent
+                : colors.surfaceSecondary,
+              borderColor: isCompleted
+                ? Colors.urgency.completed.accent
+                : colors.border,
             },
           ]}
         >
@@ -114,7 +162,7 @@ export function ReminderCard({
             <View
               style={[
                 styles.priorityBadge,
-                { backgroundColor: isDark ? 'rgba(0,0,0,0.3)' : priorityStyle.bg },
+                { backgroundColor: priorityStyle.bg },
               ]}
             >
               <ThemedText style={[styles.priorityText, { color: priorityStyle.color }]}>
@@ -138,20 +186,22 @@ export function ReminderCard({
             <SymbolView
               name={{ ios: 'calendar', android: 'calendar_today' }}
               size={13}
-              tintColor={isOverdue ? '#EF4444' : colors.primary}
+              tintColor={isOverdue ? overdueColor : colors.primary}
             />
             <ThemedText
               style={[
                 styles.timingText,
-                { color: isOverdue ? '#EF4444' : colors.text },
+                { color: isOverdue ? overdueColor : colors.text },
               ]}
             >
               {formattedDate} {formattedTime ? `at ${formattedTime}` : ''}
             </ThemedText>
 
             {isOverdue && !isCompleted && (
-              <View style={[styles.overdueChip, { backgroundColor: isDark ? '#4A1D1D' : '#FEE2E2' }]}>
-                <ThemedText style={styles.overdueChipText}>OVERDUE</ThemedText>
+              <View style={[styles.overdueChip, { backgroundColor: overdueBg }]}>
+                <ThemedText style={[styles.overdueChipText, { color: overdueColor }]}>
+                  OVERDUE
+                </ThemedText>
               </View>
             )}
           </View>
@@ -161,7 +211,7 @@ export function ReminderCard({
             <View
               style={[
                 styles.chip,
-                { backgroundColor: isDark ? '#26383E' : colors.backgroundElement },
+                { backgroundColor: colors.surfaceSecondary },
               ]}
             >
               <ThemedText style={[styles.chipText, { color: colors.textSecondary }]}>
@@ -173,7 +223,7 @@ export function ReminderCard({
               <View
                 style={[
                   styles.chip,
-                  { backgroundColor: isDark ? 'rgba(85, 189, 181, 0.15)' : 'rgba(13, 110, 110, 0.08)' },
+                  { backgroundColor: colors.primarySoft },
                 ]}
               >
                 <SymbolView
@@ -182,7 +232,7 @@ export function ReminderCard({
                   tintColor={colors.primary}
                 />
                 <ThemedText style={[styles.chipText, { color: colors.primary }]}>
-                  {reminder.recurrence!.type.charAt(0).toUpperCase() + reminder.recurrence!.type.slice(1)}
+                  {recurrenceLabel}
                 </ThemedText>
               </View>
             )}
@@ -191,16 +241,17 @@ export function ReminderCard({
               <View
                 style={[
                   styles.chip,
-                  { backgroundColor: isDark ? 'rgba(245, 158, 11, 0.15)' : '#FEF3C7' },
+                  { backgroundColor: alertBg },
                 ]}
               >
                 <SymbolView
                   name={{ ios: 'bell', android: 'notifications' }}
                   size={11}
-                  tintColor="#D97706"
+                  tintColor={alertColor}
                 />
-                <ThemedText style={[styles.chipText, { color: '#D97706' }]}>
+                <ThemedText style={[styles.chipText, { color: alertColor }]}>
                   {formatOffset(firstOffset)}
+                  {offsetCount > 1 ? ` +${offsetCount - 1}` : ''}
                 </ThemedText>
               </View>
             )}
@@ -217,7 +268,7 @@ export function ReminderCard({
             hitSlop={8}
             style={[
               styles.actionBtn,
-              { backgroundColor: isDark ? '#26383E' : colors.backgroundElement },
+              { backgroundColor: colors.surfaceSecondary },
             ]}
           >
             <SymbolView
@@ -235,13 +286,13 @@ export function ReminderCard({
             hitSlop={8}
             style={[
               styles.actionBtn,
-              { backgroundColor: isDark ? '#26383E' : colors.backgroundElement },
+              { backgroundColor: colors.surfaceSecondary },
             ]}
           >
             <SymbolView
               name={{ ios: 'trash', android: 'delete' }}
               size={15}
-              tintColor="#EF4444"
+              tintColor={Colors.urgency.critical.accent}
             />
           </Pressable>
         </View>
@@ -256,11 +307,6 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     padding: Spacing.four,
     marginBottom: Spacing.three,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.04,
-    shadowRadius: 6,
-    elevation: 2,
   },
   mainRow: {
     flexDirection: 'row',
@@ -318,6 +364,7 @@ const styles = StyleSheet.create({
   timingText: {
     fontSize: Typography.fontSize.xs,
     fontFamily: Typography.fontFamilies.sansMedium,
+    fontVariant: ['tabular-nums'],
   },
   overdueChip: {
     paddingHorizontal: 6,
@@ -327,7 +374,6 @@ const styles = StyleSheet.create({
   overdueChipText: {
     fontSize: 10,
     fontFamily: Typography.fontFamilies.sansBold,
-    color: '#EF4444',
   },
   chipsRow: {
     flexDirection: 'row',
@@ -353,8 +399,8 @@ const styles = StyleSheet.create({
     gap: Spacing.one,
   },
   actionBtn: {
-    width: 28,
-    height: 28,
+    width: 32,
+    height: 32,
     borderRadius: Radius.sm,
     alignItems: 'center',
     justifyContent: 'center',

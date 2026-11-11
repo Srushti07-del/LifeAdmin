@@ -31,7 +31,7 @@ export function DashboardSkeleton() {
     return () => loop.stop();
   }, [opacityAnim]);
 
-  const blockColor = isDark ? colors.surfaceSecondary : colors.surfaceSecondary;
+  const blockColor = isDark ? colors.surface : colors.surfaceSecondary;
 
   return (
     <View style={styles.container}>
@@ -118,13 +118,13 @@ export function DashboardSkeleton() {
 const styles = StyleSheet.create({
   container: {
     paddingHorizontal: Spacing.four,
-    paddingTop: Spacing.four,
+    paddingTop: Spacing.three,
   },
   headerSkeleton: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: Spacing.six,
+    marginBottom: Spacing.five,
   },
   headerLeft: {
     flex: 1,
@@ -137,16 +137,16 @@ const styles = StyleSheet.create({
   },
   metricsRow: {
     flexDirection: 'row',
-    gap: Spacing.three,
-    marginBottom: Spacing.six,
+    gap: Spacing.two,
+    marginBottom: Spacing.four,
   },
   metricCard: {
     flex: 1,
-    height: 72,
+    height: 64,
     borderRadius: Radius.lg,
   },
   section: {
-    marginBottom: Spacing.six,
+    marginBottom: Spacing.four,
   },
   itemCard: {
     height: 96,

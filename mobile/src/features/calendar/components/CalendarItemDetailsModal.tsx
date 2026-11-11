@@ -15,7 +15,7 @@ import { useRouter } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
 import { useAppTheme } from '@/context/ThemeContext';
 import { ThemedText } from '@/components/themed-text';
-import { ModalSheet, Button } from '@/components/ui';
+import { ModalSheet, Button, getButtonForegroundColor } from '@/components/ui';
 import { Typography } from '@/constants/typography';
 import { Spacing, Radius } from '@/constants/spacing';
 import { CalendarEventItem } from '../types';
@@ -318,7 +318,7 @@ export function CalendarItemDetailsModal({
                   <SymbolView
                     name={{ ios: 'trash', android: 'delete', web: 'delete' }}
                     size={16}
-                    tintColor="#EF4444"
+                    tintColor="#FFFFFF"
                   />
                 }
               >
@@ -335,7 +335,7 @@ export function CalendarItemDetailsModal({
                 <SymbolView
                   name={{ ios: 'arrow.right.circle', android: 'open_in_new', web: 'open_in_new' }}
                   size={16}
-                  tintColor="#FFFFFF"
+                  tintColor={getButtonForegroundColor('primary', colors, isDark)}
                 />
               }
             >
@@ -391,8 +391,7 @@ const styles = StyleSheet.create({
   title: {
     fontSize: Typography.fontSize.xl,
     fontFamily: Typography.fontFamilies.editorial,
-    fontWeight: Typography.fontWeight.bold,
-    lineHeight: 24,
+    lineHeight: 26,
   },
   detailsSection: {
     borderWidth: 1,

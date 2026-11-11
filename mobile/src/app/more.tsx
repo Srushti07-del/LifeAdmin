@@ -11,8 +11,12 @@ import { useAppTheme } from '@/context/ThemeContext';
 import { useAuth } from '@/context/AuthContext';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
+import { getButtonForegroundColor } from '@/components/ui/Button';
+import { SegmentedControl } from '@/components/ui/SegmentedControl';
+import { Colors } from '@/constants/colors';
 import { Typography } from '@/constants/typography';
 import { Spacing, Radius } from '@/constants/spacing';
+import { createShadow } from '@/constants/shadows';
 import { BottomTabInset } from '@/constants/theme';
 import { CompanionSanctuaryModal } from '@/features/companions';
 import { settingsService } from '@/features/settings';
@@ -23,6 +27,8 @@ interface MenuItem {
   desc: string;
   action?: () => void;
   destructive?: boolean;
+  /** Inline control rendered instead of a tappable row (e.g. theme selector). */
+  control?: React.ReactNode;
 }
 
 interface MenuSection {
@@ -36,13 +42,8 @@ export default function MoreScreen() {
   const router = useRouter();
   const [isSanctuaryVisible, setIsSanctuaryVisible] = useState(false);
 
-  const handleCycleTheme = async () => {
-    const next =
-      themePreference === 'light'
-        ? 'dark'
-        : themePreference === 'dark'
-        ? 'system'
-        : 'light';
+  const handleSetTheme = async (next: typeof themePreference) => {
+    if (next === themePreference) return;
     setThemePreference(next);
     try {
       const { user: remoteUser } = await settingsService.savePreferences(
@@ -92,7 +93,7 @@ export default function MoreScreen() {
 
   const menuSections: MenuSection[] = [
     {
-      title: 'Companions & AI',
+      title: 'Features',
       items: [
         {
           label: 'LifeBuddy Companions',
@@ -109,7 +110,7 @@ export default function MoreScreen() {
       ],
     },
     {
-      title: 'Responsibilities & Records',
+      title: 'Records',
       items: [
         {
           label: 'Appointments',
@@ -132,7 +133,7 @@ export default function MoreScreen() {
       ],
     },
     {
-      title: 'Preferences',
+      title: 'Settings',
       items: [
         {
           label: 'Settings & Profile',
@@ -141,10 +142,20 @@ export default function MoreScreen() {
           action: () => router.push('/settings' as any),
         },
         {
-          label: `Theme: ${themePreference.charAt(0).toUpperCase() + themePreference.slice(1)}`,
+          label: 'Appearance',
           icon: isDark ? 'dark_mode' : 'light_mode',
-          desc: 'Toggle light, dark, or system mode',
-          action: handleCycleTheme,
+          desc: '',
+          control: (
+            <SegmentedControl
+              options={[
+                { value: 'light', label: 'Light' },
+                { value: 'dark', label: 'Dark' },
+                { value: 'system', label: 'System' },
+              ]}
+              value={themePreference}
+              onChange={handleSetTheme}
+            />
+          ),
         },
         {
           label: 'Setup & Onboarding',
@@ -152,32 +163,12 @@ export default function MoreScreen() {
           desc: 'Revisit domains, alert pacing & companion selection',
           action: restartOnboarding,
         },
-      ],
-    },
-    {
-      title: 'Account & Session',
-      items: [
         {
           label: 'Privacy, Export & Security',
           icon: 'shield',
           desc: 'Password recovery, JSON backup & account controls',
           action: () => router.push('/settings' as any),
         },
-        isGuest
-          ? {
-              label: 'Exit Guest Demo',
-              icon: 'logout',
-              desc: 'End demo session and clear temporary server data',
-              action: handleExitGuest,
-              destructive: true,
-            }
-          : {
-              label: 'Sign Out',
-              icon: 'logout',
-              desc: `Signed in as ${user?.email || 'User'}`,
-              action: handleLogout,
-              destructive: true,
-            },
       ],
     },
   ];
@@ -206,6 +197,7 @@ export default function MoreScreen() {
             accessibilityLabel="Open Settings and Profile"
             style={({ pressed }) => [
               styles.userCard,
+              createShadow(isDark, 'card'),
               {
                 backgroundColor: colors.surface,
                 borderColor: colors.border,
@@ -219,7 +211,12 @@ export default function MoreScreen() {
                 { backgroundColor: colors.primary },
               ]}
             >
-              <ThemedText style={styles.avatarText}>
+              <ThemedText
+                style={[
+                  styles.avatarText,
+                  { color: getButtonForegroundColor('primary', colors, isDark) },
+                ]}
+              >
                 {(user?.name?.charAt(0) || 'U').toUpperCase()}
               </ThemedText>
             </View>
@@ -233,13 +230,21 @@ export default function MoreScreen() {
                   <View
                     style={[
                       styles.guestBadge,
-                      { backgroundColor: isDark ? '#5C4813' : '#FEF3C7' },
+                      {
+                        backgroundColor: isDark
+                          ? Colors.urgency.dueSoon.darkBg
+                          : Colors.urgency.dueSoon.lightBg,
+                      },
                     ]}
                   >
                     <ThemedText
                       style={[
                         styles.guestBadgeText,
-                        { color: isDark ? '#FDE68A' : '#92400E' },
+                        {
+                          color: isDark
+                            ? Colors.urgency.dueSoon.darkText
+                            : Colors.urgency.dueSoon.lightText,
+                        },
                       ]}
                     >
                       Demo Guest
@@ -262,65 +267,147 @@ export default function MoreScreen() {
 
           {menuSections.map((sec, idx) => (
             <View key={idx} style={styles.section}>
-              <ThemedText style={[styles.sectionTitle, { color: colors.textMuted }]}>
+              <ThemedText style={[styles.sectionTitle, { color: colors.textSecondary }]}>
                 {sec.title}
               </ThemedText>
-              <View style={[styles.menuList, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+              <View
+                style={[
+                  styles.menuList,
+                  createShadow(isDark, 'card'),
+                  { backgroundColor: colors.surface, borderColor: colors.border },
+                ]}
+              >
                 {sec.items.map((item, itemIdx) => (
-                  <Pressable
-                    key={itemIdx}
-                    onPress={item.action}
-                    style={({ pressed }) => [
-                      styles.menuRow,
-                      itemIdx < sec.items.length - 1 && [styles.menuDivider, { borderBottomColor: colors.borderSubtle }],
-                      pressed && { opacity: 0.8 },
-                    ]}
-                  >
+                  item.control ? (
                     <View
+                      key={itemIdx}
                       style={[
-                        styles.iconCircle,
-                        {
-                          backgroundColor: item.destructive
-                            ? isDark
-                              ? 'rgba(239, 68, 68, 0.15)'
-                              : '#FEE2E2'
-                            : colors.surfaceSecondary,
-                        },
+                        styles.controlRow,
+                        itemIdx < sec.items.length - 1 && [styles.menuDivider, { borderBottomColor: colors.borderSubtle }],
                       ]}
                     >
-                      <SymbolView
-                        name={{ ios: 'circle.fill', android: item.icon, web: item.icon } as any}
-                        size={18}
-                        tintColor={item.destructive ? colors.notification : colors.primary}
-                      />
+                      <ThemedText style={[styles.menuLabel, { color: colors.text }]}>
+                        {item.label}
+                      </ThemedText>
+                      {item.control}
                     </View>
-                    <View style={styles.menuText}>
-                      <ThemedText
+                  ) : (
+                    <Pressable
+                      key={itemIdx}
+                      onPress={item.action}
+                      style={({ pressed }) => [
+                        styles.menuRow,
+                        itemIdx < sec.items.length - 1 && [styles.menuDivider, { borderBottomColor: colors.borderSubtle }],
+                        pressed && { opacity: 0.8 },
+                      ]}
+                    >
+                      <View
                         style={[
-                          styles.menuLabel,
+                          styles.iconCircle,
                           {
-                            color: item.destructive
-                              ? colors.notification
-                              : colors.text,
+                            backgroundColor: item.destructive
+                              ? isDark
+                                ? Colors.urgency.critical.darkBg
+                                : Colors.urgency.critical.lightBg
+                              : colors.surfaceSecondary,
                           },
                         ]}
                       >
-                        {item.label}
-                      </ThemedText>
-                      <ThemedText style={[styles.menuDesc, { color: colors.textSecondary }]}>
-                        {item.desc}
-                      </ThemedText>
-                    </View>
-                    <SymbolView
-                      name={{ ios: 'chevron.right', android: 'chevron_right', web: 'chevron_right' }}
-                      size={16}
-                      tintColor={colors.textMuted}
-                    />
-                  </Pressable>
+                        <SymbolView
+                          name={{ ios: 'circle.fill', android: item.icon, web: item.icon } as any}
+                          size={18}
+                          tintColor={
+                            item.destructive
+                              ? isDark
+                                ? Colors.urgency.critical.darkText
+                                : Colors.urgency.critical.accent
+                              : colors.primary
+                          }
+                        />
+                      </View>
+                      <View style={styles.menuText}>
+                        <ThemedText
+                          style={[
+                            styles.menuLabel,
+                            {
+                              color: item.destructive
+                                ? isDark
+                                  ? Colors.urgency.critical.darkText
+                                  : Colors.urgency.critical.lightText
+                                : colors.text,
+                            },
+                          ]}
+                        >
+                          {item.label}
+                        </ThemedText>
+                        <ThemedText style={[styles.menuDesc, { color: colors.textSecondary }]}>
+                          {item.desc}
+                        </ThemedText>
+                      </View>
+                      <SymbolView
+                        name={{ ios: 'chevron.right', android: 'chevron_right', web: 'chevron_right' }}
+                        size={16}
+                        tintColor={colors.textMuted}
+                      />
+                    </Pressable>
+                  )
                 ))}
               </View>
             </View>
           ))}
+
+          {/* Quiet account footer */}
+          <View style={styles.accountFooter}>
+            <Pressable
+              onPress={isGuest ? handleExitGuest : handleLogout}
+              accessibilityRole="button"
+              accessibilityLabel={isGuest ? 'Exit Guest Demo' : 'Sign Out'}
+              hitSlop={8}
+              style={({ pressed }) => [
+                styles.signOutButton,
+                {
+                  backgroundColor: isDark
+                    ? colors.surfaceSecondary
+                    : Colors.urgency.critical.lightBg,
+                  borderColor: isDark
+                    ? Colors.urgency.critical.darkBg
+                    : Colors.urgency.critical.lightBg,
+                },
+                pressed && { opacity: 0.75 },
+              ]}
+            >
+              <SymbolView
+                name={{
+                  ios: 'rectangle.portrait.and.arrow.right',
+                  android: 'logout',
+                  web: 'logout',
+                }}
+                size={16}
+                tintColor={
+                  isDark
+                    ? Colors.urgency.critical.accent
+                    : Colors.urgency.critical.lightText
+                }
+              />
+              <ThemedText
+                style={[
+                  styles.signOutText,
+                  {
+                    color: isDark
+                      ? Colors.urgency.critical.accent
+                      : Colors.urgency.critical.lightText,
+                  },
+                ]}
+              >
+                {isGuest ? 'Exit Guest Demo' : 'Sign Out'}
+              </ThemedText>
+            </Pressable>
+            <ThemedText style={[styles.accountCaption, { color: colors.textMuted }]}>
+              {isGuest
+                ? 'Ends the demo and clears temporary server data'
+                : `Signed in as ${user?.email || 'User'}`}
+            </ThemedText>
+          </View>
         </ScrollView>
       </SafeAreaView>
 
@@ -344,14 +431,15 @@ const styles = StyleSheet.create({
     paddingTop: Spacing.two,
   },
   header: {
-    marginBottom: Spacing.four,
+    marginBottom: Spacing.three,
   },
   title: {
     fontSize: Typography.fontSize['3xl'],
+    lineHeight: 34,
     fontFamily: Typography.fontFamilies.editorial,
-    fontWeight: Typography.fontWeight.bold,
   },
   subtitle: {
+    fontFamily: Typography.fontFamilies.sans,
     fontSize: Typography.fontSize.sm,
     marginTop: 4,
   },
@@ -360,9 +448,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: Spacing.three,
     padding: Spacing.four,
-    borderRadius: Radius.lg,
+    borderRadius: Radius.xl,
     borderWidth: 1,
-    marginBottom: Spacing.five,
+    marginBottom: Spacing.four,
   },
   avatarCircle: {
     width: 46,
@@ -372,9 +460,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   avatarText: {
-    color: '#FFFFFF',
+    fontFamily: Typography.fontFamilies.sansBold,
     fontSize: 20,
-    fontWeight: '700',
   },
   userInfoCol: {
     flex: 1,
@@ -385,8 +472,8 @@ const styles = StyleSheet.create({
     gap: Spacing.two,
   },
   userName: {
+    fontFamily: Typography.fontFamilies.sansBold,
     fontSize: Typography.fontSize.base,
-    fontWeight: Typography.fontWeight.bold,
   },
   guestBadge: {
     paddingHorizontal: Spacing.two,
@@ -394,11 +481,12 @@ const styles = StyleSheet.create({
     borderRadius: Radius.full,
   },
   guestBadgeText: {
+    fontFamily: Typography.fontFamilies.sansBold,
     fontSize: 10,
-    fontWeight: '700',
     textTransform: 'uppercase',
   },
   userEmail: {
+    fontFamily: Typography.fontFamilies.sans,
     fontSize: Typography.fontSize.xs,
     marginTop: 2,
   },
@@ -406,19 +494,20 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.four,
   },
   sectionTitle: {
-    fontSize: 11,
-    fontWeight: Typography.fontWeight.bold,
+    fontFamily: Typography.fontFamilies.sansBold,
+    fontSize: 12,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
     marginBottom: Spacing.two,
     paddingHorizontal: Spacing.one,
   },
   menuList: {
-    borderRadius: Radius.lg,
+    borderRadius: Radius.xl,
     borderWidth: 1,
     overflow: 'hidden',
   },
   menuRow: {
+    minHeight: 56,
     flexDirection: 'row',
     alignItems: 'center',
     padding: Spacing.three + 2,
@@ -426,6 +515,34 @@ const styles = StyleSheet.create({
   },
   menuDivider: {
     borderBottomWidth: 1,
+  },
+  controlRow: {
+    padding: Spacing.three + 2,
+    gap: Spacing.two + 2,
+  },
+  accountFooter: {
+    alignItems: 'center',
+    marginTop: Spacing.two,
+    gap: Spacing.one,
+  },
+  signOutButton: {
+    minHeight: 44,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: Spacing.two,
+    paddingHorizontal: Spacing.four,
+    borderRadius: Radius.lg,
+    borderWidth: 1,
+  },
+  signOutText: {
+    fontFamily: Typography.fontFamilies.sansSemiBold,
+    fontSize: Typography.fontSize.sm,
+  },
+  accountCaption: {
+    fontFamily: Typography.fontFamilies.sans,
+    fontSize: 11,
+    textAlign: 'center',
   },
   iconCircle: {
     width: 36,
@@ -438,10 +555,11 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   menuLabel: {
+    fontFamily: Typography.fontFamilies.sansSemiBold,
     fontSize: Typography.fontSize.sm,
-    fontWeight: Typography.fontWeight.semibold,
   },
   menuDesc: {
+    fontFamily: Typography.fontFamilies.sans,
     fontSize: 11,
     marginTop: 2,
   },

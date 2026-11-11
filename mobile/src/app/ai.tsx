@@ -21,15 +21,17 @@ import {
   Platform,
   Alert,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
 import { useAppTheme } from '@/context/ThemeContext';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
+import { SegmentedControl, getButtonForegroundColor } from '@/components/ui';
+import { Colors } from '@/constants/colors';
 import { Typography } from '@/constants/typography';
 import { Spacing, Radius } from '@/constants/spacing';
-import { BottomTabInset } from '@/constants/theme';
+import { createShadow } from '@/constants/shadows';
 import {
   aiService,
   ChatMessage,
@@ -51,6 +53,7 @@ type AITab = 'chat' | 'plan' | 'detect';
 export default function AIAssistantScreen() {
   const router = useRouter();
   const { colors, isDark } = useAppTheme();
+  const insets = useSafeAreaInsets();
   const searchParams = useLocalSearchParams<{ tab?: string }>();
 
   // Active screen segment
@@ -324,7 +327,11 @@ export default function AIAssistantScreen() {
               hitSlop={10}
               style={({ pressed }) => [
                 styles.iconButton,
-                { backgroundColor: colors.surfaceSecondary },
+                {
+                  backgroundColor: isDark ? colors.surface : colors.surfaceSecondary,
+                  borderColor: colors.border,
+                  borderWidth: isDark ? 1 : 0,
+                },
                 pressed && { opacity: 0.7 },
               ]}
               accessibilityRole="button"
@@ -346,9 +353,7 @@ export default function AIAssistantScreen() {
                   style={[
                     styles.aiBadge,
                     {
-                      backgroundColor: isDark
-                        ? 'rgba(22, 143, 145, 0.25)'
-                        : '#D3EAE7',
+                      backgroundColor: colors.primarySoft,
                       borderColor: colors.primary,
                     },
                   ]}
@@ -371,7 +376,11 @@ export default function AIAssistantScreen() {
               hitSlop={8}
               style={({ pressed }) => [
                 styles.headerActionBtn,
-                { backgroundColor: colors.surfaceSecondary },
+                {
+                  backgroundColor: isDark ? colors.surface : colors.surfaceSecondary,
+                  borderColor: colors.border,
+                  borderWidth: isDark ? 1 : 0,
+                },
                 pressed && { opacity: 0.7 },
               ]}
               accessibilityRole="button"
@@ -389,7 +398,11 @@ export default function AIAssistantScreen() {
               hitSlop={8}
               style={({ pressed }) => [
                 styles.headerActionBtn,
-                { backgroundColor: colors.surfaceSecondary },
+                {
+                  backgroundColor: isDark ? colors.surface : colors.surfaceSecondary,
+                  borderColor: colors.border,
+                  borderWidth: isDark ? 1 : 0,
+                },
                 pressed && { opacity: 0.7 },
               ]}
               accessibilityRole="button"
@@ -405,128 +418,30 @@ export default function AIAssistantScreen() {
         </View>
 
         {/* Segmented Tab Navigation Control */}
-        <View
-          style={[
-            styles.segmentBar,
-            {
-              backgroundColor: colors.surfaceSecondary,
-              borderColor: colors.border,
-            },
-          ]}
-        >
-          <Pressable
-            onPress={() => setActiveTab('chat')}
-            style={[
-              styles.segmentItem,
-              activeTab === 'chat' && [
-                styles.segmentItemActive,
-                { backgroundColor: colors.surface },
-              ],
+        <View style={styles.segmentContainer}>
+          <SegmentedControl
+            options={[
+              { value: 'chat', label: 'Chat' },
+              { value: 'plan', label: 'Goal Planner' },
+              { value: 'detect', label: 'Text Extractor' },
             ]}
-          >
-            <SymbolView
-              name={{ ios: 'bubble.left.and.bubble.right', android: 'chat' }}
-              size={14}
-              tintColor={activeTab === 'chat' ? colors.primary : colors.textSecondary}
-            />
-            <ThemedText
-              style={[
-                styles.segmentLabel,
-                {
-                  color:
-                    activeTab === 'chat' ? colors.primary : colors.textSecondary,
-                  fontFamily:
-                    activeTab === 'chat'
-                      ? Typography.fontFamilies.sansBold
-                      : Typography.fontFamilies.sansMedium,
-                },
-              ]}
-            >
-              Chat
-            </ThemedText>
-          </Pressable>
-
-          <Pressable
-            onPress={() => setActiveTab('plan')}
-            style={[
-              styles.segmentItem,
-              activeTab === 'plan' && [
-                styles.segmentItemActive,
-                { backgroundColor: colors.surface },
-              ],
-            ]}
-          >
-            <SymbolView
-              name={{ ios: 'target', android: 'flag' }}
-              size={14}
-              tintColor={activeTab === 'plan' ? colors.primary : colors.textSecondary}
-            />
-            <ThemedText
-              style={[
-                styles.segmentLabel,
-                {
-                  color:
-                    activeTab === 'plan' ? colors.primary : colors.textSecondary,
-                  fontFamily:
-                    activeTab === 'plan'
-                      ? Typography.fontFamilies.sansBold
-                      : Typography.fontFamilies.sansMedium,
-                },
-              ]}
-            >
-              Goal Planner
-            </ThemedText>
-          </Pressable>
-
-          <Pressable
-            onPress={() => setActiveTab('detect')}
-            style={[
-              styles.segmentItem,
-              activeTab === 'detect' && [
-                styles.segmentItemActive,
-                { backgroundColor: colors.surface },
-              ],
-            ]}
-          >
-            <SymbolView
-              name={{ ios: 'doc.text.magnifyingglass', android: 'document_scanner' }}
-              size={14}
-              tintColor={
-                activeTab === 'detect' ? colors.primary : colors.textSecondary
-              }
-            />
-            <ThemedText
-              style={[
-                styles.segmentLabel,
-                {
-                  color:
-                    activeTab === 'detect' ? colors.primary : colors.textSecondary,
-                  fontFamily:
-                    activeTab === 'detect'
-                      ? Typography.fontFamilies.sansBold
-                      : Typography.fontFamilies.sansMedium,
-                },
-              ]}
-            >
-              Text Extractor
-            </ThemedText>
-          </Pressable>
+            value={activeTab}
+            onChange={(val) => setActiveTab(val as AITab)}
+          />
         </View>
 
         {/* Tab 1: LifeBuddy Chat */}
         {activeTab === 'chat' && (
           <KeyboardAvoidingView
             style={styles.chatContainer}
-            behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
             keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
           >
             <ScrollView
               ref={chatScrollRef}
               style={styles.chatScroll}
-              contentContainerStyle={[
-                styles.chatScrollContent,
-                { paddingBottom: BottomTabInset + Spacing.eight },
-              ]}
+              contentContainerStyle={styles.chatScrollContent}
+              keyboardShouldPersistTaps="handled"
               showsVerticalScrollIndicator={false}
               onContentSizeChange={() => scrollToBottom(false)}
             >
@@ -537,9 +452,7 @@ export default function AIAssistantScreen() {
                     style={[
                       styles.heroIconBox,
                       {
-                        backgroundColor: isDark
-                          ? 'rgba(22, 143, 145, 0.2)'
-                          : '#E0F2F1',
+                        backgroundColor: colors.primarySoft,
                         borderColor: colors.border,
                       },
                     ]}
@@ -579,6 +492,7 @@ export default function AIAssistantScreen() {
                           onPress={() => handleSendMessage(prompt)}
                           style={({ pressed }) => [
                             styles.promptChip,
+                            createShadow(isDark, 'xs'),
                             {
                               backgroundColor: colors.surface,
                               borderColor: colors.border,
@@ -645,8 +559,10 @@ export default function AIAssistantScreen() {
                   style={[
                     styles.errorBanner,
                     {
-                      backgroundColor: isDark ? '#3D2020' : '#FFEEEE',
-                      borderColor: '#EF4444',
+                      backgroundColor: isDark
+                        ? Colors.urgency.critical.darkBg
+                        : Colors.urgency.critical.lightBg,
+                      borderColor: Colors.urgency.critical.accent,
                     },
                   ]}
                 >
@@ -656,14 +572,41 @@ export default function AIAssistantScreen() {
                       android: 'warning',
                     }}
                     size={16}
-                    tintColor="#EF4444"
+                    tintColor={
+                      isDark
+                        ? Colors.urgency.critical.darkText
+                        : Colors.urgency.critical.accent
+                    }
                   />
-                  <ThemedText style={styles.errorText}>{chatError}</ThemedText>
+                  <ThemedText
+                    style={[
+                      styles.errorText,
+                      {
+                        color: isDark
+                          ? Colors.urgency.critical.darkText
+                          : Colors.urgency.critical.lightText,
+                      },
+                    ]}
+                  >
+                    {chatError}
+                  </ThemedText>
                   <Pressable
                     onPress={() => handleSendMessage()}
+                    hitSlop={8}
                     style={styles.retryBtn}
                   >
-                    <ThemedText style={styles.retryBtnText}>Retry</ThemedText>
+                    <ThemedText
+                      style={[
+                        styles.retryBtnText,
+                        {
+                          color: isDark
+                            ? Colors.urgency.critical.darkText
+                            : Colors.urgency.critical.lightText,
+                        },
+                      ]}
+                    >
+                      Retry
+                    </ThemedText>
                   </Pressable>
                 </View>
               )}
@@ -676,6 +619,7 @@ export default function AIAssistantScreen() {
                 {
                   backgroundColor: colors.surface,
                   borderTopColor: colors.border,
+                  paddingBottom: Math.max(insets.bottom, Spacing.three),
                 },
               ]}
             >
@@ -700,14 +644,17 @@ export default function AIAssistantScreen() {
               <Pressable
                 onPress={() => handleSendMessage()}
                 disabled={!inputQuery.trim() || isChatLoading}
+                hitSlop={4}
                 style={({ pressed }) => [
                   styles.sendButton,
                   {
                     backgroundColor:
                       !inputQuery.trim() || isChatLoading
-                        ? isDark
-                          ? '#285968'
-                          : '#C5DDDE'
+                        ? colors.surfaceSecondary
+                        : colors.primary,
+                    borderColor:
+                      !inputQuery.trim() || isChatLoading
+                        ? colors.border
                         : colors.primary,
                   },
                   pressed && { opacity: 0.8 },
@@ -716,12 +663,19 @@ export default function AIAssistantScreen() {
                 accessibilityLabel="Send message"
               >
                 {isChatLoading ? (
-                  <ActivityIndicator size="small" color="#FFFFFF" />
+                  <ActivityIndicator
+                    size="small"
+                    color={colors.primary}
+                  />
                 ) : (
                   <SymbolView
                     name={{ ios: 'arrow.up', android: 'send' }}
-                    size={16}
-                    tintColor="#FFFFFF"
+                    size={17}
+                    tintColor={
+                      !inputQuery.trim()
+                        ? colors.textMuted
+                        : getButtonForegroundColor('primary', colors, isDark)
+                    }
                   />
                 )}
               </Pressable>
@@ -731,13 +685,10 @@ export default function AIAssistantScreen() {
 
         {/* Tab 2: Goal Planner */}
         {activeTab === 'plan' && (
-          <ScrollView
+          <KeyboardAvoidingView
             style={styles.viewContainer}
-            contentContainerStyle={[
-              styles.viewContent,
-              { paddingBottom: BottomTabInset + Spacing.eight },
-            ]}
-            showsVerticalScrollIndicator={false}
+            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+            keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
           >
             <GoalPlannerView
               onGeneratePlan={handleGeneratePlan}
@@ -747,18 +698,15 @@ export default function AIAssistantScreen() {
               onAcceptAllTasks={handleAcceptAll}
               isActionBusy={isActionSubmitting}
             />
-          </ScrollView>
+          </KeyboardAvoidingView>
         )}
 
         {/* Tab 3: Responsibility Detector */}
         {activeTab === 'detect' && (
-          <ScrollView
+          <KeyboardAvoidingView
             style={styles.viewContainer}
-            contentContainerStyle={[
-              styles.viewContent,
-              { paddingBottom: BottomTabInset + Spacing.eight },
-            ]}
-            showsVerticalScrollIndicator={false}
+            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+            keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
           >
             <ResponsibilityDetectorView
               onDetectResponsibilities={handleDetectResponsibilities}
@@ -768,7 +716,7 @@ export default function AIAssistantScreen() {
               onAcceptAllItems={handleAcceptAll}
               isActionBusy={isActionSubmitting}
             />
-          </ScrollView>
+          </KeyboardAvoidingView>
         )}
 
         {/* Action Confirmation Modal (SAFEGUARD) */}
@@ -819,8 +767,8 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   iconButton: {
-    width: 36,
-    height: 36,
+    width: 38,
+    height: 38,
     borderRadius: Radius.full,
     alignItems: 'center',
     justifyContent: 'center',
@@ -858,39 +806,15 @@ const styles = StyleSheet.create({
     gap: Spacing.two,
   },
   headerActionBtn: {
-    width: 36,
-    height: 36,
+    width: 38,
+    height: 38,
     borderRadius: Radius.full,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  segmentBar: {
-    flexDirection: 'row',
-    marginHorizontal: Spacing.four,
-    marginTop: Spacing.two,
-    marginBottom: Spacing.two,
-    padding: 3,
-    borderRadius: Radius.lg,
-    borderWidth: 1,
-  },
-  segmentItem: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
+  segmentContainer: {
+    paddingHorizontal: Spacing.four,
     paddingVertical: Spacing.two,
-    borderRadius: Radius.md,
-  },
-  segmentItemActive: {
-    shadowColor: '#000000',
-    shadowOpacity: 0.08,
-    shadowOffset: { width: 0, height: 1 },
-    shadowRadius: 2,
-    elevation: 2,
-  },
-  segmentLabel: {
-    fontSize: Typography.fontSize.xs,
   },
   chatContainer: {
     flex: 1,
@@ -901,10 +825,11 @@ const styles = StyleSheet.create({
   chatScrollContent: {
     paddingHorizontal: Spacing.four,
     paddingTop: Spacing.three,
+    paddingBottom: Spacing.six,
   },
   welcomeHero: {
     alignItems: 'center',
-    paddingVertical: Spacing.six,
+    paddingVertical: Spacing.four,
   },
   heroIconBox: {
     width: 60,
@@ -927,7 +852,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     lineHeight: 20,
     maxWidth: 320,
-    marginBottom: Spacing.six,
+    marginBottom: Spacing.four,
   },
   suggestionsContainer: {
     width: '100%',
@@ -946,6 +871,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.two,
+    minHeight: 48,
     paddingHorizontal: Spacing.four,
     paddingVertical: Spacing.three,
     borderRadius: Radius.xl,
@@ -985,29 +911,27 @@ const styles = StyleSheet.create({
   errorText: {
     fontFamily: Typography.fontFamilies.sans,
     fontSize: Typography.fontSize.xs,
-    color: '#EF4444',
     flex: 1,
   },
   retryBtn: {
     paddingHorizontal: Spacing.three,
-    paddingVertical: Spacing.one,
+    paddingVertical: Spacing.two,
   },
   retryBtnText: {
     fontFamily: Typography.fontFamilies.sansBold,
     fontSize: Typography.fontSize.xs,
-    color: '#EF4444',
   },
   inputBar: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.two,
     paddingHorizontal: Spacing.four,
-    paddingVertical: Spacing.three,
+    paddingTop: Spacing.three,
     borderTopWidth: StyleSheet.hairlineWidth,
   },
   textInput: {
     flex: 1,
-    height: 44,
+    minHeight: 46,
     borderRadius: Radius.full,
     borderWidth: 1,
     paddingHorizontal: Spacing.four,
@@ -1015,17 +939,14 @@ const styles = StyleSheet.create({
     fontSize: Typography.fontSize.sm,
   },
   sendButton: {
-    width: 44,
-    height: 44,
+    width: 46,
+    height: 46,
     borderRadius: Radius.full,
+    borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
   },
   viewContainer: {
     flex: 1,
-  },
-  viewContent: {
-    paddingHorizontal: Spacing.four,
-    paddingTop: Spacing.three,
   },
 });

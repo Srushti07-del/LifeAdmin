@@ -10,6 +10,7 @@ import {
   ViewStyle,
 } from 'react-native';
 
+import { Colors } from '@/constants/colors';
 import { Radius, Spacing } from '@/constants/spacing';
 import { Typography } from '@/constants/typography';
 import { useIsDark, useTheme } from '@/hooks/use-theme';
@@ -51,11 +52,21 @@ export const Input = React.forwardRef<React.ComponentRef<typeof TextInput>, Inpu
 
     const hasError = Boolean(error);
 
+    const errorColor = isDark ? Colors.urgency.critical.darkText : Colors.urgency.critical.accent;
+
     const getBorderColor = () => {
-      if (hasError) return '#EF4444';
+      if (hasError) return errorColor;
       if (isFocused) return colors.primary;
       return colors.border;
     };
+
+    const containerBg = isDark
+      ? editable
+        ? colors.surfaceSecondary
+        : colors.background
+      : editable
+      ? colors.surface
+      : colors.surfaceSecondary;
 
     return (
       <View style={[styles.container, containerStyle]}>
@@ -75,7 +86,7 @@ export const Input = React.forwardRef<React.ComponentRef<typeof TextInput>, Inpu
           style={[
             styles.inputContainer,
             {
-              backgroundColor: editable ? colors.surface : colors.surfaceSecondary,
+              backgroundColor: containerBg,
               borderColor: getBorderColor(),
               borderWidth: isFocused ? 1.5 : 1,
             },
@@ -117,7 +128,7 @@ export const Input = React.forwardRef<React.ComponentRef<typeof TextInput>, Inpu
         </View>
 
         {hasError ? (
-          <Text style={styles.errorText}>{error}</Text>
+          <Text style={[styles.errorText, { color: errorColor }]}>{error}</Text>
         ) : helperText ? (
           <Text style={[styles.helperText, { color: colors.textSecondary }]}>
             {helperText}
@@ -150,6 +161,7 @@ const styles = StyleSheet.create({
   },
   textInput: {
     flex: 1,
+    minWidth: 0,
     height: '100%',
     fontFamily: Typography.fontFamilies.sans,
     fontSize: Typography.fontSize.sm,
@@ -173,7 +185,6 @@ const styles = StyleSheet.create({
   errorText: {
     fontFamily: Typography.fontFamilies.sans,
     fontSize: Typography.fontSize.xs,
-    color: '#EF4444',
     marginTop: Spacing.one,
   },
   helperText: {
