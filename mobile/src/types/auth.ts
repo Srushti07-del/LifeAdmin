@@ -24,6 +24,16 @@ export interface User {
   preferredCurrency?: string;
   companion?: CompanionState;
   subscriptionTier?: 'free' | 'premium' | 'premium_ai';
+  onboardingCompleted?: boolean;
+  onboardingStep?: number;
+  notificationTypes?: {
+    tasks: boolean;
+    bills: boolean;
+    appointments: boolean;
+    reminders: boolean;
+  };
+  emailReminderIntervals?: number[];
+  timezone?: string;
   isDemo?: boolean;
   createdAt?: string;
 }

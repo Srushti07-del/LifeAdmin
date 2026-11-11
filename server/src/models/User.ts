@@ -45,6 +45,10 @@ export interface IUser extends Document {
   // Future-proofing for household support
   householdId?: mongoose.Types.ObjectId;
 
+  // Demo / guest session
+  isDemo: boolean;
+  demoExpiresAt?: Date;
+
   // Onboarding
   onboardingCompleted: boolean;
   onboardingStep: number;
@@ -121,6 +125,10 @@ const userSchema = new Schema<IUser>(
     
     // Future household support
     householdId: { type: Schema.Types.ObjectId, ref: 'Household' },
+
+    // Demo / guest session
+    isDemo: { type: Boolean, default: false },
+    demoExpiresAt: { type: Date },
 
     // Onboarding
     onboardingCompleted: { type: Boolean, default: false },
