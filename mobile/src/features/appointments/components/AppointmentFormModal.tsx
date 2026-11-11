@@ -172,12 +172,11 @@ export function AppointmentFormModal({
               <Pressable
                 key={p.label}
                 onPress={() => handleQuickDatePreset(p.days)}
+                hitSlop={6}
                 style={[
                   styles.presetChip,
                   {
-                    backgroundColor: isDark
-                      ? 'rgba(255, 255, 255, 0.05)'
-                      : '#F1F5F9',
+                    backgroundColor: colors.surfaceSecondary,
                   },
                 ]}
               >
@@ -253,17 +252,14 @@ export function AppointmentFormModal({
                 <Pressable
                   key={cat}
                   onPress={() => setFormData((prev) => ({ ...prev, category: cat }))}
+                  hitSlop={6}
                   style={[
                     styles.categoryChip,
                     {
                       backgroundColor: isSelected
-                        ? isDark
-                          ? 'rgba(139, 92, 246, 0.25)'
-                          : 'rgba(139, 92, 246, 0.15)'
-                        : isDark
-                        ? 'rgba(255, 255, 255, 0.05)'
-                        : '#F1F5F9',
-                      borderColor: isSelected ? '#8B5CF6' : 'transparent',
+                        ? colors.primarySoft
+                        : colors.surfaceSecondary,
+                      borderColor: isSelected ? colors.primary : colors.border,
                     },
                   ]}
                 >
@@ -271,10 +267,10 @@ export function AppointmentFormModal({
                     style={[
                       styles.categoryChipText,
                       {
-                        color: isSelected ? '#8B5CF6' : colors.textSecondary,
-                        fontWeight: isSelected
-                          ? Typography.fontWeight.semibold
-                          : Typography.fontWeight.normal,
+                        color: isSelected ? colors.primary : colors.textSecondary,
+                        fontFamily: isSelected
+                          ? Typography.fontFamilies.sansSemiBold
+                          : Typography.fontFamilies.sans,
                       },
                     ]}
                   >

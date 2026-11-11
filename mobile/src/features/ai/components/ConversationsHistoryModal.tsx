@@ -17,6 +17,7 @@ import { ThemedText } from '@/components/themed-text';
 import { ModalSheet, Button } from '@/components/ui';
 import { Typography } from '@/constants/typography';
 import { Spacing, Radius } from '@/constants/spacing';
+import { createShadow } from '@/constants/shadows';
 import { ConversationSummary } from '../types';
 
 interface ConversationsHistoryModalProps {
@@ -86,9 +87,10 @@ export function ConversationsHistoryModal({
                 }}
                 style={({ pressed }) => [
                   styles.itemCard,
+                  createShadow(isDark, 'xs'),
                   {
-                    backgroundColor: isDark ? '#1C292D' : colors.surface,
-                    borderColor: isDark ? '#304247' : colors.border,
+                    backgroundColor: colors.surface,
+                    borderColor: colors.border,
                   },
                   pressed && { opacity: 0.8 },
                 ]}
@@ -163,6 +165,7 @@ const styles = StyleSheet.create({
     paddingBottom: Spacing.four,
   },
   itemCard: {
+    minHeight: 56,
     padding: Spacing.three,
     borderRadius: Radius.lg,
     borderWidth: 1,
@@ -183,6 +186,7 @@ const styles = StyleSheet.create({
   itemTimestamp: {
     fontSize: 10,
     fontFamily: Typography.fontFamilies.sans,
+    fontVariant: ['tabular-nums'],
   },
   emptyBox: {
     paddingVertical: Spacing.eight,

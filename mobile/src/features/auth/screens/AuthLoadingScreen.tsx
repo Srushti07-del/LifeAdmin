@@ -7,11 +7,12 @@ import React from 'react';
 import { View, StyleSheet, ActivityIndicator } from 'react-native';
 import { useAppTheme } from '@/context/ThemeContext';
 import { ThemedText } from '@/components/themed-text';
+import { getButtonForegroundColor } from '@/components/ui/Button';
 import { Typography } from '@/constants/typography';
 import { Spacing, Radius } from '@/constants/spacing';
 
 export function AuthLoadingScreen() {
-  const { colors } = useAppTheme();
+  const { colors, isDark } = useAppTheme();
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
@@ -24,7 +25,14 @@ export function AuthLoadingScreen() {
           },
         ]}
       >
-        <ThemedText style={styles.brandLetter}>L</ThemedText>
+        <ThemedText
+          style={[
+            styles.brandLetter,
+            { color: getButtonForegroundColor('primary', colors, isDark) },
+          ]}
+        >
+          L
+        </ThemedText>
       </View>
 
       <ThemedText style={[styles.brandName, { color: colors.text }]}>
@@ -64,15 +72,12 @@ const styles = StyleSheet.create({
     elevation: 6,
   },
   brandLetter: {
-    color: '#FFFFFF',
     fontSize: 32,
-    fontWeight: '800',
     fontFamily: Typography.fontFamilies.editorial,
   },
   brandName: {
     fontSize: Typography.fontSize['2xl'],
     fontFamily: Typography.fontFamilies.editorial,
-    fontWeight: Typography.fontWeight.bold,
     marginBottom: Spacing.one,
   },
   tagline: {

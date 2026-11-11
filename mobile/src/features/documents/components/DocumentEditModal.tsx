@@ -7,7 +7,8 @@ import React, { useState, useEffect } from 'react';
 import { View, StyleSheet, ScrollView, Pressable } from 'react-native';
 import { useAppTheme } from '@/context/ThemeContext';
 import { ThemedText } from '@/components/themed-text';
-import { ModalSheet, Button, Input } from '@/components/ui';
+import { ModalSheet, Button, Input, getButtonForegroundColor } from '@/components/ui';
+import { Colors } from '@/constants/colors';
 import { Typography } from '@/constants/typography';
 import { Spacing, Radius } from '@/constants/spacing';
 import { DocumentItem, EditDocumentParams } from '../types';
@@ -86,8 +87,29 @@ export function DocumentEditModal({
         contentContainerStyle={styles.scrollContent}
       >
         {error && (
-          <View style={[styles.errorBox, { backgroundColor: '#FEE2E2', borderColor: '#FCA5A5' }]}>
-            <ThemedText style={styles.errorText}>{error}</ThemedText>
+          <View
+            style={[
+              styles.errorBox,
+              {
+                backgroundColor: isDark
+                  ? Colors.urgency.critical.darkBg
+                  : Colors.urgency.critical.lightBg,
+                borderColor: Colors.urgency.critical.accent,
+              },
+            ]}
+          >
+            <ThemedText
+              style={[
+                styles.errorText,
+                {
+                  color: isDark
+                    ? Colors.urgency.critical.darkText
+                    : Colors.urgency.critical.lightText,
+                },
+              ]}
+            >
+              {error}
+            </ThemedText>
           </View>
         )}
 
@@ -102,30 +124,24 @@ export function DocumentEditModal({
           >
             {CATEGORIES.map((cat) => {
               const isSelected = category === cat;
+              const selectedFg = getButtonForegroundColor('primary', colors, isDark);
               return (
                 <Pressable
                   key={cat}
                   onPress={() => setCategory(cat)}
+                  hitSlop={6}
                   style={[
                     styles.categoryPill,
                     {
-                      backgroundColor: isSelected
-                        ? colors.primary
-                        : isDark
-                        ? '#26383E'
-                        : colors.backgroundElement,
-                      borderColor: isSelected
-                        ? colors.primary
-                        : isDark
-                        ? '#354E57'
-                        : colors.border,
+                      backgroundColor: isSelected ? colors.primary : colors.surfaceSecondary,
+                      borderColor: isSelected ? colors.primary : colors.border,
                     },
                   ]}
                 >
                   <ThemedText
                     style={[
                       styles.categoryPillText,
-                      { color: isSelected ? '#FFFFFF' : colors.textSecondary },
+                      { color: isSelected ? selectedFg : colors.textSecondary },
                     ]}
                   >
                     {cat}

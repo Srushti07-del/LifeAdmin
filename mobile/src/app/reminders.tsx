@@ -9,7 +9,13 @@
  * - Pull-to-refresh and permission status banner
  */
 
-import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import React, {
+  useState,
+  useEffect,
+  useCallback,
+  useMemo,
+  useRef,
+} from "react";
 import {
   View,
   StyleSheet,
@@ -19,22 +25,24 @@ import {
   Pressable,
   Alert,
   AppState,
-} from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { SymbolView } from 'expo-symbols';
-import { useLocalSearchParams } from 'expo-router';
-import { useAppTheme } from '@/context/ThemeContext';
-import { useAuth } from '@/context/AuthContext';
-import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
+} from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
+import { SymbolView } from "expo-symbols";
+import { useLocalSearchParams } from "expo-router";
+import { useAppTheme } from "@/context/ThemeContext";
+import { useAuth } from "@/context/AuthContext";
+import { ThemedText } from "@/components/themed-text";
+import { ThemedView } from "@/components/themed-view";
 import {
   SearchInput,
   Button,
   EmptyState,
-} from '@/components/ui';
-import { Typography } from '@/constants/typography';
-import { Spacing, Radius } from '@/constants/spacing';
-import { BottomTabInset } from '@/constants/theme';
+  getButtonForegroundColor,
+} from "@/components/ui";
+import { Colors } from "@/constants/colors";
+import { Typography } from "@/constants/typography";
+import { Spacing, Radius } from "@/constants/spacing";
+import { BottomTabInset } from "@/constants/theme";
 import {
   Reminder,
   ReminderFormData,
@@ -52,31 +60,31 @@ import {
   ReminderFormModal,
   ReminderDetailsModal,
   NotificationPermissionBanner,
-} from '@/features/reminders';
+} from "@/features/reminders";
 
 const CATEGORIES = [
-  'All',
-  'Personal',
-  'Work',
-  'Health',
-  'Finance',
-  'Education',
-  'Housing',
-  'General',
+  "All",
+  "Personal",
+  "Work",
+  "Health",
+  "Finance",
+  "Education",
+  "Housing",
+  "General",
 ];
 
 const PRIORITIES: Array<{ key: string; label: string }> = [
-  { key: 'all', label: 'All Priorities' },
-  { key: 'urgent', label: 'Urgent' },
-  { key: 'high', label: 'High' },
-  { key: 'medium', label: 'Medium' },
-  { key: 'low', label: 'Low' },
+  { key: "all", label: "All Priorities" },
+  { key: "urgent", label: "Urgent" },
+  { key: "high", label: "High" },
+  { key: "medium", label: "Medium" },
+  { key: "low", label: "Low" },
 ];
 
 export default function RemindersScreen() {
   const { colors, isDark } = useAppTheme();
   const { user } = useAuth();
-  const currentUserId = user?.id || 'default_user';
+  const currentUserId = user?.id || "default_user";
 
   // Data state
   const [reminders, setReminders] = useState<Reminder[]>([]);
@@ -91,7 +99,9 @@ export default function RemindersScreen() {
     canAskNotifications: true,
     canAskExactAlarm: true,
   });
-  const [dismissedBanners, setDismissedBanners] = useState<Record<string, boolean>>({});
+  const [dismissedBanners, setDismissedBanners] = useState<
+    Record<string, boolean>
+  >({});
 
   // Check combined permissions on mount and when returning to foreground
   const checkAllPermissions = useCallback(async () => {
@@ -99,7 +109,7 @@ export default function RemindersScreen() {
       const status = await notificationService.getCombinedPermissionsAsync();
       setPermissions(status);
     } catch (err) {
-      console.warn('Failed to inspect device notification permissions:', err);
+      console.warn("Failed to inspect device notification permissions:", err);
     }
   }, []);
 
@@ -112,7 +122,10 @@ export default function RemindersScreen() {
     const granted = await notificationService.requestPermissionsAsync();
     await checkAllPermissions();
     if (granted && reminders.length > 0) {
-      await notificationService.reconcileUserReminders(reminders, currentUserId);
+      await notificationService.reconcileUserReminders(
+        reminders,
+        currentUserId,
+      );
     }
   };
 
@@ -129,16 +142,17 @@ export default function RemindersScreen() {
   }, [permissions, dismissedBanners]);
 
   // Filter & Search state
-  const [filterSection, setFilterSection] = useState<string>('all');
-  const [selectedCategory, setSelectedCategory] = useState<string>('All');
-  const [selectedPriority, setSelectedPriority] = useState<string>('all');
-  const [searchQuery, setSearchQuery] = useState<string>('');
-  const [sortOrder, setSortOrder] = useState<'dueDate' | '-dueDate'>('dueDate');
+  const [filterSection, setFilterSection] = useState<string>("all");
+  const [selectedCategory, setSelectedCategory] = useState<string>("All");
+  const [selectedPriority, setSelectedPriority] = useState<string>("all");
+  const [searchQuery, setSearchQuery] = useState<string>("");
+  const [sortOrder, setSortOrder] = useState<"dueDate" | "-dueDate">("dueDate");
 
   // Modal states
   const [isFormOpen, setIsFormOpen] = useState<boolean>(false);
   const [editingReminder, setEditingReminder] = useState<Reminder | null>(null);
-  const [selectedReminderForDetails, setSelectedReminderForDetails] = useState<Reminder | null>(null);
+  const [selectedReminderForDetails, setSelectedReminderForDetails] =
+    useState<Reminder | null>(null);
 
   // Deep-link to specific reminder when opened via notification or URL
   const params = useLocalSearchParams<{ reminderId?: string }>();
@@ -154,8 +168,8 @@ export default function RemindersScreen() {
       setSelectedReminderForDetails(matched);
     } else {
       Alert.alert(
-        'Reminder Not Found',
-        'This reminder may have been deleted, completed, or rescheduled.'
+        "Reminder Not Found",
+        "This reminder may have been deleted, completed, or rescheduled.",
       );
     }
   }, [params.reminderId, isLoading, reminders]);
@@ -174,14 +188,16 @@ export default function RemindersScreen() {
         // Reconcile local device alerts with backend state
         await notificationService.reconcileUserReminders(list, currentUserId);
       } catch (err: any) {
-        console.warn('Error loading reminders:', err);
-        setError(err?.message || 'Unable to connect to server. Please try again.');
+        console.warn("Error loading reminders:", err);
+        setError(
+          err?.message || "Unable to connect to server. Please try again.",
+        );
       } finally {
         setIsLoading(false);
         setIsRefreshing(false);
       }
     },
-    [currentUserId]
+    [currentUserId],
   );
 
   useEffect(() => {
@@ -190,8 +206,8 @@ export default function RemindersScreen() {
 
   // AppState listener to re-reconcile permissions and alerts when app returns to foreground
   useEffect(() => {
-    const subscription = AppState.addEventListener('change', (nextState) => {
-      if (nextState === 'active') {
+    const subscription = AppState.addEventListener("change", (nextState) => {
+      if (nextState === "active") {
         checkAllPermissions();
         loadReminders(true);
       }
@@ -217,9 +233,16 @@ export default function RemindersScreen() {
       selectedCategory,
       selectedPriority,
       searchQuery,
-      sortOrder
+      sortOrder,
     );
-  }, [reminders, filterSection, selectedCategory, selectedPriority, searchQuery, sortOrder]);
+  }, [
+    reminders,
+    filterSection,
+    selectedCategory,
+    selectedPriority,
+    searchQuery,
+    sortOrder,
+  ]);
 
   // Grouped timeline sections
   const grouped = useMemo(() => {
@@ -231,35 +254,53 @@ export default function RemindersScreen() {
     if (editingReminder) {
       const { reminder: updated } = await reminderService.updateReminder(
         editingReminder._id,
-        data
+        data,
       );
-      setReminders((prev) => prev.map((r) => (r._id === updated._id ? updated : r)));
-      await notificationService.scheduleReminderNotification(updated, currentUserId);
+      setReminders((prev) =>
+        prev.map((r) => (r._id === updated._id ? updated : r)),
+      );
+      await notificationService.scheduleReminderNotification(
+        updated,
+        currentUserId,
+      );
       if (selectedReminderForDetails?._id === updated._id) {
         setSelectedReminderForDetails(updated);
       }
-      Alert.alert('Reminder Updated', 'Your alert schedule has been synchronized.');
+      Alert.alert(
+        "Reminder Updated",
+        "Your alert schedule has been synchronized.",
+      );
     } else {
       const created = await reminderService.createReminder(data);
       setReminders((prev) => [created, ...prev]);
-      await notificationService.scheduleReminderNotification(created, currentUserId);
-      Alert.alert('Reminder Created', 'Your notification has been scheduled.');
+      await notificationService.scheduleReminderNotification(
+        created,
+        currentUserId,
+      );
+      Alert.alert("Reminder Created", "Your notification has been scheduled.");
     }
   };
 
   // Toggle complete / reopen
   const handleToggleComplete = async (reminder: Reminder) => {
     try {
-      if (reminder.status === 'completed') {
+      if (reminder.status === "completed") {
         const reopened = await reminderService.reopenReminder(reminder._id);
-        setReminders((prev) => prev.map((r) => (r._id === reminder._id ? reopened : r)));
-        await notificationService.scheduleReminderNotification(reopened, currentUserId);
-      } else {
-        const { reminder: completed, nextOccurrence } = await reminderService.completeReminder(
-          reminder._id
+        setReminders((prev) =>
+          prev.map((r) => (r._id === reminder._id ? reopened : r)),
         );
+        await notificationService.scheduleReminderNotification(
+          reopened,
+          currentUserId,
+        );
+      } else {
+        const { reminder: completed, nextOccurrence } =
+          await reminderService.completeReminder(reminder._id);
         // Cancel notification for completed reminder
-        await notificationService.cancelReminderNotification(reminder._id, currentUserId);
+        await notificationService.cancelReminderNotification(
+          reminder._id,
+          currentUserId,
+        );
 
         setReminders((prev) => {
           let next = prev.map((r) => (r._id === reminder._id ? completed : r));
@@ -270,16 +311,22 @@ export default function RemindersScreen() {
         });
 
         if (nextOccurrence) {
-          await notificationService.scheduleReminderNotification(nextOccurrence, currentUserId);
+          await notificationService.scheduleReminderNotification(
+            nextOccurrence,
+            currentUserId,
+          );
           Alert.alert(
-            'Recurring Reminder Scheduled',
-            `Next occurrence scheduled for ${new Date(nextOccurrence.dueDate).toLocaleDateString()}.`
+            "Recurring Reminder Scheduled",
+            `Next occurrence scheduled for ${new Date(nextOccurrence.dueDate).toLocaleDateString()}.`,
           );
         }
       }
     } catch (err: any) {
-      console.warn('Error toggling complete:', err);
-      Alert.alert('Action Failed', err?.message || 'Unable to update reminder status.');
+      console.warn("Error toggling complete:", err);
+      Alert.alert(
+        "Action Failed",
+        err?.message || "Unable to update reminder status.",
+      );
     }
   };
 
@@ -293,29 +340,32 @@ export default function RemindersScreen() {
         setSelectedReminderForDetails(null);
       }
     } catch (err: any) {
-      console.warn('Delete reminder error:', err);
-      Alert.alert('Delete Failed', err?.message || 'Unable to remove reminder.');
+      console.warn("Delete reminder error:", err);
+      Alert.alert(
+        "Delete Failed",
+        err?.message || "Unable to remove reminder.",
+      );
     }
   };
 
   const confirmDelete = (reminder: Reminder) => {
     Alert.alert(
-      'Delete Reminder',
+      "Delete Reminder",
       `Are you sure you want to delete "${reminder.title}"? This cannot be undone.`,
       [
-        { text: 'Cancel', style: 'cancel' },
+        { text: "Cancel", style: "cancel" },
         {
-          text: 'Delete',
-          style: 'destructive',
+          text: "Delete",
+          style: "destructive",
           onPress: () => handleDeleteReminder(reminder._id),
         },
-      ]
+      ],
     );
   };
 
   return (
     <SafeAreaView
-      edges={['top', 'left', 'right']}
+      edges={["top", "left", "right"]}
       style={[styles.screen, { backgroundColor: colors.background }]}
     >
       <ScrollView
@@ -339,7 +389,9 @@ export default function RemindersScreen() {
             <ThemedText style={[styles.title, { color: colors.text }]}>
               Smart Reminders
             </ThemedText>
-            <ThemedText style={[styles.subtitle, { color: colors.textSecondary }]}>
+            <ThemedText
+              style={[styles.subtitle, { color: colors.textSecondary }]}
+            >
               Time-sensitive cues and native background notifications
             </ThemedText>
           </View>
@@ -354,9 +406,9 @@ export default function RemindersScreen() {
             style={styles.newBtn}
             icon={
               <SymbolView
-                name={{ ios: 'plus', android: 'add' }}
+                name={{ ios: "plus", android: "add" }}
                 size={16}
-                tintColor="#FFFFFF"
+                tintColor={getButtonForegroundColor("primary", colors, isDark)}
               />
             }
           >
@@ -369,7 +421,7 @@ export default function RemindersScreen() {
           <NotificationPermissionBanner
             type={activeBanner}
             onEnable={
-              activeBanner === 'notifications'
+              activeBanner === "notifications"
                 ? handleRequestNotificationPermission
                 : handleRequestExactAlarmPermission
             }
@@ -397,17 +449,22 @@ export default function RemindersScreen() {
           </View>
 
           <Pressable
-            onPress={() => setSortOrder((prev) => (prev === 'dueDate' ? '-dueDate' : 'dueDate'))}
+            onPress={() =>
+              setSortOrder((prev) =>
+                prev === "dueDate" ? "-dueDate" : "dueDate",
+              )
+            }
+            hitSlop={4}
             style={[
               styles.sortBtn,
               {
-                backgroundColor: isDark ? '#1C292D' : colors.surface,
-                borderColor: isDark ? '#304247' : colors.border,
+                backgroundColor: colors.surface,
+                borderColor: colors.border,
               },
             ]}
           >
             <SymbolView
-              name={{ ios: 'arrow.up.arrow.down', android: 'sort' }}
+              name={{ ios: "arrow.up.arrow.down", android: "sort" }}
               size={18}
               tintColor={colors.text}
             />
@@ -422,30 +479,30 @@ export default function RemindersScreen() {
         >
           {CATEGORIES.map((cat) => {
             const isSelected = selectedCategory === cat;
+            const selectedFg = getButtonForegroundColor(
+              "primary",
+              colors,
+              isDark,
+            );
             return (
               <Pressable
                 key={cat}
                 onPress={() => setSelectedCategory(cat)}
+                hitSlop={6}
                 style={[
                   styles.categoryPill,
                   {
                     backgroundColor: isSelected
                       ? colors.primary
-                      : isDark
-                      ? '#1C292D'
                       : colors.surface,
-                    borderColor: isSelected
-                      ? colors.primary
-                      : isDark
-                      ? '#304247'
-                      : colors.border,
+                    borderColor: isSelected ? colors.primary : colors.border,
                   },
                 ]}
               >
                 <ThemedText
                   style={[
                     styles.categoryPillText,
-                    { color: isSelected ? '#FFFFFF' : colors.textSecondary },
+                    { color: isSelected ? selectedFg : colors.textSecondary },
                   ]}
                 >
                   {cat}
@@ -457,13 +514,30 @@ export default function RemindersScreen() {
 
         {/* Error Banner */}
         {error && (
-          <View style={[styles.errorBox, { backgroundColor: '#FEE2E2', borderColor: '#FCA5A5' }]}>
-            <ThemedText style={styles.errorText}>{error}</ThemedText>
-            <Button
-              variant="outline"
-              size="sm"
-              onPress={() => loadReminders()}
+          <View
+            style={[
+              styles.errorBox,
+              {
+                backgroundColor: isDark
+                  ? Colors.urgency.critical.darkBg
+                  : Colors.urgency.critical.lightBg,
+                borderColor: Colors.urgency.critical.accent,
+              },
+            ]}
+          >
+            <ThemedText
+              style={[
+                styles.errorText,
+                {
+                  color: isDark
+                    ? Colors.urgency.critical.darkText
+                    : Colors.urgency.critical.lightText,
+                },
+              ]}
             >
+              {error}
+            </ThemedText>
+            <Button variant="outline" size="sm" onPress={() => loadReminders()}>
               Retry
             </Button>
           </View>
@@ -473,144 +547,232 @@ export default function RemindersScreen() {
         {isLoading && !isRefreshing ? (
           <View style={styles.loadingContainer}>
             <ActivityIndicator size="large" color={colors.primary} />
-            <ThemedText style={[styles.loadingText, { color: colors.textSecondary }]}>
+            <ThemedText
+              style={[styles.loadingText, { color: colors.textSecondary }]}
+            >
               Loading active reminders...
             </ThemedText>
           </View>
         ) : filteredReminders.length === 0 ? (
           <EmptyState
             title={
-              searchQuery || selectedCategory !== 'All' || filterSection !== 'all'
-                ? 'No matching reminders'
-                : 'No reminders yet'
+              searchQuery ||
+              selectedCategory !== "All" ||
+              filterSection !== "all"
+                ? "No matching reminders"
+                : "No reminders yet"
             }
             description={
-              searchQuery || selectedCategory !== 'All' || filterSection !== 'all'
-                ? 'Try adjusting your search query, priority filter, or category.'
-                : 'Stay ahead of your everyday obligations. Schedule native alerts for calls, bills, meds, and meetings.'
+              searchQuery ||
+              selectedCategory !== "All" ||
+              filterSection !== "all"
+                ? "Try adjusting your search query, priority filter, or category."
+                : "Stay ahead of your everyday obligations. Schedule native alerts for calls, bills, meds, and meetings."
             }
             actionLabel={
-              searchQuery || selectedCategory !== 'All' || filterSection !== 'all'
-                ? 'Clear Filters'
-                : 'Set First Reminder'
+              searchQuery ||
+              selectedCategory !== "All" ||
+              filterSection !== "all"
+                ? "Clear Filters"
+                : "Set First Reminder"
             }
             onAction={
-              searchQuery || selectedCategory !== 'All' || filterSection !== 'all'
+              searchQuery ||
+              selectedCategory !== "All" ||
+              filterSection !== "all"
                 ? () => {
-                    setSearchQuery('');
-                    setSelectedCategory('All');
-                    setSelectedPriority('all');
-                    setFilterSection('all');
+                    setSearchQuery("");
+                    setSelectedCategory("All");
+                    setSelectedPriority("all");
+                    setFilterSection("all");
                   }
                 : () => {
                     setEditingReminder(null);
                     setIsFormOpen(true);
                   }
             }
-            icon="notifications"
+            icon={
+              <SymbolView
+                name={{
+                  ios:
+                    searchQuery ||
+                    selectedCategory !== "All" ||
+                    filterSection !== "all"
+                      ? "magnifyingglass"
+                      : "bell.badge",
+                  android:
+                    searchQuery ||
+                    selectedCategory !== "All" ||
+                    filterSection !== "all"
+                      ? "search_off"
+                      : "notifications_none",
+                  web:
+                    searchQuery ||
+                    selectedCategory !== "All" ||
+                    filterSection !== "all"
+                      ? "search_off"
+                      : "notifications_none",
+                }}
+                size={28}
+                tintColor={colors.primary}
+              />
+            }
           />
         ) : (
           /* Timeline Sections */
           <View style={styles.timelineContainer}>
             {/* 1. Overdue Section */}
-            {grouped.overdue.length > 0 && (filterSection === 'all' || filterSection === 'overdue') && (
-              <View style={styles.sectionWrap}>
-                <View style={styles.sectionHeaderRow}>
-                  <View style={[styles.sectionIndicator, { backgroundColor: '#EF4444' }]} />
-                  <ThemedText style={[styles.sectionHeading, { color: '#EF4444' }]}>
-                    Overdue ({grouped.overdue.length})
-                  </ThemedText>
+            {grouped.overdue.length > 0 &&
+              (filterSection === "all" || filterSection === "overdue") && (
+                <View style={styles.sectionWrap}>
+                  <View style={styles.sectionHeaderRow}>
+                    <View
+                      style={[
+                        styles.sectionIndicator,
+                        { backgroundColor: Colors.urgency.critical.accent },
+                      ]}
+                    />
+                    <ThemedText
+                      style={[
+                        styles.sectionHeading,
+                        {
+                          color: isDark
+                            ? Colors.urgency.critical.darkText
+                            : Colors.urgency.critical.lightText,
+                        },
+                      ]}
+                    >
+                      Overdue ({grouped.overdue.length})
+                    </ThemedText>
+                  </View>
+                  {grouped.overdue.map((r) => (
+                    <ReminderCard
+                      key={r._id}
+                      reminder={r}
+                      onPress={() => setSelectedReminderForDetails(r)}
+                      onToggleComplete={() => handleToggleComplete(r)}
+                      onEdit={() => {
+                        setEditingReminder(r);
+                        setIsFormOpen(true);
+                      }}
+                      onDelete={() => confirmDelete(r)}
+                    />
+                  ))}
                 </View>
-                {grouped.overdue.map((r) => (
-                  <ReminderCard
-                    key={r._id}
-                    reminder={r}
-                    onPress={() => setSelectedReminderForDetails(r)}
-                    onToggleComplete={() => handleToggleComplete(r)}
-                    onEdit={() => {
-                      setEditingReminder(r);
-                      setIsFormOpen(true);
-                    }}
-                    onDelete={() => confirmDelete(r)}
-                  />
-                ))}
-              </View>
-            )}
+              )}
 
             {/* 2. Today Section */}
-            {grouped.today.length > 0 && (filterSection === 'all' || filterSection === 'today') && (
-              <View style={styles.sectionWrap}>
-                <View style={styles.sectionHeaderRow}>
-                  <View style={[styles.sectionIndicator, { backgroundColor: colors.primary }]} />
-                  <ThemedText style={[styles.sectionHeading, { color: colors.primary }]}>
-                    Due Today ({grouped.today.length})
-                  </ThemedText>
+            {grouped.today.length > 0 &&
+              (filterSection === "all" || filterSection === "today") && (
+                <View style={styles.sectionWrap}>
+                  <View style={styles.sectionHeaderRow}>
+                    <View
+                      style={[
+                        styles.sectionIndicator,
+                        { backgroundColor: colors.primary },
+                      ]}
+                    />
+                    <ThemedText
+                      style={[styles.sectionHeading, { color: colors.primary }]}
+                    >
+                      Due Today ({grouped.today.length})
+                    </ThemedText>
+                  </View>
+                  {grouped.today.map((r) => (
+                    <ReminderCard
+                      key={r._id}
+                      reminder={r}
+                      onPress={() => setSelectedReminderForDetails(r)}
+                      onToggleComplete={() => handleToggleComplete(r)}
+                      onEdit={() => {
+                        setEditingReminder(r);
+                        setIsFormOpen(true);
+                      }}
+                      onDelete={() => confirmDelete(r)}
+                    />
+                  ))}
                 </View>
-                {grouped.today.map((r) => (
-                  <ReminderCard
-                    key={r._id}
-                    reminder={r}
-                    onPress={() => setSelectedReminderForDetails(r)}
-                    onToggleComplete={() => handleToggleComplete(r)}
-                    onEdit={() => {
-                      setEditingReminder(r);
-                      setIsFormOpen(true);
-                    }}
-                    onDelete={() => confirmDelete(r)}
-                  />
-                ))}
-              </View>
-            )}
+              )}
 
             {/* 3. Upcoming Section */}
-            {grouped.upcoming.length > 0 && (filterSection === 'all' || filterSection === 'upcoming') && (
-              <View style={styles.sectionWrap}>
-                <View style={styles.sectionHeaderRow}>
-                  <View style={[styles.sectionIndicator, { backgroundColor: '#0D9488' }]} />
-                  <ThemedText style={[styles.sectionHeading, { color: '#0D9488' }]}>
-                    Upcoming ({grouped.upcoming.length})
-                  </ThemedText>
+            {grouped.upcoming.length > 0 &&
+              (filterSection === "all" || filterSection === "upcoming") && (
+                <View style={styles.sectionWrap}>
+                  <View style={styles.sectionHeaderRow}>
+                    <View
+                      style={[
+                        styles.sectionIndicator,
+                        { backgroundColor: Colors.urgency.upcoming.accent },
+                      ]}
+                    />
+                    <ThemedText
+                      style={[
+                        styles.sectionHeading,
+                        {
+                          color: isDark
+                            ? Colors.urgency.upcoming.darkText
+                            : Colors.urgency.upcoming.lightText,
+                        },
+                      ]}
+                    >
+                      Upcoming ({grouped.upcoming.length})
+                    </ThemedText>
+                  </View>
+                  {grouped.upcoming.map((r) => (
+                    <ReminderCard
+                      key={r._id}
+                      reminder={r}
+                      onPress={() => setSelectedReminderForDetails(r)}
+                      onToggleComplete={() => handleToggleComplete(r)}
+                      onEdit={() => {
+                        setEditingReminder(r);
+                        setIsFormOpen(true);
+                      }}
+                      onDelete={() => confirmDelete(r)}
+                    />
+                  ))}
                 </View>
-                {grouped.upcoming.map((r) => (
-                  <ReminderCard
-                    key={r._id}
-                    reminder={r}
-                    onPress={() => setSelectedReminderForDetails(r)}
-                    onToggleComplete={() => handleToggleComplete(r)}
-                    onEdit={() => {
-                      setEditingReminder(r);
-                      setIsFormOpen(true);
-                    }}
-                    onDelete={() => confirmDelete(r)}
-                  />
-                ))}
-              </View>
-            )}
+              )}
 
             {/* 4. Completed Section */}
-            {grouped.completed.length > 0 && (filterSection === 'all' || filterSection === 'completed') && (
-              <View style={styles.sectionWrap}>
-                <View style={styles.sectionHeaderRow}>
-                  <View style={[styles.sectionIndicator, { backgroundColor: '#10B981' }]} />
-                  <ThemedText style={[styles.sectionHeading, { color: '#10B981' }]}>
-                    Completed ({grouped.completed.length})
-                  </ThemedText>
+            {grouped.completed.length > 0 &&
+              (filterSection === "all" || filterSection === "completed") && (
+                <View style={styles.sectionWrap}>
+                  <View style={styles.sectionHeaderRow}>
+                    <View
+                      style={[
+                        styles.sectionIndicator,
+                        { backgroundColor: Colors.urgency.completed.accent },
+                      ]}
+                    />
+                    <ThemedText
+                      style={[
+                        styles.sectionHeading,
+                        {
+                          color: isDark
+                            ? Colors.urgency.completed.darkText
+                            : Colors.urgency.completed.lightText,
+                        },
+                      ]}
+                    >
+                      Completed ({grouped.completed.length})
+                    </ThemedText>
+                  </View>
+                  {grouped.completed.map((r) => (
+                    <ReminderCard
+                      key={r._id}
+                      reminder={r}
+                      onPress={() => setSelectedReminderForDetails(r)}
+                      onToggleComplete={() => handleToggleComplete(r)}
+                      onEdit={() => {
+                        setEditingReminder(r);
+                        setIsFormOpen(true);
+                      }}
+                      onDelete={() => confirmDelete(r)}
+                    />
+                  ))}
                 </View>
-                {grouped.completed.map((r) => (
-                  <ReminderCard
-                    key={r._id}
-                    reminder={r}
-                    onPress={() => setSelectedReminderForDetails(r)}
-                    onToggleComplete={() => handleToggleComplete(r)}
-                    onEdit={() => {
-                      setEditingReminder(r);
-                      setIsFormOpen(true);
-                    }}
-                    onDelete={() => confirmDelete(r)}
-                  />
-                ))}
-              </View>
-            )}
+              )}
           </View>
         )}
       </ScrollView>
@@ -652,18 +814,17 @@ const styles = StyleSheet.create({
     paddingTop: Spacing.two,
   },
   header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
     marginBottom: Spacing.four,
   },
   headerTitles: {
     flex: 1,
   },
   title: {
-    fontSize: Typography.fontSize.xl,
+    fontSize: Typography.fontSize["2xl"],
     fontFamily: Typography.fontFamilies.editorial,
-    fontWeight: Typography.fontWeight.bold,
     letterSpacing: -0.3,
   },
   subtitle: {
@@ -675,8 +836,8 @@ const styles = StyleSheet.create({
     marginLeft: Spacing.two,
   },
   searchRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     gap: Spacing.two,
     marginBottom: Spacing.two,
   },
@@ -688,11 +849,11 @@ const styles = StyleSheet.create({
     height: 44,
     borderRadius: Radius.md,
     borderWidth: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
   },
   categoryPillsScroll: {
-    flexDirection: 'row',
+    flexDirection: "row",
     gap: Spacing.one,
     paddingVertical: Spacing.one,
     marginBottom: Spacing.four,
@@ -711,21 +872,21 @@ const styles = StyleSheet.create({
     padding: Spacing.four,
     borderRadius: Radius.md,
     borderWidth: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
     marginBottom: Spacing.four,
   },
   errorText: {
     flex: 1,
     fontSize: Typography.fontSize.xs,
     fontFamily: Typography.fontFamilies.sans,
-    color: '#B91C1C',
+    color: "#B91C1C",
     marginRight: Spacing.two,
   },
   loadingContainer: {
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
     paddingVertical: Spacing.eight,
     gap: Spacing.two,
   },
@@ -740,8 +901,8 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.five,
   },
   sectionHeaderRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     gap: Spacing.two,
     marginBottom: Spacing.two,
   },
@@ -753,7 +914,7 @@ const styles = StyleSheet.create({
   sectionHeading: {
     fontSize: Typography.fontSize.sm,
     fontFamily: Typography.fontFamilies.sansBold,
+    fontVariant: ["tabular-nums"],
     letterSpacing: -0.1,
   },
 });
-

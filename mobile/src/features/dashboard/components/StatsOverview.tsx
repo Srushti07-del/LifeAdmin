@@ -11,6 +11,7 @@ import { ThemedText } from '@/components/themed-text';
 import { Colors } from '@/constants/colors';
 import { Typography } from '@/constants/typography';
 import { Spacing, Radius } from '@/constants/spacing';
+import { createShadow } from '@/constants/shadows';
 import { DashboardStats } from '../types';
 
 interface StatsOverviewProps {
@@ -37,6 +38,7 @@ export function StatsOverview({ stats, onStatPress }: StatsOverviewProps) {
               : Colors.urgency.critical.lightBg,
             borderColor: Colors.urgency.critical.accent,
           },
+          createShadow(isDark, 'xs'),
           pressed && styles.pressed,
         ]}
       >
@@ -87,6 +89,7 @@ export function StatsOverview({ stats, onStatPress }: StatsOverviewProps) {
               : Colors.urgency.urgent.lightBg,
             borderColor: Colors.urgency.urgent.accent,
           },
+          createShadow(isDark, 'xs'),
           pressed && styles.pressed,
         ]}
       >
@@ -132,9 +135,10 @@ export function StatsOverview({ stats, onStatPress }: StatsOverviewProps) {
         style={({ pressed }) => [
           styles.statCard,
           {
-            backgroundColor: colors.surfaceSecondary,
+            backgroundColor: colors.surface,
             borderColor: colors.border,
           },
+          createShadow(isDark, 'xs'),
           pressed && styles.pressed,
         ]}
       >
@@ -162,9 +166,10 @@ export function StatsOverview({ stats, onStatPress }: StatsOverviewProps) {
         style={({ pressed }) => [
           styles.statCard,
           {
-            backgroundColor: colors.surfaceSecondary,
+            backgroundColor: colors.surface,
             borderColor: colors.border,
           },
+          createShadow(isDark, 'xs'),
           pressed && styles.pressed,
         ]}
       >
@@ -172,7 +177,7 @@ export function StatsOverview({ stats, onStatPress }: StatsOverviewProps) {
           <SymbolView
             name={{ ios: 'bell.fill', android: 'notifications_active', web: 'notifications_active' }}
             size={18}
-            tintColor="#D97706"
+            tintColor={isDark ? Colors.urgency.dueSoon.darkText : Colors.urgency.dueSoon.accent}
           />
           <ThemedText style={[styles.statCount, { color: colors.text }]}>
             {stats.activeReminders ?? 0}
@@ -211,6 +216,7 @@ const styles = StyleSheet.create({
   statCount: {
     fontSize: Typography.fontSize.xl,
     fontWeight: Typography.fontWeight.bold,
+    fontVariant: ['tabular-nums'],
   },
   statLabel: {
     fontSize: Typography.fontSize.xs,

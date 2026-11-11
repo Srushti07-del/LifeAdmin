@@ -22,8 +22,10 @@ import { useAppTheme } from '@/context/ThemeContext';
 import { useAuth } from '@/context/AuthContext';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
+import { getButtonForegroundColor } from '@/components/ui/Button';
 import { Typography } from '@/constants/typography';
 import { Spacing, Radius } from '@/constants/spacing';
+import { createShadow } from '@/constants/shadows';
 import { BottomTabInset, MaxContentWidth } from '@/constants/theme';
 import { DEFAULT_CURRENCY, normalizeCurrencyCode } from '@/utils/currency';
 import {
@@ -404,7 +406,7 @@ export default function DashboardScreen() {
                 style={[
                   styles.guestBanner,
                   {
-                    backgroundColor: isDark ? colors.surfaceElevated || '#285968' : '#D3EAE7',
+                    backgroundColor: colors.primarySoft,
                     borderColor: colors.border,
                   },
                 ]}
@@ -511,7 +513,14 @@ export default function DashboardScreen() {
                   onPress={() => setIsCustomizeVisible(true)}
                   style={[styles.emptyLayoutBtn, { backgroundColor: colors.primary }]}
                 >
-                  <ThemedText style={styles.emptyLayoutBtnText}>Customize Layout</ThemedText>
+                  <ThemedText
+                    style={[
+                      styles.emptyLayoutBtnText,
+                      { color: getButtonForegroundColor('primary', colors, isDark) },
+                    ]}
+                  >
+                    Customize Layout
+                  </ThemedText>
                 </Pressable>
               </View>
             )}
@@ -583,6 +592,7 @@ export default function DashboardScreen() {
             <View
               style={[
                 styles.notifSheet,
+                createShadow(isDark, 'modal'),
                 { backgroundColor: colors.surface, borderColor: colors.border },
               ]}
             >
@@ -683,6 +693,7 @@ const styles = StyleSheet.create({
   },
   layoutBarMeta: {
     fontSize: Typography.fontSize.xs,
+    fontVariant: ['tabular-nums'],
   },
   layoutBarRight: {
     flexDirection: 'row',
@@ -717,9 +728,8 @@ const styles = StyleSheet.create({
     borderRadius: Radius.full,
   },
   emptyLayoutBtnText: {
-    color: '#FFFFFF',
+    fontFamily: Typography.fontFamilies.sansSemiBold,
     fontSize: Typography.fontSize.xs,
-    fontWeight: Typography.fontWeight.bold,
   },
   modalOverlay: {
     flex: 1,
@@ -735,11 +745,6 @@ const styles = StyleSheet.create({
     borderRadius: Radius['2xl'],
     borderWidth: 1,
     padding: Spacing.five,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 12,
-    elevation: 4,
   },
   notifHeader: {
     flexDirection: 'row',
@@ -749,7 +754,6 @@ const styles = StyleSheet.create({
   },
   notifTitle: {
     fontSize: Typography.fontSize.lg,
-    fontWeight: Typography.fontWeight.bold,
     fontFamily: Typography.fontFamilies.editorial,
   },
   closeIcon: {

@@ -11,6 +11,7 @@ import { ThemedText } from '@/components/themed-text';
 import { Colors } from '@/constants/colors';
 import { Typography } from '@/constants/typography';
 import { Spacing, Radius } from '@/constants/spacing';
+import { createShadow } from '@/constants/shadows';
 import {
   CurrencyCode,
   convertAmountTo,
@@ -91,6 +92,7 @@ export function DashboardBillsWidget({
             backgroundColor: colors.surface,
             borderColor: colors.border,
           },
+          createShadow(isDark, 'card'),
         ]}
       >
         <View style={[styles.headerRow, { borderBottomColor: colors.borderSubtle }]}>
@@ -181,7 +183,7 @@ export function DashboardBillsWidget({
                         hitSlop={6}
                         style={[
                           styles.payPill,
-                          { backgroundColor: isDark ? '#143440' : '#E0F2F1' },
+                          { backgroundColor: colors.primarySoft },
                         ]}
                         accessibilityRole="button"
                         accessibilityLabel={`Mark bill ${bill.title} paid`}
@@ -217,11 +219,6 @@ const styles = StyleSheet.create({
     borderRadius: Radius['2xl'],
     borderWidth: 1,
     padding: Spacing.four,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.04,
-    shadowRadius: 6,
-    elevation: 2,
   },
   headerRow: {
     flexDirection: 'row',
@@ -290,6 +287,7 @@ const styles = StyleSheet.create({
   amountText: {
     fontFamily: Typography.fontFamilies.sansBold,
     fontSize: Typography.fontSize.sm,
+    fontVariant: ['tabular-nums'],
   },
   payPill: {
     paddingHorizontal: Spacing.two + 2,

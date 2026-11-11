@@ -169,7 +169,6 @@ const styles = StyleSheet.create({
     fontFamily: Typography.fontFamilies.sansSemiBold,
     fontSize: Typography.fontSize.xs,
     letterSpacing: 0.5,
-    fontWeight: '600',
   },
   dot: {
     width: 8,
@@ -184,8 +183,8 @@ const styles = StyleSheet.create({
     fontFamily: Typography.fontFamilies.sansBold,
     fontSize: Typography.fontSize['3xl'],
     lineHeight: 34,
-    fontWeight: '700',
     letterSpacing: -0.5,
+    fontVariant: ['tabular-nums'],
   },
   subtitle: {
     fontFamily: Typography.fontFamilies.sans,

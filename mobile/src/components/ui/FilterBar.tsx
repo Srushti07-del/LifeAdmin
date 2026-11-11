@@ -58,6 +58,7 @@ export function FilterBar<T extends string = string>({
           <Pressable
             key={item.value}
             onPress={() => onSelect(item.value)}
+            hitSlop={{ top: 8, bottom: 8, left: 2, right: 2 }}
             style={({ pressed }) => [
               styles.chip,
               {
@@ -87,7 +88,6 @@ export function FilterBar<T extends string = string>({
                   fontFamily: isActive
                     ? Typography.fontFamilies.sansSemiBold
                     : Typography.fontFamilies.sansMedium,
-                  fontWeight: isActive ? '600' : '500',
                 },
                 textStyle,
                 isActive && activeTextStyle,
@@ -168,7 +168,7 @@ const styles = StyleSheet.create({
     fontFamily: Typography.fontFamilies.sansSemiBold,
     fontSize: Typography.fontSize.micro,
     lineHeight: 12,
-    fontWeight: '600',
+    fontVariant: ['tabular-nums'],
   },
 });
 

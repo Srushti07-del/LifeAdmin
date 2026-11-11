@@ -28,7 +28,9 @@ import {
   SearchInput,
   Button,
   EmptyState,
+  getButtonForegroundColor,
 } from '@/components/ui';
+import { Colors } from '@/constants/colors';
 import { Typography } from '@/constants/typography';
 import { Spacing, Radius } from '@/constants/spacing';
 import { BottomTabInset } from '@/constants/theme';
@@ -260,7 +262,7 @@ export default function DocumentsScreen() {
               <SymbolView
                 name={{ ios: 'plus', android: 'add' }}
                 size={16}
-                tintColor="#FFFFFF"
+                tintColor={getButtonForegroundColor('primary', colors, isDark)}
               />
             }
           >
@@ -283,18 +285,23 @@ export default function DocumentsScreen() {
 
           <Pressable
             onPress={() => setShowSortPicker((prev) => !prev)}
+            hitSlop={4}
             style={[
               styles.sortBtn,
               {
-                backgroundColor: isDark ? '#1C292D' : colors.surface,
-                borderColor: showSortPicker ? colors.primary : isDark ? '#304247' : colors.border,
+                backgroundColor: showSortPicker ? colors.primary : colors.surface,
+                borderColor: showSortPicker ? colors.primary : colors.border,
               },
             ]}
           >
             <SymbolView
               name={{ ios: 'arrow.up.arrow.down', android: 'sort' }}
               size={18}
-              tintColor={showSortPicker ? colors.primary : colors.text}
+              tintColor={
+                showSortPicker
+                  ? getButtonForegroundColor('primary', colors, isDark)
+                  : colors.text
+              }
             />
           </Pressable>
         </View>
@@ -305,8 +312,8 @@ export default function DocumentsScreen() {
             style={[
               styles.sortTray,
               {
-                backgroundColor: isDark ? '#1C292D' : colors.surface,
-                borderColor: isDark ? '#304247' : colors.border,
+                backgroundColor: colors.surfaceSecondary,
+                borderColor: colors.border,
               },
             ]}
           >
@@ -316,6 +323,7 @@ export default function DocumentsScreen() {
             <View style={styles.sortChips}>
               {SORT_OPTIONS.map((opt) => {
                 const isSelected = activeSort === opt.key;
+                const selectedFg = getButtonForegroundColor('primary', colors, isDark);
                 return (
                   <Pressable
                     key={opt.key}
@@ -323,26 +331,19 @@ export default function DocumentsScreen() {
                       setActiveSort(opt.key);
                       setShowSortPicker(false);
                     }}
+                    hitSlop={6}
                     style={[
                       styles.sortChip,
                       {
-                        backgroundColor: isSelected
-                          ? colors.primary
-                          : isDark
-                          ? '#26383E'
-                          : colors.backgroundElement,
-                        borderColor: isSelected
-                          ? colors.primary
-                          : isDark
-                          ? '#354E57'
-                          : colors.border,
+                        backgroundColor: isSelected ? colors.primary : colors.surface,
+                        borderColor: isSelected ? colors.primary : colors.border,
                       },
                     ]}
                   >
                     <ThemedText
                       style={[
                         styles.sortChipText,
-                        { color: isSelected ? '#FFFFFF' : colors.text },
+                        { color: isSelected ? selectedFg : colors.text },
                       ]}
                     >
                       {opt.label}
@@ -362,30 +363,24 @@ export default function DocumentsScreen() {
         >
           {CATEGORIES.map((cat) => {
             const isSelected = selectedCategory === cat;
+            const selectedFg = getButtonForegroundColor('primary', colors, isDark);
             return (
               <Pressable
                 key={cat}
                 onPress={() => setSelectedCategory(cat)}
+                hitSlop={6}
                 style={[
                   styles.categoryPill,
                   {
-                    backgroundColor: isSelected
-                      ? colors.primary
-                      : isDark
-                      ? '#1C292D'
-                      : colors.surface,
-                    borderColor: isSelected
-                      ? colors.primary
-                      : isDark
-                      ? '#304247'
-                      : colors.border,
+                    backgroundColor: isSelected ? colors.primary : colors.surface,
+                    borderColor: isSelected ? colors.primary : colors.border,
                   },
                 ]}
               >
                 <ThemedText
                   style={[
                     styles.categoryPillText,
-                    { color: isSelected ? '#FFFFFF' : colors.textSecondary },
+                    { color: isSelected ? selectedFg : colors.textSecondary },
                   ]}
                 >
                   {cat}
@@ -397,8 +392,29 @@ export default function DocumentsScreen() {
 
         {/* Error Banner */}
         {error && (
-          <View style={[styles.errorBox, { backgroundColor: '#FEE2E2', borderColor: '#FCA5A5' }]}>
-            <ThemedText style={styles.errorText}>{error}</ThemedText>
+          <View
+            style={[
+              styles.errorBox,
+              {
+                backgroundColor: isDark
+                  ? Colors.urgency.critical.darkBg
+                  : Colors.urgency.critical.lightBg,
+                borderColor: Colors.urgency.critical.accent,
+              },
+            ]}
+          >
+            <ThemedText
+              style={[
+                styles.errorText,
+                {
+                  color: isDark
+                    ? Colors.urgency.critical.darkText
+                    : Colors.urgency.critical.lightText,
+                },
+              ]}
+            >
+              {error}
+            </ThemedText>
             <Button
               variant="outline"
               size="sm"
@@ -437,7 +453,17 @@ export default function DocumentsScreen() {
                     setSelectedCategory('All');
                   }
                 : () => setIsUploadModalOpen(true)}
-            icon="folder"
+            icon={
+              <SymbolView
+                name={{
+                  ios: searchQuery || selectedCategory !== 'All' ? 'magnifyingglass' : 'folder',
+                  android: searchQuery || selectedCategory !== 'All' ? 'search_off' : 'folder_open',
+                  web: searchQuery || selectedCategory !== 'All' ? 'search_off' : 'folder_open',
+                }}
+                size={28}
+                tintColor={colors.primary}
+              />
+            }
           />
         ) : (
           <View style={styles.listContainer}>
@@ -522,9 +548,8 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   title: {
-    fontSize: Typography.fontSize.xl,
+    fontSize: Typography.fontSize['2xl'],
     fontFamily: Typography.fontFamilies.editorial,
-    fontWeight: Typography.fontWeight.bold,
     letterSpacing: -0.3,
   },
   subtitle: {

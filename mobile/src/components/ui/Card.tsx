@@ -202,13 +202,11 @@ const styles = StyleSheet.create({
     fontFamily: Typography.fontFamilies.sansSemiBold,
     fontSize: Typography.fontSize.base,
     lineHeight: 22,
-    fontWeight: '600',
   },
   description: {
     fontFamily: Typography.fontFamilies.sans,
     fontSize: Typography.fontSize.xs,
     lineHeight: 16,
-    fontWeight: '400',
     marginTop: 2,
   },
   content: {

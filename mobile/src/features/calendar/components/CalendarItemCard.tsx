@@ -67,9 +67,7 @@ export function CalendarItemCard({ item, onPress }: CalendarItemCardProps) {
         styles.card,
         {
           backgroundColor: colors.surface,
-          borderColor: isDark ? 'rgba(255, 255, 255, 0.08)' : colors.border,
-          borderLeftColor: itemColor,
-          borderLeftWidth: 4,
+          borderColor: colors.border,
           opacity: pressed ? 0.85 : 1,
         },
       ]}

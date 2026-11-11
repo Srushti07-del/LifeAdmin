@@ -15,6 +15,7 @@ import { useAuth } from '@/context/AuthContext';
 import { ThemedText } from '@/components/themed-text';
 import { Typography } from '@/constants/typography';
 import { Spacing, Radius } from '@/constants/spacing';
+import { createShadow } from '@/constants/shadows';
 import { COMPANIONS, getCompanionById, getGrowthStage } from '../catalog';
 import { CompanionState } from '../types';
 import { CompanionAvatar } from './CompanionAvatar';
@@ -79,6 +80,7 @@ export function LifeBuddyWidget({ onPressSanctuary }: LifeBuddyWidgetProps) {
         onPress={handleOpenSanctuary}
         style={({ pressed }) => [
           styles.container,
+          createShadow(isDark, 'card'),
           {
             backgroundColor: colors.surface,
             borderColor: colors.border,
@@ -128,7 +130,7 @@ export function LifeBuddyWidget({ onPressSanctuary }: LifeBuddyWidgetProps) {
                 style={[
                   styles.levelBadge,
                   {
-                    backgroundColor: isDark ? 'rgba(22, 143, 145, 0.25)' : '#D3EAE7',
+                    backgroundColor: colors.primarySoft,
                     borderColor: colors.primary,
                   },
                 ]}
@@ -153,7 +155,12 @@ export function LifeBuddyWidget({ onPressSanctuary }: LifeBuddyWidgetProps) {
                   {xpInCurrentLevel} / 200
                 </ThemedText>
               </View>
-              <View style={[styles.progressTrack, { backgroundColor: isDark ? '#143440' : '#E2E8F0' }]}>
+              <View
+                style={[
+                  styles.progressTrack,
+                  { backgroundColor: isDark ? colors.surfaceSecondary : colors.border },
+                ]}
+              >
                 <View
                   style={[
                     styles.progressFill,
@@ -173,8 +180,8 @@ export function LifeBuddyWidget({ onPressSanctuary }: LifeBuddyWidgetProps) {
           style={[
             styles.quoteContainer,
             {
-              backgroundColor: isDark ? 'rgba(22, 143, 145, 0.12)' : '#EAF5F4',
-              borderColor: isDark ? 'rgba(22, 143, 145, 0.28)' : '#C5DDDE',
+              backgroundColor: colors.primarySoft,
+              borderColor: colors.border,
             },
           ]}
         >
@@ -188,11 +195,12 @@ export function LifeBuddyWidget({ onPressSanctuary }: LifeBuddyWidgetProps) {
             e.stopPropagation?.();
             router.push('/ai' as any);
           }}
+          hitSlop={4}
           style={({ pressed }) => [
             styles.aiBar,
             {
-              backgroundColor: isDark ? 'rgba(32, 75, 90, 0.8)' : '#F0F9F9',
-              borderColor: isDark ? 'rgba(85, 189, 181, 0.25)' : 'rgba(8, 126, 131, 0.2)',
+              backgroundColor: colors.surfaceSecondary,
+              borderColor: colors.border,
             },
             pressed && { opacity: 0.8 },
           ]}
@@ -311,6 +319,7 @@ const styles = StyleSheet.create({
   progressCount: {
     fontFamily: Typography.fontFamilies.sansMedium,
     fontSize: Typography.fontSize.micro,
+    fontVariant: ['tabular-nums'],
   },
   progressTrack: {
     height: 6,
@@ -330,13 +339,13 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
   quoteText: {
-    fontFamily: Typography.fontFamilies.sansMedium,
-    fontSize: Typography.fontSize.xs,
-    fontStyle: 'italic',
-    lineHeight: 18,
+    fontFamily: Typography.fontFamilies.editorialItalic,
+    fontSize: Typography.fontSize.sm,
+    lineHeight: 20,
   },
   aiBar: {
     marginTop: Spacing.two,
+    minHeight: 42,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',

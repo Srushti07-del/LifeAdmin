@@ -26,8 +26,11 @@ import { useAppTheme } from '@/context/ThemeContext';
 import { useAuth } from '@/context/AuthContext';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
+import { getButtonForegroundColor } from '@/components/ui/Button';
+import { Colors } from '@/constants/colors';
 import { Typography } from '@/constants/typography';
 import { Spacing, Radius } from '@/constants/spacing';
+import { createShadow } from '@/constants/shadows';
 import { COMPANIONS, getCompanionById, getGrowthStage } from '../catalog';
 import { Companion, CompanionState } from '../types';
 import { CompanionAvatar } from './CompanionAvatar';
@@ -143,7 +146,7 @@ export function CompanionSanctuaryModal({
               <View
                 style={[
                   styles.headerIconContainer,
-                  { backgroundColor: isDark ? 'rgba(22, 143, 145, 0.25)' : '#D3EAE7' },
+                  { backgroundColor: colors.primarySoft },
                 ]}
               >
                 <SymbolView
@@ -165,7 +168,7 @@ export function CompanionSanctuaryModal({
               onPress={onClose}
               style={({ pressed }) => [
                 styles.closeButton,
-                { backgroundColor: colors.surfaceElevated || colors.surface, borderColor: colors.border },
+                { backgroundColor: colors.surfaceSecondary, borderColor: colors.border },
                 pressed && { opacity: 0.7 },
               ]}
               hitSlop={8}
@@ -183,12 +186,14 @@ export function CompanionSanctuaryModal({
           <ScrollView
             style={styles.scrollArea}
             contentContainerStyle={styles.scrollContent}
+            keyboardShouldPersistTaps="handled"
             showsVerticalScrollIndicator={false}
           >
             {/* Active Companion Spotlight Card */}
             <View
               style={[
                 styles.spotlightCard,
+                createShadow(isDark, 'card'),
                 {
                   backgroundColor: colors.surface,
                   borderColor: colors.border,
@@ -206,7 +211,7 @@ export function CompanionSanctuaryModal({
                   style={[
                     styles.levelPill,
                     {
-                      backgroundColor: isDark ? 'rgba(22, 143, 145, 0.25)' : '#D3EAE7',
+                      backgroundColor: colors.primarySoft,
                       borderColor: colors.primary,
                     },
                   ]}
@@ -249,7 +254,7 @@ export function CompanionSanctuaryModal({
                       <SymbolView
                         name={{ ios: 'checkmark', android: 'check', web: 'check' }}
                         size={16}
-                        tintColor="#FFFFFF"
+                        tintColor={getButtonForegroundColor('primary', colors, isDark)}
                       />
                     </Pressable>
                   </View>
@@ -262,7 +267,7 @@ export function CompanionSanctuaryModal({
                       onPress={() => setEditingName(true)}
                       style={[
                         styles.editNameBtn,
-                        { backgroundColor: isDark ? colors.surfaceElevated : '#F1F7F7' },
+                        { backgroundColor: colors.surfaceSecondary },
                       ]}
                       hitSlop={8}
                     >
@@ -285,8 +290,8 @@ export function CompanionSanctuaryModal({
                 style={[
                   styles.quoteBox,
                   {
-                    backgroundColor: isDark ? 'rgba(22, 143, 145, 0.12)' : '#EAF5F4',
-                    borderColor: isDark ? 'rgba(22, 143, 145, 0.3)' : '#C5DDDE',
+                    backgroundColor: colors.primarySoft,
+                    borderColor: colors.border,
                   },
                 ]}
               >
@@ -305,7 +310,12 @@ export function CompanionSanctuaryModal({
                     {xpInCurrentLevel} / 200 XP to next level
                   </ThemedText>
                 </View>
-                <View style={[styles.progressBarTrack, { backgroundColor: isDark ? '#143440' : '#E2E8F0' }]}>
+                <View
+                  style={[
+                    styles.progressBarTrack,
+                    { backgroundColor: isDark ? colors.surfaceSecondary : colors.border },
+                  ]}
+                >
                   <View
                     style={[
                       styles.progressBarFill,
@@ -326,7 +336,7 @@ export function CompanionSanctuaryModal({
                 <View
                   style={[
                     styles.metricBadge,
-                    { backgroundColor: colors.surfaceElevated || colors.background, borderColor: colors.border },
+                    { backgroundColor: colors.surfaceSecondary, borderColor: colors.border },
                   ]}
                 >
                   <ThemedText style={[styles.metricLabel, { color: colors.textSecondary }]}>
@@ -339,7 +349,7 @@ export function CompanionSanctuaryModal({
                 <View
                   style={[
                     styles.metricBadge,
-                    { backgroundColor: colors.surfaceElevated || colors.background, borderColor: colors.border },
+                    { backgroundColor: colors.surfaceSecondary, borderColor: colors.border },
                   ]}
                 >
                   <ThemedText style={[styles.metricLabel, { color: colors.textSecondary }]}>
@@ -352,13 +362,22 @@ export function CompanionSanctuaryModal({
                 <View
                   style={[
                     styles.metricBadge,
-                    { backgroundColor: colors.surfaceElevated || colors.background, borderColor: colors.border },
+                    { backgroundColor: colors.surfaceSecondary, borderColor: colors.border },
                   ]}
                 >
                   <ThemedText style={[styles.metricLabel, { color: colors.textSecondary }]}>
                     Well-being
                   </ThemedText>
-                  <ThemedText style={[styles.metricValue, { color: '#10B981' }]}>
+                  <ThemedText
+                    style={[
+                      styles.metricValue,
+                      {
+                        color: isDark
+                          ? Colors.urgency.completed.darkText
+                          : Colors.urgency.completed.accent,
+                      },
+                    ]}
+                  >
                     100%
                   </ThemedText>
                 </View>
@@ -383,6 +402,7 @@ export function CompanionSanctuaryModal({
                     key={companion.id}
                     style={[
                       styles.companionCard,
+                      createShadow(isDark, 'card'),
                       {
                         backgroundColor: colors.surface,
                         borderColor: isActive ? colors.primary : colors.border,
@@ -395,7 +415,7 @@ export function CompanionSanctuaryModal({
                         style={[
                           styles.elementBadge,
                           {
-                            backgroundColor: isDark ? 'rgba(255, 255, 255, 0.08)' : '#F1F5F9',
+                            backgroundColor: colors.surfaceSecondary,
                           },
                         ]}
                       >
@@ -407,7 +427,7 @@ export function CompanionSanctuaryModal({
                         <View
                           style={[
                             styles.activeBadge,
-                            { backgroundColor: isDark ? 'rgba(22, 143, 145, 0.25)' : '#D3EAE7' },
+                            { backgroundColor: colors.primarySoft },
                           ]}
                         >
                           <ThemedText style={[styles.activeBadgeText, { color: colors.primary }]}>
@@ -438,7 +458,7 @@ export function CompanionSanctuaryModal({
                           styles.actionBtn,
                           styles.detailsBtn,
                           {
-                            backgroundColor: colors.surfaceElevated || colors.background,
+                            backgroundColor: colors.surfaceSecondary,
                             borderColor: colors.border,
                           },
                           pressed && { opacity: 0.7 },
@@ -466,7 +486,14 @@ export function CompanionSanctuaryModal({
                           ]}
                           hitSlop={4}
                         >
-                          <ThemedText style={styles.adoptBtnText}>Adopt</ThemedText>
+                          <ThemedText
+                            style={[
+                              styles.adoptBtnText,
+                              { color: getButtonForegroundColor('primary', colors, isDark) },
+                            ]}
+                          >
+                            Adopt
+                          </ThemedText>
                         </Pressable>
                       )}
                     </View>
@@ -480,8 +507,12 @@ export function CompanionSanctuaryModal({
               style={[
                 styles.philosophyCard,
                 {
-                  backgroundColor: isDark ? 'rgba(16, 185, 129, 0.1)' : '#F0FDF4',
-                  borderColor: isDark ? 'rgba(16, 185, 129, 0.25)' : '#BBF7D0',
+                  backgroundColor: isDark
+                    ? Colors.urgency.completed.darkBg
+                    : Colors.urgency.completed.lightBg,
+                  borderColor: isDark
+                    ? 'rgba(52, 211, 153, 0.28)'
+                    : 'rgba(16, 185, 129, 0.35)',
                 },
               ]}
             >
@@ -489,7 +520,11 @@ export function CompanionSanctuaryModal({
                 <SymbolView
                   name={{ ios: 'shield.fill', android: 'verified_user', web: 'verified_user' }}
                   size={22}
-                  tintColor="#10B981"
+                  tintColor={
+                    isDark
+                      ? Colors.urgency.completed.darkText
+                      : Colors.urgency.completed.accent
+                  }
                 />
               </View>
               <View style={styles.philosophyContent}>
@@ -518,6 +553,7 @@ export function CompanionSanctuaryModal({
                 <Pressable
                   style={[
                     styles.detailCard,
+                    createShadow(isDark, 'modal'),
                     {
                       backgroundColor: colors.surface,
                       borderColor: colors.border,
@@ -539,7 +575,7 @@ export function CompanionSanctuaryModal({
                     style={[
                       styles.detailInfoBox,
                       {
-                        backgroundColor: isDark ? colors.surfaceElevated || '#143440' : '#F8FAFC',
+                        backgroundColor: colors.surfaceSecondary,
                         borderColor: colors.border,
                       },
                     ]}
@@ -568,7 +604,7 @@ export function CompanionSanctuaryModal({
                       style={[
                         styles.detailCloseBtn,
                         {
-                          backgroundColor: colors.surfaceElevated || colors.background,
+                          backgroundColor: colors.surfaceSecondary,
                           borderColor: colors.border,
                         },
                       ]}
@@ -583,7 +619,12 @@ export function CompanionSanctuaryModal({
                         onPress={() => handleSwitchCompanion(selectedDetailCompanion.id)}
                         style={[styles.detailAdoptBtn, { backgroundColor: colors.primary }]}
                       >
-                        <ThemedText style={styles.detailAdoptBtnText}>
+                        <ThemedText
+                          style={[
+                            styles.detailAdoptBtnText,
+                            { color: getButtonForegroundColor('primary', colors, isDark) },
+                          ]}
+                        >
                           Make Active
                         </ThemedText>
                       </Pressable>
@@ -637,8 +678,8 @@ const styles = StyleSheet.create({
     fontSize: Typography.fontSize.xs,
   },
   closeButton: {
-    width: 32,
-    height: 32,
+    width: 38,
+    height: 38,
     borderRadius: Radius.full,
     borderWidth: 1,
     alignItems: 'center',
@@ -689,6 +730,7 @@ const styles = StyleSheet.create({
   levelPillText: {
     fontFamily: Typography.fontFamilies.sansBold,
     fontSize: Typography.fontSize.micro,
+    fontVariant: ['tabular-nums'],
   },
   avatarSection: {
     marginVertical: Spacing.two,
@@ -708,6 +750,10 @@ const styles = StyleSheet.create({
     fontSize: Typography.fontSize['3xl'],
   },
   editNameBtn: {
+    minWidth: 34,
+    minHeight: 34,
+    alignItems: 'center',
+    justifyContent: 'center',
     padding: 6,
     borderRadius: Radius.md,
   },
@@ -715,7 +761,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.two,
-    maxWidth: 240,
+    maxWidth: 260,
   },
   nameInput: {
     flex: 1,
@@ -728,8 +774,8 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   saveNameBtn: {
-    width: 32,
-    height: 32,
+    width: 40,
+    height: 40,
     borderRadius: Radius.md,
     alignItems: 'center',
     justifyContent: 'center',
@@ -748,11 +794,10 @@ const styles = StyleSheet.create({
     width: '100%',
   },
   quoteText: {
-    fontFamily: Typography.fontFamilies.sansMedium,
-    fontSize: Typography.fontSize.xs,
-    fontStyle: 'italic',
+    fontFamily: Typography.fontFamilies.editorialItalic,
+    fontSize: Typography.fontSize.sm,
     textAlign: 'center',
-    lineHeight: 18,
+    lineHeight: 20,
   },
   progressSection: {
     width: '100%',
@@ -771,6 +816,7 @@ const styles = StyleSheet.create({
   progressValues: {
     fontFamily: Typography.fontFamilies.sansMedium,
     fontSize: Typography.fontSize.xs,
+    fontVariant: ['tabular-nums'],
   },
   progressBarTrack: {
     height: 8,
@@ -807,6 +853,7 @@ const styles = StyleSheet.create({
   metricValue: {
     fontFamily: Typography.fontFamilies.sansBold,
     fontSize: Typography.fontSize.sm,
+    fontVariant: ['tabular-nums'],
     marginTop: 2,
   },
   sectionHeader: {
@@ -880,7 +927,7 @@ const styles = StyleSheet.create({
   },
   actionBtn: {
     flex: 1,
-    height: 36,
+    height: 42,
     borderRadius: Radius.lg,
     alignItems: 'center',
     justifyContent: 'center',
@@ -898,7 +945,6 @@ const styles = StyleSheet.create({
   adoptBtnText: {
     fontFamily: Typography.fontFamilies.sansBold,
     fontSize: Typography.fontSize.xs,
-    color: '#FFFFFF',
   },
   philosophyCard: {
     flexDirection: 'row',
@@ -982,7 +1028,7 @@ const styles = StyleSheet.create({
   },
   detailCloseBtn: {
     flex: 1,
-    height: 40,
+    height: 46,
     borderRadius: Radius.xl,
     borderWidth: 1,
     alignItems: 'center',
@@ -994,7 +1040,7 @@ const styles = StyleSheet.create({
   },
   detailAdoptBtn: {
     flex: 1,
-    height: 40,
+    height: 46,
     borderRadius: Radius.xl,
     alignItems: 'center',
     justifyContent: 'center',
@@ -1002,6 +1048,5 @@ const styles = StyleSheet.create({
   detailAdoptBtnText: {
     fontFamily: Typography.fontFamilies.sansBold,
     fontSize: Typography.fontSize.xs,
-    color: '#FFFFFF',
   },
 });

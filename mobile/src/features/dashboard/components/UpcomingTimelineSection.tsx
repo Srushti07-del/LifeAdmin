@@ -8,8 +8,10 @@ import { View, StyleSheet, Pressable } from 'react-native';
 import { SymbolView } from 'expo-symbols';
 import { useAppTheme } from '@/context/ThemeContext';
 import { ThemedText } from '@/components/themed-text';
+import { Colors } from '@/constants/colors';
 import { Typography } from '@/constants/typography';
 import { Spacing, Radius } from '@/constants/spacing';
+import { createShadow } from '@/constants/shadows';
 import { CurrencyCode, convertAmountTo, formatCurrency } from '@/utils/currency';
 import { formatTime, formatTimelineDate } from '@/utils/date';
 import { UpcomingItem } from '../types';
@@ -71,7 +73,7 @@ export function UpcomingTimelineSection({
         return {
           label: 'Calendar Event',
           icon: { ios: 'calendar', android: 'calendar_month', web: 'calendar_month' },
-          accent: '#8B5CF6', // Purple
+          accent: colors.primary,
         };
       case 'document':
         return {
@@ -122,8 +124,8 @@ export function UpcomingTimelineSection({
                   {dateInfo.monthName}
                 </ThemedText>
                 {dateInfo.relativeLabel && (
-                  <View style={[styles.relativePill, { backgroundColor: colors.surfaceSecondary }]}>
-                    <ThemedText style={[styles.relativeText, { color: colors.primaryDeep }]}>
+                  <View style={[styles.relativePill, { backgroundColor: colors.primarySoft }]}>
+                    <ThemedText style={[styles.relativeText, { color: colors.primary }]}>
                       {dateInfo.relativeLabel}
                     </ThemedText>
                   </View>
@@ -160,6 +162,7 @@ export function UpcomingTimelineSection({
                     backgroundColor: colors.surface,
                     borderColor: isDark ? colors.border : colors.borderSubtle,
                   },
+                  createShadow(isDark, 'xs'),
                   pressed && styles.pressed,
                 ]}
               >
@@ -193,7 +196,7 @@ export function UpcomingTimelineSection({
                 ) : null}
 
                 {item.amount !== undefined && (
-                  <ThemedText style={[styles.amountText, { color: colors.primaryDeep }]}>
+                  <ThemedText style={[styles.amountText, { color: colors.primary }]}>
                     {preferredCurrency
                       ? formatCurrency(
                           convertAmountTo(item.amount, item.currency, preferredCurrency, exchangeRates),
@@ -227,7 +230,6 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: Typography.fontSize.xl,
     fontFamily: Typography.fontFamilies.editorial,
-    fontWeight: Typography.fontWeight.bold,
   },
   sectionSubtitle: {
     fontSize: Typography.fontSize.xs,
@@ -257,6 +259,7 @@ const styles = StyleSheet.create({
   dayNumber: {
     fontSize: Typography.fontSize.base,
     fontWeight: Typography.fontWeight.bold,
+    fontVariant: ['tabular-nums'],
   },
   monthName: {
     fontSize: 10,
@@ -300,11 +303,6 @@ const styles = StyleSheet.create({
     borderRadius: Radius.lg,
     borderWidth: 1,
     marginLeft: Spacing.two,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.02,
-    shadowRadius: 3,
-    elevation: 1,
   },
   cardHeader: {
     flexDirection: 'row',
@@ -324,6 +322,7 @@ const styles = StyleSheet.create({
   },
   timeText: {
     fontSize: 11,
+    fontVariant: ['tabular-nums'],
   },
   itemTitle: {
     fontSize: Typography.fontSize.sm,
@@ -336,6 +335,7 @@ const styles = StyleSheet.create({
   amountText: {
     fontSize: Typography.fontSize.sm,
     fontWeight: Typography.fontWeight.bold,
+    fontVariant: ['tabular-nums'],
     marginTop: 4,
   },
   pressed: {

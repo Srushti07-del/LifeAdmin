@@ -15,7 +15,8 @@ import {
 import { SymbolView } from 'expo-symbols';
 import { useAppTheme } from '@/context/ThemeContext';
 import { ThemedText } from '@/components/themed-text';
-import { ModalSheet, Button, Input } from '@/components/ui';
+import { ModalSheet, Button, Input, getButtonForegroundColor } from '@/components/ui';
+import { Colors } from '@/constants/colors';
 import { Typography } from '@/constants/typography';
 import { Spacing, Radius } from '@/constants/spacing';
 import {
@@ -186,8 +187,29 @@ export function ReminderFormModal({
       >
         {/* Error Box */}
         {error && (
-          <View style={[styles.errorBox, { backgroundColor: '#FEE2E2', borderColor: '#FCA5A5' }]}>
-            <ThemedText style={styles.errorText}>{error}</ThemedText>
+          <View
+            style={[
+              styles.errorBox,
+              {
+                backgroundColor: isDark
+                  ? Colors.urgency.critical.darkBg
+                  : Colors.urgency.critical.lightBg,
+                borderColor: Colors.urgency.critical.accent,
+              },
+            ]}
+          >
+            <ThemedText
+              style={[
+                styles.errorText,
+                {
+                  color: isDark
+                    ? Colors.urgency.critical.darkText
+                    : Colors.urgency.critical.lightText,
+                },
+              ]}
+            >
+              {error}
+            </ThemedText>
           </View>
         )}
 
@@ -230,9 +252,10 @@ export function ReminderFormModal({
           <View style={styles.presetsRow}>
             <Pressable
               onPress={() => setDatePreset(0)}
+              hitSlop={6}
               style={[
                 styles.presetBtn,
-                { backgroundColor: isDark ? '#26383E' : colors.backgroundElement },
+                { backgroundColor: colors.surfaceSecondary },
               ]}
             >
               <ThemedText style={[styles.presetBtnText, { color: colors.primary }]}>
@@ -242,9 +265,10 @@ export function ReminderFormModal({
 
             <Pressable
               onPress={() => setDatePreset(1)}
+              hitSlop={6}
               style={[
                 styles.presetBtn,
-                { backgroundColor: isDark ? '#26383E' : colors.backgroundElement },
+                { backgroundColor: colors.surfaceSecondary },
               ]}
             >
               <ThemedText style={[styles.presetBtnText, { color: colors.primary }]}>
@@ -254,9 +278,10 @@ export function ReminderFormModal({
 
             <Pressable
               onPress={() => setDatePreset(7)}
+              hitSlop={6}
               style={[
                 styles.presetBtn,
-                { backgroundColor: isDark ? '#26383E' : colors.backgroundElement },
+                { backgroundColor: colors.surfaceSecondary },
               ]}
             >
               <ThemedText style={[styles.presetBtnText, { color: colors.primary }]}>
@@ -277,30 +302,34 @@ export function ReminderFormModal({
             placeholder="09:00"
           />
           <View style={styles.presetsRow}>
-            {TIME_PRESETS.map((t) => (
-              <Pressable
-                key={t.value}
-                onPress={() => setDueTime(t.value)}
-                style={[
-                  styles.presetBtn,
-                  dueTime === t.value && {
-                    backgroundColor: colors.primary,
-                  },
-                  dueTime !== t.value && {
-                    backgroundColor: isDark ? '#26383E' : colors.backgroundElement,
-                  },
-                ]}
-              >
-                <ThemedText
+            {TIME_PRESETS.map((t) => {
+              const isSelected = dueTime === t.value;
+              const selectedFg = getButtonForegroundColor('primary', colors, isDark);
+              return (
+                <Pressable
+                  key={t.value}
+                  onPress={() => setDueTime(t.value)}
+                  hitSlop={6}
                   style={[
-                    styles.presetBtnText,
-                    { color: dueTime === t.value ? '#FFFFFF' : colors.text },
+                    styles.presetBtn,
+                    {
+                      backgroundColor: isSelected
+                        ? colors.primary
+                        : colors.surfaceSecondary,
+                    },
                   ]}
                 >
-                  {t.label}
-                </ThemedText>
-              </Pressable>
-            ))}
+                  <ThemedText
+                    style={[
+                      styles.presetBtnText,
+                      { color: isSelected ? selectedFg : colors.text },
+                    ]}
+                  >
+                    {t.label}
+                  </ThemedText>
+                </Pressable>
+              );
+            })}
           </View>
         </View>
 
@@ -312,35 +341,31 @@ export function ReminderFormModal({
           <View style={styles.offsetGrid}>
             {ALLOWED_OFFSETS.map((offset) => {
               const isSelected = selectedOffsets.includes(offset);
+              const selectedFg = getButtonForegroundColor('primary', colors, isDark);
               return (
                 <Pressable
                   key={offset}
                   onPress={() => toggleOffset(offset)}
+                  hitSlop={4}
                   style={[
                     styles.offsetChip,
                     {
                       backgroundColor: isSelected
                         ? colors.primary
-                        : isDark
-                        ? '#26383E'
-                        : colors.backgroundElement,
-                      borderColor: isSelected
-                        ? colors.primary
-                        : isDark
-                        ? '#354E57'
-                        : colors.border,
+                        : colors.surfaceSecondary,
+                      borderColor: isSelected ? colors.primary : colors.border,
                     },
                   ]}
                 >
                   <SymbolView
                     name={{ ios: 'bell.fill', android: 'notifications' }}
                     size={12}
-                    tintColor={isSelected ? '#FFFFFF' : colors.textSecondary}
+                    tintColor={isSelected ? selectedFg : colors.textSecondary}
                   />
                   <ThemedText
                     style={[
                       styles.offsetChipText,
-                      { color: isSelected ? '#FFFFFF' : colors.text },
+                      { color: isSelected ? selectedFg : colors.text },
                     ]}
                   >
                     {OFFSET_LABELS[offset]}
@@ -359,30 +384,26 @@ export function ReminderFormModal({
           <View style={styles.recurrenceRow}>
             {RECURRENCE_OPTIONS.map((opt) => {
               const isSelected = recurrenceType === opt.key;
+              const selectedFg = getButtonForegroundColor('primary', colors, isDark);
               return (
                 <Pressable
                   key={opt.key}
                   onPress={() => setRecurrenceType(opt.key)}
+                  hitSlop={4}
                   style={[
                     styles.recurrencePill,
                     {
                       backgroundColor: isSelected
                         ? colors.primary
-                        : isDark
-                        ? '#26383E'
-                        : colors.backgroundElement,
-                      borderColor: isSelected
-                        ? colors.primary
-                        : isDark
-                        ? '#354E57'
-                        : colors.border,
+                        : colors.surfaceSecondary,
+                      borderColor: isSelected ? colors.primary : colors.border,
                     },
                   ]}
                 >
                   <ThemedText
                     style={[
                       styles.recurrencePillText,
-                      { color: isSelected ? '#FFFFFF' : colors.textSecondary },
+                      { color: isSelected ? selectedFg : colors.textSecondary },
                     ]}
                   >
                     {opt.label}
@@ -401,30 +422,26 @@ export function ReminderFormModal({
           <View style={styles.priorityRow}>
             {(['low', 'medium', 'high', 'urgent'] as const).map((p) => {
               const isSelected = priority === p;
+              const selectedFg = getButtonForegroundColor('primary', colors, isDark);
               return (
                 <Pressable
                   key={p}
                   onPress={() => setPriority(p)}
+                  hitSlop={4}
                   style={[
                     styles.priorityPill,
                     {
                       backgroundColor: isSelected
                         ? colors.primary
-                        : isDark
-                        ? '#26383E'
-                        : colors.backgroundElement,
-                      borderColor: isSelected
-                        ? colors.primary
-                        : isDark
-                        ? '#354E57'
-                        : colors.border,
+                        : colors.surfaceSecondary,
+                      borderColor: isSelected ? colors.primary : colors.border,
                     },
                   ]}
                 >
                   <ThemedText
                     style={[
                       styles.priorityPillText,
-                      { color: isSelected ? '#FFFFFF' : colors.textSecondary },
+                      { color: isSelected ? selectedFg : colors.textSecondary },
                     ]}
                   >
                     {p.toUpperCase()}
@@ -447,30 +464,26 @@ export function ReminderFormModal({
           >
             {CATEGORIES.map((cat) => {
               const isSelected = category === cat;
+              const selectedFg = getButtonForegroundColor('primary', colors, isDark);
               return (
                 <Pressable
                   key={cat}
                   onPress={() => setCategory(cat)}
+                  hitSlop={6}
                   style={[
                     styles.categoryPill,
                     {
                       backgroundColor: isSelected
                         ? colors.primary
-                        : isDark
-                        ? '#26383E'
-                        : colors.backgroundElement,
-                      borderColor: isSelected
-                        ? colors.primary
-                        : isDark
-                        ? '#354E57'
-                        : colors.border,
+                        : colors.surfaceSecondary,
+                      borderColor: isSelected ? colors.primary : colors.border,
                     },
                   ]}
                 >
                   <ThemedText
                     style={[
                       styles.categoryPillText,
-                      { color: isSelected ? '#FFFFFF' : colors.textSecondary },
+                      { color: isSelected ? selectedFg : colors.textSecondary },
                     ]}
                   >
                     {cat}

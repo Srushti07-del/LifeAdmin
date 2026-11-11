@@ -11,6 +11,7 @@ import { ThemedText } from '@/components/themed-text';
 import { Colors } from '@/constants/colors';
 import { Typography } from '@/constants/typography';
 import { Spacing, Radius } from '@/constants/spacing';
+import { createShadow } from '@/constants/shadows';
 import { formatShortDate } from '@/utils/date';
 import { AttentionItem, UpcomingItem } from '../types';
 
@@ -72,6 +73,7 @@ export function DashboardTasksWidget({
       <View
         style={[
           styles.card,
+          createShadow(isDark, 'card'),
           {
             backgroundColor: colors.surface,
             borderColor: colors.border,
@@ -84,9 +86,7 @@ export function DashboardTasksWidget({
               style={[
                 styles.iconBox,
                 {
-                  backgroundColor: isDark
-                    ? 'rgba(22, 143, 145, 0.2)'
-                    : '#E0F2F1',
+                  backgroundColor: colors.primarySoft,
                 },
               ]}
             >
@@ -195,11 +195,6 @@ const styles = StyleSheet.create({
     borderRadius: Radius['2xl'],
     borderWidth: 1,
     padding: Spacing.four,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.04,
-    shadowRadius: 6,
-    elevation: 2,
   },
   headerRow: {
     flexDirection: 'row',

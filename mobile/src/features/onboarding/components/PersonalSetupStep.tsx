@@ -9,7 +9,7 @@ import { View, StyleSheet, ScrollView, Pressable, Switch } from 'react-native';
 import { SymbolView } from 'expo-symbols';
 import { useAppTheme } from '@/context/ThemeContext';
 import { ThemedText } from '@/components/themed-text';
-import { Button } from '@/components/ui';
+import { Button, getButtonForegroundColor } from '@/components/ui';
 import { OnboardingPreferences, CURRENCIES, AVAILABLE_DOMAINS } from '../types';
 import { Typography } from '@/constants/typography';
 import { Spacing, Radius } from '@/constants/spacing';
@@ -130,7 +130,7 @@ export function PersonalSetupStep({
                     <SymbolView
                       name={{ ios: 'checkmark', android: 'check', web: 'check' } as any}
                       size={12}
-                      tintColor="#FFFFFF"
+                      tintColor={getButtonForegroundColor('primary', colors, isDark)}
                     />
                   )}
                 </View>
@@ -226,7 +226,6 @@ export function PersonalSetupStep({
                       fontFamily: isSelected
                         ? Typography.fontFamilies.sansSemiBold
                         : Typography.fontFamilies.sansMedium,
-                      fontWeight: 'normal',
                     },
                   ]}
                 >
@@ -265,7 +264,7 @@ export function PersonalSetupStep({
             <SymbolView
               name={{ ios: 'arrow.right', android: 'arrow_forward', web: 'arrow_forward' } as any}
               size={16}
-              tintColor="#FFFFFF"
+              tintColor={getButtonForegroundColor('primary', colors, isDark)}
             />
           }
         >

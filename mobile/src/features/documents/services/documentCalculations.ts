@@ -4,6 +4,7 @@
  * multi-criteria search/filtering, and extraction entity converters.
  */
 
+import { Colors } from '@/constants/colors';
 import {
   DocumentItem,
   DocumentSortKey,
@@ -194,13 +195,14 @@ export function filterAndSortDocuments(
  */
 export function getExtractionStatusInfo(
   status?: ExtractionStatus,
-  aiProcessed?: boolean
+  aiProcessed?: boolean,
+  isDark = false
 ): { label: string; color: string; bg: string; icon: string } {
   if (status === 'processing') {
     return {
       label: 'Analyzing',
-      color: '#D97706', // amber-600
-      bg: '#FEF3C7',    // amber-100
+      color: isDark ? Colors.urgency.dueSoon.darkText : Colors.urgency.dueSoon.lightText,
+      bg: isDark ? Colors.urgency.dueSoon.darkBg : Colors.urgency.dueSoon.lightBg,
       icon: 'sync',
     };
   }
@@ -208,8 +210,8 @@ export function getExtractionStatusInfo(
   if (status === 'completed' || aiProcessed) {
     return {
       label: 'AI Analyzed',
-      color: '#0D9488', // teal-600
-      bg: '#CCFBF1',    // teal-100
+      color: isDark ? Colors.urgency.upcoming.darkText : Colors.urgency.upcoming.lightText,
+      bg: isDark ? Colors.urgency.upcoming.darkBg : Colors.urgency.upcoming.lightBg,
       icon: 'sparkles',
     };
   }
@@ -217,8 +219,8 @@ export function getExtractionStatusInfo(
   if (status === 'failed') {
     return {
       label: 'Analysis Failed',
-      color: '#EF4444', // red-500
-      bg: '#FEE2E2',    // red-100
+      color: isDark ? Colors.urgency.critical.darkText : Colors.urgency.critical.lightText,
+      bg: isDark ? Colors.urgency.critical.darkBg : Colors.urgency.critical.lightBg,
       icon: 'alert-circle',
     };
   }
@@ -226,8 +228,8 @@ export function getExtractionStatusInfo(
   if (status === 'no_info') {
     return {
       label: 'No Data Detected',
-      color: '#6B7280', // gray-500
-      bg: '#F3F4F6',    // gray-100
+      color: isDark ? Colors.dark.textSecondary : Colors.light.textSecondary,
+      bg: isDark ? Colors.dark.surfaceSecondary : Colors.light.surfaceSecondary,
       icon: 'info',
     };
   }
@@ -235,16 +237,16 @@ export function getExtractionStatusInfo(
   if (status === 'unsupported') {
     return {
       label: 'Format Unsupported',
-      color: '#6B7280',
-      bg: '#F3F4F6',
+      color: isDark ? Colors.dark.textSecondary : Colors.light.textSecondary,
+      bg: isDark ? Colors.dark.surfaceSecondary : Colors.light.surfaceSecondary,
       icon: 'file-text',
     };
   }
 
   return {
     label: 'Uploaded',
-    color: '#6B7280',
-    bg: '#F3F4F6',
+    color: isDark ? Colors.dark.textSecondary : Colors.light.textSecondary,
+    bg: isDark ? Colors.dark.surfaceSecondary : Colors.light.surfaceSecondary,
     icon: 'file',
   };
 }

@@ -9,7 +9,8 @@ import { View, StyleSheet, ScrollView, Pressable, Alert } from 'react-native';
 import { SymbolView } from 'expo-symbols';
 import { useAppTheme } from '@/context/ThemeContext';
 import { ThemedText } from '@/components/themed-text';
-import { ModalSheet, Button } from '@/components/ui';
+import { ModalSheet, Button, getButtonForegroundColor } from '@/components/ui';
+import { Colors } from '@/constants/colors';
 import { Typography } from '@/constants/typography';
 import { Spacing, Radius } from '@/constants/spacing';
 import { Reminder } from '../types';
@@ -70,6 +71,33 @@ export function ReminderDetailsModal({
     );
   };
 
+  const completedColor = isDark
+    ? Colors.urgency.completed.darkText
+    : Colors.urgency.completed.lightText;
+  const completedBg = isDark
+    ? Colors.urgency.completed.darkBg
+    : Colors.urgency.completed.lightBg;
+  const criticalColor = isDark
+    ? Colors.urgency.critical.darkText
+    : Colors.urgency.critical.lightText;
+  const criticalBg = isDark
+    ? Colors.urgency.critical.darkBg
+    : Colors.urgency.critical.lightBg;
+  const highColor = isDark
+    ? Colors.urgency.urgent.darkText
+    : Colors.urgency.urgent.lightText;
+  const highBg = isDark
+    ? Colors.urgency.urgent.darkBg
+    : Colors.urgency.urgent.lightBg;
+  const primaryFg = getButtonForegroundColor('primary', colors, isDark);
+
+  const recurrenceText =
+    reminder.recurrence && reminder.recurrence.type !== 'none'
+      ? reminder.recurrence.interval && reminder.recurrence.interval > 1
+        ? `Every ${reminder.recurrence.interval} (${reminder.recurrence.type})`
+        : `Repeats ${reminder.recurrence.type}`
+      : 'Does not repeat';
+
   return (
     <ModalSheet
       isOpen={isOpen}
@@ -88,10 +116,10 @@ export function ReminderDetailsModal({
               styles.statusChip,
               {
                 backgroundColor: isCompleted
-                  ? '#ECFDF5'
+                  ? completedBg
                   : isOverdue
-                  ? '#FEE2E2'
-                  : 'rgba(13, 110, 110, 0.1)',
+                  ? criticalBg
+                  : colors.primarySoft,
               },
             ]}
           >
@@ -100,9 +128,9 @@ export function ReminderDetailsModal({
                 styles.statusChipText,
                 {
                   color: isCompleted
-                    ? '#059669'
+                    ? completedColor
                     : isOverdue
-                    ? '#DC2626'
+                    ? criticalColor
                     : colors.primary,
                 },
               ]}
@@ -117,10 +145,10 @@ export function ReminderDetailsModal({
               {
                 backgroundColor:
                   reminder.priority === 'urgent'
-                    ? '#FEE2E2'
+                    ? criticalBg
                     : reminder.priority === 'high'
-                    ? '#FFEDD5'
-                    : '#E8F2F0',
+                    ? highBg
+                    : colors.primarySoft,
               },
             ]}
           >
@@ -130,9 +158,9 @@ export function ReminderDetailsModal({
                 {
                   color:
                     reminder.priority === 'urgent'
-                      ? '#DC2626'
+                      ? criticalColor
                       : reminder.priority === 'high'
-                      ? '#EA580C'
+                      ? highColor
                       : colors.primary,
                 },
               ]}
@@ -155,7 +183,7 @@ export function ReminderDetailsModal({
                   android: isCompleted ? 'replay' : 'check',
                 }}
                 size={16}
-                tintColor={isCompleted ? colors.text : '#FFFFFF'}
+                tintColor={isCompleted ? colors.text : primaryFg}
               />
             }
           >
@@ -170,7 +198,7 @@ export function ReminderDetailsModal({
             hitSlop={8}
             style={[
               styles.iconBtn,
-              { backgroundColor: isDark ? '#26383E' : colors.backgroundElement },
+              { backgroundColor: colors.surfaceSecondary },
             ]}
           >
             <SymbolView
@@ -185,13 +213,13 @@ export function ReminderDetailsModal({
             hitSlop={8}
             style={[
               styles.iconBtn,
-              { backgroundColor: isDark ? '#3B1818' : '#FEE2E2' },
+              { backgroundColor: criticalBg },
             ]}
           >
             <SymbolView
               name={{ ios: 'trash.fill', android: 'delete' }}
               size={18}
-              tintColor="#EF4444"
+              tintColor={criticalColor}
             />
           </Pressable>
         </View>
@@ -201,8 +229,8 @@ export function ReminderDetailsModal({
           style={[
             styles.sectionCard,
             {
-              backgroundColor: isDark ? '#1C292D' : colors.surface,
-              borderColor: isDark ? '#304247' : colors.border,
+              backgroundColor: colors.surface,
+              borderColor: colors.border,
             },
           ]}
         >
@@ -234,9 +262,7 @@ export function ReminderDetailsModal({
                 Recurrence
               </ThemedText>
               <ThemedText style={[styles.metaCellValue, { color: colors.text }]}>
-                {reminder.recurrence && reminder.recurrence.type !== 'none'
-                  ? `Repeats ${reminder.recurrence.type}`
-                  : 'Does not repeat'}
+                {recurrenceText}
               </ThemedText>
             </View>
 
@@ -256,8 +282,8 @@ export function ReminderDetailsModal({
           style={[
             styles.sectionCard,
             {
-              backgroundColor: isDark ? '#1C292D' : colors.surface,
-              borderColor: isDark ? '#304247' : colors.border,
+              backgroundColor: colors.surface,
+              borderColor: colors.border,
             },
           ]}
         >
@@ -297,7 +323,7 @@ export function ReminderDetailsModal({
                 <ThemedText
                   style={[
                     styles.alertStatus,
-                    { color: isPast ? colors.textMuted : '#0D9488' },
+                    { color: isPast ? colors.textMuted : completedColor },
                   ]}
                 >
                   {isPast ? 'Passed' : 'Armed'}
@@ -313,8 +339,8 @@ export function ReminderDetailsModal({
             style={[
               styles.sectionCard,
               {
-                backgroundColor: isDark ? '#1C292D' : colors.surface,
-                borderColor: isDark ? '#304247' : colors.border,
+                backgroundColor: colors.surface,
+                borderColor: colors.border,
               },
             ]}
           >

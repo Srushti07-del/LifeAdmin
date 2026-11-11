@@ -19,7 +19,8 @@ import type * as DocumentPickerTypes from 'expo-document-picker';
 import { SymbolView } from 'expo-symbols';
 import { useAppTheme } from '@/context/ThemeContext';
 import { ThemedText } from '@/components/themed-text';
-import { ModalSheet, Button, Input } from '@/components/ui';
+import { ModalSheet, Button, Input, getButtonForegroundColor } from '@/components/ui';
+import { Colors } from '@/constants/colors';
 import { Typography } from '@/constants/typography';
 import { Spacing, Radius } from '@/constants/spacing';
 import {
@@ -202,13 +203,38 @@ export function DocumentUploadModal({
       >
         {/* Error Banner */}
         {uploadError && (
-          <View style={[styles.errorBox, { backgroundColor: '#FEE2E2', borderColor: '#FCA5A5' }]}>
+          <View
+            style={[
+              styles.errorBox,
+              {
+                backgroundColor: isDark
+                  ? Colors.urgency.critical.darkBg
+                  : Colors.urgency.critical.lightBg,
+                borderColor: Colors.urgency.critical.accent,
+              },
+            ]}
+          >
             <SymbolView
               name={{ ios: 'exclamationmark.triangle.fill', android: 'warning' }}
               size={18}
-              tintColor="#EF4444"
+              tintColor={
+                isDark
+                  ? Colors.urgency.critical.darkText
+                  : Colors.urgency.critical.lightText
+              }
             />
-            <ThemedText style={styles.errorText}>{uploadError}</ThemedText>
+            <ThemedText
+              style={[
+                styles.errorText,
+                {
+                  color: isDark
+                    ? Colors.urgency.critical.darkText
+                    : Colors.urgency.critical.lightText,
+                },
+              ]}
+            >
+              {uploadError}
+            </ThemedText>
           </View>
         )}
 
@@ -226,17 +252,30 @@ export function DocumentUploadModal({
                 style={({ pressed }) => [
                   styles.pickerButton,
                   {
-                    backgroundColor: isDark ? '#26383E' : '#F8FAFC',
-                    borderColor: isDark ? '#354E57' : '#E2E8F0',
+                    backgroundColor: colors.surfaceSecondary,
+                    borderColor: colors.border,
                     opacity: pressed ? 0.8 : 1,
                   },
                 ]}
               >
-                <View style={[styles.pickerIconWrap, { backgroundColor: '#FEE2E2' }]}>
+                <View
+                  style={[
+                    styles.pickerIconWrap,
+                    {
+                      backgroundColor: isDark
+                        ? Colors.urgency.critical.darkBg
+                        : Colors.urgency.critical.lightBg,
+                    },
+                  ]}
+                >
                   <SymbolView
                     name={{ ios: 'doc.text.fill', android: 'description' }}
                     size={22}
-                    tintColor="#EF4444"
+                    tintColor={
+                      isDark
+                        ? Colors.urgency.critical.darkText
+                        : Colors.urgency.critical.accent
+                    }
                   />
                 </View>
                 <ThemedText style={[styles.pickerBtnTitle, { color: colors.text }]}>
@@ -253,17 +292,24 @@ export function DocumentUploadModal({
                 style={({ pressed }) => [
                   styles.pickerButton,
                   {
-                    backgroundColor: isDark ? '#26383E' : '#F8FAFC',
-                    borderColor: isDark ? '#354E57' : '#E2E8F0',
+                    backgroundColor: colors.surfaceSecondary,
+                    borderColor: colors.border,
                     opacity: pressed ? 0.8 : 1,
                   },
                 ]}
               >
-                <View style={[styles.pickerIconWrap, { backgroundColor: '#DBEAFE' }]}>
+                <View
+                  style={[
+                    styles.pickerIconWrap,
+                    {
+                      backgroundColor: isDark ? 'rgba(59, 130, 246, 0.2)' : '#DBEAFE',
+                    },
+                  ]}
+                >
                   <SymbolView
                     name={{ ios: 'photo.fill', android: 'image' }}
                     size={22}
-                    tintColor="#3B82F6"
+                    tintColor={isDark ? '#93C5FD' : '#2563EB'}
                   />
                 </View>
                 <ThemedText style={[styles.pickerBtnTitle, { color: colors.text }]}>
@@ -289,8 +335,8 @@ export function DocumentUploadModal({
               style={({ pressed }) => [
                 styles.browseAllButton,
                 {
-                  backgroundColor: isDark ? '#1C292D' : colors.surface,
-                  borderColor: isDark ? '#304247' : colors.border,
+                  backgroundColor: colors.surface,
+                  borderColor: colors.border,
                   opacity: pressed ? 0.85 : 1,
                 },
               ]}
@@ -311,17 +357,17 @@ export function DocumentUploadModal({
             style={[
               styles.selectedCard,
               {
-                backgroundColor: isDark ? '#26383E' : '#F0FDFA',
-                borderColor: isDark ? '#354E57' : '#99F6E4',
+                backgroundColor: colors.primarySoft,
+                borderColor: colors.primary,
               },
             ]}
           >
             <View style={styles.selectedLeft}>
-              <View style={[styles.selectedIconBox, { backgroundColor: '#0D9488' }]}>
+              <View style={[styles.selectedIconBox, { backgroundColor: colors.primary }]}>
                 <SymbolView
                   name={{ ios: 'checkmark.circle.fill', android: 'check_circle' }}
                   size={20}
-                  tintColor="#FFFFFF"
+                  tintColor={getButtonForegroundColor('primary', colors, isDark)}
                 />
               </View>
               <View style={{ flex: 1 }}>
@@ -340,7 +386,7 @@ export function DocumentUploadModal({
             <Pressable
               onPress={() => setSelectedFile(null)}
               hitSlop={8}
-              style={[styles.changeFileBtn, { backgroundColor: isDark ? '#1C292D' : '#E2E8F0' }]}
+              style={[styles.changeFileBtn, { backgroundColor: colors.surface }]}
             >
               <ThemedText style={[styles.changeFileText, { color: colors.text }]}>
                 Change
@@ -361,30 +407,24 @@ export function DocumentUploadModal({
           >
             {CATEGORIES.map((cat) => {
               const isSelected = category === cat;
+              const selectedFg = getButtonForegroundColor('primary', colors, isDark);
               return (
                 <Pressable
                   key={cat}
                   onPress={() => setCategory(cat)}
+                  hitSlop={6}
                   style={[
                     styles.categoryPill,
                     {
-                      backgroundColor: isSelected
-                        ? colors.primary
-                        : isDark
-                        ? '#26383E'
-                        : colors.backgroundElement,
-                      borderColor: isSelected
-                        ? colors.primary
-                        : isDark
-                        ? '#354E57'
-                        : colors.border,
+                      backgroundColor: isSelected ? colors.primary : colors.surfaceSecondary,
+                      borderColor: isSelected ? colors.primary : colors.border,
                     },
                   ]}
                 >
                   <ThemedText
                     style={[
                       styles.categoryPillText,
-                      { color: isSelected ? '#FFFFFF' : colors.textSecondary },
+                      { color: isSelected ? selectedFg : colors.textSecondary },
                     ]}
                   >
                     {cat}

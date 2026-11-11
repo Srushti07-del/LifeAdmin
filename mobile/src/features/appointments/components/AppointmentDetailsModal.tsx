@@ -52,18 +52,18 @@ export function AppointmentDetailsModal({
   const statusConfig = isToday
     ? {
         label: 'Today',
-        bg: isDark ? 'rgba(22, 143, 145, 0.25)' : '#D3EAE7',
+        bg: colors.primarySoft,
         color: colors.primary,
       }
     : isUpcoming
     ? {
         label: 'Upcoming',
-        bg: isDark ? 'rgba(139, 92, 246, 0.25)' : 'rgba(139, 92, 246, 0.12)',
-        color: '#8B5CF6',
+        bg: colors.surfaceSecondary,
+        color: colors.text,
       }
     : {
         label: 'Past',
-        bg: isDark ? 'rgba(255, 255, 255, 0.06)' : '#F1F5F9',
+        bg: colors.surfaceSecondary,
         color: colors.textSecondary,
       };
 
@@ -118,10 +118,8 @@ export function AppointmentDetailsModal({
           style={[
             styles.heroCard,
             {
-              backgroundColor: isDark ? 'rgba(255, 255, 255, 0.04)' : '#F8FAFC',
-              borderColor: colors.border,
-              borderLeftColor: isToday ? colors.primary : '#8B5CF6',
-              borderLeftWidth: 4,
+              backgroundColor: colors.surfaceSecondary,
+              borderColor: isToday ? colors.primary : colors.border,
             },
           ]}
         >
@@ -135,7 +133,7 @@ export function AppointmentDetailsModal({
             <View
               style={[
                 styles.categoryBadge,
-                { backgroundColor: isDark ? 'rgba(255, 255, 255, 0.08)' : '#E2E8F0' },
+                { backgroundColor: colors.surface, borderColor: colors.border, borderWidth: 1 },
               ]}
             >
               <ThemedText style={[styles.categoryText, { color: colors.textSecondary }]}>
@@ -260,7 +258,7 @@ export function AppointmentDetailsModal({
             style={[
               styles.notesBox,
               {
-                backgroundColor: isDark ? 'rgba(255, 255, 255, 0.03)' : '#F1F5F9',
+                backgroundColor: colors.surfaceSecondary,
                 borderColor: colors.border,
               },
             ]}
@@ -319,7 +317,7 @@ export function AppointmentDetailsModal({
                 <SymbolView
                   name={{ ios: 'trash', android: 'delete', web: 'delete' }}
                   size={16}
-                  tintColor="#EF4444"
+                  tintColor="#FFFFFF"
                 />
               }
             >
@@ -375,8 +373,7 @@ const styles = StyleSheet.create({
   title: {
     fontSize: Typography.fontSize.xl,
     fontFamily: Typography.fontFamilies.editorial,
-    fontWeight: Typography.fontWeight.bold,
-    lineHeight: 24,
+    lineHeight: 26,
   },
   detailsSection: {
     borderWidth: 1,

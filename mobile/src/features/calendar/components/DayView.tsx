@@ -8,6 +8,7 @@ import { View, StyleSheet, Pressable } from 'react-native';
 import { SymbolView } from 'expo-symbols';
 import { useAppTheme } from '@/context/ThemeContext';
 import { ThemedText } from '@/components/themed-text';
+import { getButtonForegroundColor } from '@/components/ui';
 import { Typography } from '@/constants/typography';
 import { Spacing, Radius } from '@/constants/spacing';
 import { CalendarEventItem } from '../types';
@@ -70,6 +71,7 @@ export function DayView({
 
           <Pressable
             onPress={() => onAddEvent(currentDate)}
+            hitSlop={6}
             style={[
               styles.addBtn,
               { backgroundColor: colors.primary },
@@ -80,9 +82,16 @@ export function DayView({
             <SymbolView
               name={{ ios: 'plus', android: 'add', web: 'add' }}
               size={16}
-              tintColor="#FFFFFF"
+              tintColor={getButtonForegroundColor('primary', colors, isDark)}
             />
-            <ThemedText style={styles.addBtnText}>Add Event</ThemedText>
+            <ThemedText
+              style={[
+                styles.addBtnText,
+                { color: getButtonForegroundColor('primary', colors, isDark) },
+              ]}
+            >
+              Add Event
+            </ThemedText>
           </Pressable>
         </View>
       </View>
@@ -189,9 +198,8 @@ const styles = StyleSheet.create({
     gap: Spacing.two,
   },
   bannerTitle: {
-    fontSize: Typography.fontSize.base,
+    fontSize: Typography.fontSize.lg,
     fontFamily: Typography.fontFamilies.editorial,
-    fontWeight: Typography.fontWeight.bold,
   },
   bannerSubtitle: {
     fontSize: Typography.fontSize.xs,
@@ -202,13 +210,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 4,
     paddingHorizontal: Spacing.three,
-    paddingVertical: 6,
+    paddingVertical: 7,
     borderRadius: Radius.full,
   },
   addBtnText: {
-    color: '#FFFFFF',
+    fontFamily: Typography.fontFamilies.sansSemiBold,
     fontSize: Typography.fontSize.xs,
-    fontWeight: Typography.fontWeight.semibold,
   },
   emptyCard: {
     padding: Spacing.eight,

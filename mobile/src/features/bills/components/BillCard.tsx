@@ -5,11 +5,24 @@
  */
 
 import React from 'react';
-import { View, StyleSheet, Pressable, ActivityIndicator } from 'react-native';
+import {
+  ActivityIndicator,
+  Pressable,
+  StyleProp,
+  StyleSheet,
+  View,
+  ViewStyle,
+} from 'react-native';
 import { SymbolView } from 'expo-symbols';
 import { useAppTheme } from '@/context/ThemeContext';
 import { ThemedText } from '@/components/themed-text';
-import { Card, Badge, UrgencyTag, UrgencyType } from '@/components/ui';
+import {
+  Card,
+  UrgencyTag,
+  UrgencyType,
+  getButtonForegroundColor,
+} from '@/components/ui';
+import { Colors } from '@/constants/colors';
 import { Typography } from '@/constants/typography';
 import { Spacing, Radius } from '@/constants/spacing';
 import { formatCurrency } from '@/utils/currency';
@@ -22,6 +35,8 @@ export interface BillCardProps {
   onPress?: (bill: Bill) => void;
   onTogglePaid?: (bill: Bill) => void;
   isActionLoading?: boolean;
+  compact?: boolean;
+  style?: StyleProp<ViewStyle>;
 }
 
 export function BillCard({
@@ -29,10 +44,13 @@ export function BillCard({
   onPress,
   onTogglePaid,
   isActionLoading = false,
+  compact = false,
+  style,
 }: BillCardProps) {
   const { colors, isDark } = useAppTheme();
   const status = displayStatus(bill);
   const isPaid = bill.paymentStatus === 'paid' || bill.status === 'paid';
+  const primaryFg = getButtonForegroundColor('primary', colors, isDark);
 
   const mapUrgencyType = (key: string): UrgencyType => {
     switch (key) {
@@ -56,41 +74,44 @@ export function BillCard({
       onPress={() => onPress?.(bill)}
       style={[
         styles.card,
+        compact && styles.compactCard,
         {
           backgroundColor: colors.surface,
           borderColor: isPaid
-            ? isDark
-              ? '#143440'
-              : '#E2E8F0'
+            ? colors.borderSubtle
             : status.key === 'overdue'
-            ? colors.notification || '#EF4444'
+            ? Colors.urgency.critical.accent
             : colors.border,
-          borderLeftWidth: status.key === 'overdue' ? 4 : 1,
+          opacity: isPaid ? 0.85 : 1,
         },
+        style,
       ]}
       accessibilityRole="button"
       accessibilityLabel={`Bill ${bill.name || bill.title}, ${formatCurrency(bill.amount, bill.currency)}, ${status.label}`}
     >
-      <View style={styles.content}>
+      <View style={[styles.content, compact && styles.compactContent]}>
         {/* Top Row: Provider/Category and Status Badge */}
         <View style={styles.topRow}>
           <View style={styles.metaRow}>
             <View
               style={[
                 styles.categoryChip,
-                { backgroundColor: isDark ? 'rgba(255, 255, 255, 0.08)' : '#F1F5F9' },
+                { backgroundColor: colors.surfaceSecondary },
               ]}
             >
-              <ThemedText style={[styles.categoryText, { color: colors.textSecondary }]}>
+              <ThemedText
+                style={[styles.categoryText, { color: colors.textSecondary }]}
+                numberOfLines={1}
+              >
                 {bill.category || 'Finance'}
               </ThemedText>
             </View>
 
-            {recurrenceLabel && (
+            {!compact && recurrenceLabel && (
               <View
                 style={[
                   styles.recurrenceChip,
-                  { backgroundColor: isDark ? 'rgba(22, 143, 145, 0.2)' : '#D3EAE7' },
+                  { backgroundColor: colors.primarySoft },
                 ]}
               >
                 <SymbolView
@@ -112,17 +133,18 @@ export function BillCard({
         </View>
 
         {/* Main Body: Bill Title & Amount */}
-        <View style={styles.mainRow}>
+        <View style={compact ? styles.compactMain : styles.mainRow}>
           <View style={styles.titleCol}>
             <ThemedText
               style={[
                 styles.billName,
+                compact && styles.compactBillName,
                 {
                   color: isPaid ? colors.textSecondary : colors.text,
                   textDecorationLine: isPaid ? 'line-through' : 'none',
                 },
               ]}
-              numberOfLines={1}
+              numberOfLines={compact ? 2 : 1}
             >
               {bill.name || bill.title || 'Untitled Bill'}
             </ThemedText>
@@ -137,33 +159,50 @@ export function BillCard({
             )}
           </View>
 
-          <View style={styles.amountCol}>
+          <View style={compact ? styles.compactAmountCol : styles.amountCol}>
             <ThemedText
               style={[
                 styles.amountText,
+                compact && styles.compactAmountText,
                 {
                   color: isPaid
                     ? colors.textSecondary
                     : status.key === 'overdue'
-                    ? colors.notification || '#EF4444'
+                    ? isDark
+                      ? Colors.urgency.critical.darkText
+                      : Colors.urgency.critical.lightText
                     : colors.text,
                 },
               ]}
             >
               {formatCurrency(bill.amount, bill.currency)}
             </ThemedText>
+            {compact && recurrenceLabel ? (
+              <ThemedText style={[styles.compactRecurrence, { color: colors.primary }]}>
+                {recurrenceLabel}
+              </ThemedText>
+            ) : null}
           </View>
         </View>
 
         {/* Bottom Row: Due Date & Action Button */}
-        <View style={[styles.bottomRow, { borderTopColor: colors.border }]}>
+        <View
+          style={[
+            styles.bottomRow,
+            compact && styles.compactBottomRow,
+            { borderTopColor: colors.borderSubtle },
+          ]}
+        >
           <View style={styles.dueDateRow}>
             <SymbolView
               name={{ ios: 'calendar', android: 'calendar_today', web: 'calendar_today' }}
-              size={13}
+              size={12}
               tintColor={colors.textSecondary}
             />
-            <ThemedText style={[styles.dueDateText, { color: colors.textSecondary }]}>
+            <ThemedText
+              style={[styles.dueDateText, { color: colors.textSecondary }]}
+              numberOfLines={1}
+            >
               {isPaid
                 ? `Paid ${bill.paidAt ? formatShortDate(bill.paidAt) : ''}`
                 : `Due ${formatShortDate(bill.dueDate)}`}
@@ -178,11 +217,10 @@ export function BillCard({
             disabled={isActionLoading}
             style={({ pressed }) => [
               styles.actionButton,
+              compact && styles.compactActionButton,
               {
                 backgroundColor: isPaid
-                  ? isDark
-                    ? '#143440'
-                    : '#F1F5F9'
+                  ? colors.surfaceSecondary
                   : colors.primary,
                 borderColor: isPaid ? colors.border : colors.primary,
               },
@@ -193,7 +231,7 @@ export function BillCard({
             {isActionLoading ? (
               <ActivityIndicator
                 size="small"
-                color={isPaid ? colors.primary : '#FFFFFF'}
+                color={isPaid ? colors.primary : primaryFg}
               />
             ) : (
               <View style={styles.actionBtnInner}>
@@ -204,12 +242,12 @@ export function BillCard({
                       : { ios: 'checkmark.circle.fill', android: 'check_circle', web: 'check_circle' }
                   }
                   size={13}
-                  tintColor={isPaid ? colors.textSecondary : '#FFFFFF'}
+                  tintColor={isPaid ? colors.textSecondary : primaryFg}
                 />
                 <ThemedText
                   style={[
                     styles.actionBtnText,
-                    { color: isPaid ? colors.textSecondary : '#FFFFFF' },
+                    { color: isPaid ? colors.textSecondary : primaryFg },
                   ]}
                 >
                   {isPaid ? 'Unpay' : 'Mark Paid'}
@@ -230,19 +268,30 @@ const styles = StyleSheet.create({
     padding: Spacing.four,
     borderWidth: 1,
   },
+  compactCard: {
+    marginBottom: 0,
+    padding: Spacing.three + 2,
+  },
   content: {
     gap: Spacing.three,
+  },
+  compactContent: {
+    gap: Spacing.two + 2,
+    flex: 1,
+    justifyContent: 'space-between',
   },
   topRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    gap: Spacing.one,
   },
   metaRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
     flexWrap: 'wrap',
+    flexShrink: 1,
   },
   categoryChip: {
     paddingHorizontal: Spacing.two,
@@ -271,6 +320,9 @@ const styles = StyleSheet.create({
     alignItems: 'flex-start',
     gap: Spacing.three,
   },
+  compactMain: {
+    gap: Spacing.two,
+  },
   titleCol: {
     flex: 1,
   },
@@ -278,6 +330,10 @@ const styles = StyleSheet.create({
     fontFamily: Typography.fontFamilies.sansSemiBold,
     fontSize: Typography.fontSize.base,
     lineHeight: 22,
+  },
+  compactBillName: {
+    fontSize: Typography.fontSize.sm + 1,
+    lineHeight: 20,
   },
   providerText: {
     fontFamily: Typography.fontFamilies.sans,
@@ -287,9 +343,23 @@ const styles = StyleSheet.create({
   amountCol: {
     alignItems: 'flex-end',
   },
+  compactAmountCol: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    justifyContent: 'space-between',
+    gap: Spacing.two,
+  },
   amountText: {
     fontFamily: Typography.fontFamilies.sansBold,
     fontSize: Typography.fontSize.lg,
+    fontVariant: ['tabular-nums'],
+  },
+  compactAmountText: {
+    fontSize: Typography.fontSize.base + 1,
+  },
+  compactRecurrence: {
+    fontFamily: Typography.fontFamilies.sansMedium,
+    fontSize: Typography.fontSize.micro,
   },
   bottomRow: {
     flexDirection: 'row',
@@ -297,6 +367,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingTop: Spacing.two,
     borderTopWidth: StyleSheet.hairlineWidth,
+    gap: Spacing.two,
+  },
+  compactBottomRow: {
+    flexDirection: 'column',
+    alignItems: 'stretch',
+    gap: Spacing.two,
   },
   dueDateRow: {
     flexDirection: 'row',
@@ -309,12 +385,16 @@ const styles = StyleSheet.create({
   },
   actionButton: {
     paddingHorizontal: Spacing.three,
-    paddingVertical: 6,
+    paddingVertical: 7,
     borderRadius: Radius.lg,
     borderWidth: 1,
     minWidth: 90,
+    minHeight: 34,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  compactActionButton: {
+    width: '100%',
   },
   actionBtnInner: {
     flexDirection: 'row',

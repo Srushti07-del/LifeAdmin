@@ -8,8 +8,10 @@ import { View, StyleSheet, Pressable } from 'react-native';
 import { SymbolView } from 'expo-symbols';
 import { useAppTheme } from '@/context/ThemeContext';
 import { ThemedText } from '@/components/themed-text';
+import { getButtonForegroundColor } from '@/components/ui';
 import { Typography } from '@/constants/typography';
 import { Spacing, Radius } from '@/constants/spacing';
+import { createShadow } from '@/constants/shadows';
 import { ChatMessage, ProposedAction } from '../types';
 import {
   getActionTypeIcon,
@@ -29,6 +31,7 @@ export function ChatMessageBubble({
   const { colors, isDark } = useAppTheme();
   const isUser = message.role === 'user';
   const actions = message.proposedActions || message.suggestions || [];
+  const primaryFg = getButtonForegroundColor('primary', colors, isDark);
 
   return (
     <View
@@ -48,7 +51,7 @@ export function ChatMessageBubble({
           <SymbolView
             name={{ ios: 'sparkles', android: 'smart_toy' }}
             size={16}
-            tintColor="#FFFFFF"
+            tintColor={primaryFg}
           />
         </View>
       )}
@@ -67,9 +70,10 @@ export function ChatMessageBubble({
               ? [styles.bubbleUser, { backgroundColor: colors.primary }]
               : [
                   styles.bubbleAssistant,
+                  createShadow(isDark, 'xs'),
                   {
-                    backgroundColor: isDark ? '#1C292D' : colors.surface,
-                    borderColor: isDark ? '#304247' : colors.border,
+                    backgroundColor: colors.surface,
+                    borderColor: colors.border,
                   },
                 ],
           ]}
@@ -77,7 +81,7 @@ export function ChatMessageBubble({
           <ThemedText
             style={[
               styles.messageText,
-              { color: isUser ? '#FFFFFF' : colors.text },
+              { color: isUser ? primaryFg : colors.text },
             ]}
             selectable
           >
@@ -91,8 +95,8 @@ export function ChatMessageBubble({
             style={[
               styles.actionsContainer,
               {
-                backgroundColor: isDark ? '#141F23' : '#F8FAFA',
-                borderColor: isDark ? '#2D3E44' : colors.border,
+                backgroundColor: colors.surfaceSecondary,
+                borderColor: colors.borderSubtle,
               },
             ]}
           >
@@ -113,13 +117,14 @@ export function ChatMessageBubble({
               const subtitle = formatActionSubtitle(item);
 
               return (
-                <View
+                  <View
                   key={`${item.title}-${idx}`}
                   style={[
                     styles.actionCard,
+                    createShadow(isDark, 'xs'),
                     {
-                      backgroundColor: isDark ? '#1C292D' : colors.surface,
-                      borderColor: isDark ? '#304247' : colors.border,
+                      backgroundColor: colors.surface,
+                      borderColor: colors.border,
                     },
                   ]}
                 >
@@ -157,9 +162,12 @@ export function ChatMessageBubble({
 
                   <Pressable
                     onPress={() => onReviewAction(item)}
+                    hitSlop={6}
                     style={[styles.reviewBtn, { backgroundColor: colors.primary }]}
                   >
-                    <ThemedText style={styles.reviewBtnText}>Review</ThemedText>
+                    <ThemedText style={[styles.reviewBtnText, { color: primaryFg }]}>
+                      Review
+                    </ThemedText>
                   </Pressable>
                 </View>
               );
@@ -287,15 +295,17 @@ const styles = StyleSheet.create({
   actionSubtitle: {
     fontSize: 10,
     fontFamily: Typography.fontFamilies.sans,
+    fontVariant: ['tabular-nums'],
     marginTop: 1,
   },
   reviewBtn: {
+    minHeight: 36,
+    justifyContent: 'center',
     paddingHorizontal: Spacing.three,
-    paddingVertical: 5,
-    borderRadius: Radius.sm,
+    paddingVertical: 6,
+    borderRadius: Radius.md,
   },
   reviewBtnText: {
-    color: '#FFFFFF',
     fontSize: 11,
     fontFamily: Typography.fontFamilies.sansBold,
   },

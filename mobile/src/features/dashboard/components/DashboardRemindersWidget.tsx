@@ -8,8 +8,10 @@ import { View, StyleSheet, Pressable } from 'react-native';
 import { SymbolView } from 'expo-symbols';
 import { useAppTheme } from '@/context/ThemeContext';
 import { ThemedText } from '@/components/themed-text';
+import { Colors } from '@/constants/colors';
 import { Typography } from '@/constants/typography';
 import { Spacing, Radius } from '@/constants/spacing';
+import { createShadow } from '@/constants/shadows';
 import { formatShortDate, formatTime } from '@/utils/date';
 import { DashboardReminderPreview } from '../types';
 
@@ -34,6 +36,7 @@ export function DashboardRemindersWidget({
       <View
         style={[
           styles.card,
+          createShadow(isDark, 'card'),
           {
             backgroundColor: colors.surface,
             borderColor: colors.border,
@@ -47,15 +50,19 @@ export function DashboardRemindersWidget({
                 styles.iconBox,
                 {
                   backgroundColor: isDark
-                    ? 'rgba(217, 119, 6, 0.2)'
-                    : '#FEF3C7',
+                    ? Colors.urgency.dueSoon.darkBg
+                    : Colors.urgency.dueSoon.lightBg,
                 },
               ]}
             >
               <SymbolView
                 name={{ ios: 'bell.fill', android: 'alarm', web: 'alarm' }}
                 size={18}
-                tintColor="#D97706"
+                tintColor={
+                  isDark
+                    ? Colors.urgency.dueSoon.darkText
+                    : Colors.urgency.dueSoon.accent
+                }
               />
             </View>
             <View>
@@ -140,11 +147,6 @@ const styles = StyleSheet.create({
     borderRadius: Radius['2xl'],
     borderWidth: 1,
     padding: Spacing.four,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.04,
-    shadowRadius: 6,
-    elevation: 2,
   },
   headerRow: {
     flexDirection: 'row',
@@ -201,6 +203,7 @@ const styles = StyleSheet.create({
   rowMeta: {
     fontFamily: Typography.fontFamilies.sansMedium,
     fontSize: Typography.fontSize.micro,
+    fontVariant: ['tabular-nums'],
   },
   emptyBox: {
     alignItems: 'center',

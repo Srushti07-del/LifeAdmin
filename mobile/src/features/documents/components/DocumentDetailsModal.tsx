@@ -17,7 +17,8 @@ import * as WebBrowser from 'expo-web-browser';
 import { SymbolView } from 'expo-symbols';
 import { useAppTheme } from '@/context/ThemeContext';
 import { ThemedText } from '@/components/themed-text';
-import { ModalSheet, Button } from '@/components/ui';
+import { ModalSheet, Button, getButtonForegroundColor } from '@/components/ui';
+import { Colors } from '@/constants/colors';
 import { Typography } from '@/constants/typography';
 import { Spacing, Radius } from '@/constants/spacing';
 import { DocumentItem } from '../types';
@@ -58,8 +59,16 @@ export function DocumentDetailsModal({
 
   const statusInfo = getExtractionStatusInfo(
     document.aiExtractionStatus,
-    document.aiProcessed
+    document.aiProcessed,
+    isDark
   );
+  const primaryFg = getButtonForegroundColor('primary', colors, isDark);
+  const dateColor = isDark ? Colors.urgency.completed.darkText : Colors.urgency.completed.lightText;
+  const dateBg = isDark ? Colors.urgency.completed.darkBg : Colors.urgency.completed.lightBg;
+  const amountColor = isDark ? Colors.urgency.dueSoon.darkText : Colors.urgency.dueSoon.lightText;
+  const amountBg = isDark ? Colors.urgency.dueSoon.darkBg : Colors.urgency.dueSoon.lightBg;
+  const errColor = isDark ? Colors.urgency.critical.darkText : Colors.urgency.critical.lightText;
+  const errBg = isDark ? Colors.urgency.critical.darkBg : Colors.urgency.critical.lightBg;
 
   const importantDates = document.aiExtracted?.importantDates || [];
   const amounts = document.aiExtracted?.amounts || [];
@@ -124,6 +133,7 @@ export function DocumentDetailsModal({
         <View style={styles.topActionsRow}>
           <Pressable
             onPress={handleOpenFile}
+            hitSlop={6}
             style={({ pressed }) => [
               styles.actionPill,
               {
@@ -135,9 +145,11 @@ export function DocumentDetailsModal({
             <SymbolView
               name={{ ios: 'arrow.up.right.square.fill', android: 'open_in_new' }}
               size={16}
-              tintColor="#FFFFFF"
+              tintColor={primaryFg}
             />
-            <ThemedText style={styles.actionPillTextWhite}>View / Preview</ThemedText>
+            <ThemedText style={[styles.actionPillText, { color: primaryFg }]}>
+              View / Preview
+            </ThemedText>
           </Pressable>
 
           <Pressable
@@ -145,11 +157,12 @@ export function DocumentDetailsModal({
               onClose();
               onEdit(document);
             }}
+            hitSlop={6}
             style={({ pressed }) => [
               styles.actionPill,
               {
-                backgroundColor: isDark ? '#26383E' : colors.backgroundElement,
-                borderColor: isDark ? '#354E57' : colors.border,
+                backgroundColor: colors.surfaceSecondary,
+                borderColor: colors.border,
                 borderWidth: 1,
                 opacity: pressed ? 0.85 : 1,
               },
@@ -167,10 +180,11 @@ export function DocumentDetailsModal({
 
           <Pressable
             onPress={handleDeletePrompt}
+            hitSlop={6}
             style={({ pressed }) => [
               styles.actionPill,
               {
-                backgroundColor: isDark ? '#3B1818' : '#FEE2E2',
+                backgroundColor: errBg,
                 opacity: pressed ? 0.85 : 1,
               },
             ]}
@@ -178,9 +192,9 @@ export function DocumentDetailsModal({
             <SymbolView
               name={{ ios: 'trash.fill', android: 'delete' }}
               size={16}
-              tintColor="#EF4444"
+              tintColor={errColor}
             />
-            <ThemedText style={[styles.actionPillText, { color: '#EF4444' }]}>
+            <ThemedText style={[styles.actionPillText, { color: errColor }]}>
               Delete
             </ThemedText>
           </Pressable>
@@ -191,8 +205,8 @@ export function DocumentDetailsModal({
           style={[
             styles.sectionCard,
             {
-              backgroundColor: isDark ? '#1C292D' : colors.surface,
-              borderColor: isDark ? '#304247' : colors.border,
+              backgroundColor: colors.surface,
+              borderColor: colors.border,
             },
           ]}
         >
@@ -246,8 +260,8 @@ export function DocumentDetailsModal({
           style={[
             styles.statusCard,
             {
-              backgroundColor: isDark ? '#213035' : statusInfo.bg,
-              borderColor: isDark ? '#304247' : statusInfo.color + '40',
+              backgroundColor: statusInfo.bg,
+              borderColor: statusInfo.color,
             },
           ]}
         >
@@ -273,7 +287,7 @@ export function DocumentDetailsModal({
 
           {document.aiExtractionStatus === 'failed' && (
             <View>
-              <ThemedText style={[styles.statusDescription, { color: '#B91C1C' }]}>
+              <ThemedText style={[styles.statusDescription, { color: errColor }]}>
                 {document.aiExtractionError || 'Extraction encountered an issue.'}
               </ThemedText>
               <Button
@@ -301,8 +315,8 @@ export function DocumentDetailsModal({
             style={[
               styles.sectionCard,
               {
-                backgroundColor: isDark ? '#1C292D' : colors.surface,
-                borderColor: isDark ? '#304247' : colors.border,
+                backgroundColor: colors.surface,
+                borderColor: colors.border,
               },
             ]}
           >
@@ -311,12 +325,15 @@ export function DocumentDetailsModal({
             </ThemedText>
 
             {importantDates.map((item, idx) => (
-              <View key={`date-${idx}`} style={styles.extractedRow}>
+              <View
+                key={`date-${idx}`}
+                style={[styles.extractedRow, { borderBottomColor: colors.borderSubtle }]}
+              >
                 <View style={{ flex: 1 }}>
                   <ThemedText style={[styles.extractedRowLabel, { color: colors.text }]}>
                     {item.label || 'Important Date'}
                   </ThemedText>
-                  <ThemedText style={[styles.extractedRowValue, { color: '#16A34A' }]}>
+                  <ThemedText style={[styles.extractedRowValue, { color: dateColor }]}>
                     {formatDocumentDate(item.date)}
                   </ThemedText>
                 </View>
@@ -324,18 +341,20 @@ export function DocumentDetailsModal({
                 <View style={styles.convertBtnGroup}>
                   <Pressable
                     onPress={() => onConvertToTask(document, item.date)}
-                    style={[styles.smallConvertBtn, { backgroundColor: '#F0FDF4' }]}
+                    hitSlop={6}
+                    style={[styles.smallConvertBtn, { backgroundColor: dateBg }]}
                   >
-                    <ThemedText style={[styles.smallConvertBtnText, { color: '#16A34A' }]}>
+                    <ThemedText style={[styles.smallConvertBtnText, { color: dateColor }]}>
                       + Task
                     </ThemedText>
                   </Pressable>
 
                   <Pressable
                     onPress={() => onConvertToReminder(document, item.date)}
-                    style={[styles.smallConvertBtn, { backgroundColor: '#F0FDF4' }]}
+                    hitSlop={6}
+                    style={[styles.smallConvertBtn, { backgroundColor: dateBg }]}
                   >
-                    <ThemedText style={[styles.smallConvertBtnText, { color: '#16A34A' }]}>
+                    <ThemedText style={[styles.smallConvertBtnText, { color: dateColor }]}>
                       + Reminder
                     </ThemedText>
                   </Pressable>
@@ -351,8 +370,8 @@ export function DocumentDetailsModal({
             style={[
               styles.sectionCard,
               {
-                backgroundColor: isDark ? '#1C292D' : colors.surface,
-                borderColor: isDark ? '#304247' : colors.border,
+                backgroundColor: colors.surface,
+                borderColor: colors.border,
               },
             ]}
           >
@@ -361,21 +380,25 @@ export function DocumentDetailsModal({
             </ThemedText>
 
             {amounts.map((item, idx) => (
-              <View key={`amt-${idx}`} style={styles.extractedRow}>
+              <View
+                key={`amt-${idx}`}
+                style={[styles.extractedRow, { borderBottomColor: colors.borderSubtle }]}
+              >
                 <View style={{ flex: 1 }}>
                   <ThemedText style={[styles.extractedRowLabel, { color: colors.text }]}>
                     {item.label || 'Amount Due'}
                   </ThemedText>
-                  <ThemedText style={[styles.extractedRowValue, { color: '#D97706' }]}>
-                    ₹{item.amount.toLocaleString()}
+                  <ThemedText style={[styles.extractedRowValue, { color: amountColor }]}>
+                    ₹{item.amount.toLocaleString('en-IN')}
                   </ThemedText>
                 </View>
 
                 <Pressable
                   onPress={() => onConvertToBill(document, item.amount)}
-                  style={[styles.smallConvertBtn, { backgroundColor: '#FEF3C7' }]}
+                  hitSlop={6}
+                  style={[styles.smallConvertBtn, { backgroundColor: amountBg }]}
                 >
-                  <ThemedText style={[styles.smallConvertBtnText, { color: '#D97706' }]}>
+                  <ThemedText style={[styles.smallConvertBtnText, { color: amountColor }]}>
                     + Create Bill
                   </ThemedText>
                 </Pressable>
@@ -390,8 +413,8 @@ export function DocumentDetailsModal({
             style={[
               styles.sectionCard,
               {
-                backgroundColor: isDark ? '#1C292D' : colors.surface,
-                borderColor: isDark ? '#304247' : colors.border,
+                backgroundColor: colors.surface,
+                borderColor: colors.border,
               },
             ]}
           >
@@ -418,8 +441,8 @@ export function DocumentDetailsModal({
             style={[
               styles.sectionCard,
               {
-                backgroundColor: isDark ? '#1C292D' : colors.surface,
-                borderColor: isDark ? '#304247' : colors.border,
+                backgroundColor: colors.surface,
+                borderColor: colors.border,
               },
             ]}
           >
@@ -521,8 +544,7 @@ const styles = StyleSheet.create({
   },
   summaryQuote: {
     fontSize: Typography.fontSize.xs,
-    fontFamily: Typography.fontFamilies.editorial,
-    fontStyle: 'italic',
+    fontFamily: Typography.fontFamilies.editorialItalic,
     lineHeight: 18,
     marginTop: Spacing.two,
   },
@@ -532,7 +554,6 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingVertical: Spacing.one,
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: '#E2E8F0',
   },
   extractedRowLabel: {
     fontSize: Typography.fontSize.xs,
@@ -541,6 +562,7 @@ const styles = StyleSheet.create({
   extractedRowValue: {
     fontSize: Typography.fontSize.sm,
     fontFamily: Typography.fontFamilies.sansBold,
+    fontVariant: ['tabular-nums'],
     marginTop: 2,
   },
   convertBtnGroup: {

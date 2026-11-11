@@ -93,7 +93,6 @@ export function SegmentedControl<T extends string = string>({
                   fontFamily: isActive
                     ? Typography.fontFamilies.sansSemiBold
                     : Typography.fontFamilies.sansMedium,
-                  fontWeight: isActive ? '600' : '500',
                 },
                 labelStyle,
                 isActive && activeLabelStyle,

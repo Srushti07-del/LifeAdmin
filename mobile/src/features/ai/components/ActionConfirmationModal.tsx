@@ -15,9 +15,11 @@ import {
 import { SymbolView } from 'expo-symbols';
 import { useAppTheme } from '@/context/ThemeContext';
 import { ThemedText } from '@/components/themed-text';
-import { ModalSheet, Button, Input } from '@/components/ui';
+import { ModalSheet, Button, Input, getButtonForegroundColor } from '@/components/ui';
+import { Colors } from '@/constants/colors';
 import { Typography } from '@/constants/typography';
 import { Spacing, Radius } from '@/constants/spacing';
+import { createShadow } from '@/constants/shadows';
 import { ProposedAction } from '../types';
 import {
   getActionTypeBadge,
@@ -119,20 +121,32 @@ export function ActionConfirmationModal({
           style={[
             styles.safetyBanner,
             {
-              backgroundColor: isDark ? 'rgba(217, 119, 6, 0.15)' : '#FEF3C7',
-              borderColor: isDark ? 'rgba(217, 119, 6, 0.35)' : '#FDE68A',
+              backgroundColor: isDark
+                ? Colors.urgency.dueSoon.darkBg
+                : Colors.urgency.dueSoon.lightBg,
+              borderColor: isDark
+                ? 'rgba(245, 158, 11, 0.35)'
+                : Colors.urgency.dueSoon.accent,
             },
           ]}
         >
           <SymbolView
             name={{ ios: 'exclamationmark.triangle.fill', android: 'warning' }}
             size={18}
-            tintColor={isDark ? '#FBBF24' : '#D97706'}
+            tintColor={
+              isDark
+                ? Colors.urgency.dueSoon.darkText
+                : Colors.urgency.dueSoon.accent
+            }
           />
           <ThemedText
             style={[
               styles.safetyBannerText,
-              { color: isDark ? '#FDE68A' : '#92400E' },
+              {
+                color: isDark
+                  ? Colors.urgency.dueSoon.darkText
+                  : Colors.urgency.dueSoon.lightText,
+              },
             ]}
           >
             Review and adjust details carefully. Confirming will create a permanent{' '}
@@ -142,8 +156,29 @@ export function ActionConfirmationModal({
 
         {/* Validation Error Message */}
         {validationError && (
-          <View style={[styles.errorBox, { backgroundColor: '#FEE2E2', borderColor: '#FCA5A5' }]}>
-            <ThemedText style={styles.errorText}>{validationError}</ThemedText>
+          <View
+            style={[
+              styles.errorBox,
+              {
+                backgroundColor: isDark
+                  ? Colors.urgency.critical.darkBg
+                  : Colors.urgency.critical.lightBg,
+                borderColor: Colors.urgency.critical.accent,
+              },
+            ]}
+          >
+            <ThemedText
+              style={[
+                styles.errorText,
+                {
+                  color: isDark
+                    ? Colors.urgency.critical.darkText
+                    : Colors.urgency.critical.lightText,
+                },
+              ]}
+            >
+              {validationError}
+            </ThemedText>
           </View>
         )}
 
@@ -151,6 +186,7 @@ export function ActionConfirmationModal({
         <View
           style={[
             styles.typeCard,
+            createShadow(isDark, 'xs'),
             {
               backgroundColor: colors.surface,
               borderColor: colors.border,
@@ -179,7 +215,7 @@ export function ActionConfirmationModal({
                 style={[
                   styles.confidencePill,
                   {
-                    backgroundColor: isDark ? '#1C292D' : '#F1F5F9',
+                    backgroundColor: colors.surfaceSecondary,
                     borderColor: colors.border,
                   },
                 ]}
@@ -257,12 +293,13 @@ export function ActionConfirmationModal({
                 <Pressable
                   key={p.key}
                   onPress={() => setPriority(p.key)}
+                  hitSlop={4}
                   style={[
                     styles.priorityChip,
                     {
                       backgroundColor: isSelected
                         ? colors.primary
-                        : isDark ? '#1C292D' : colors.surface,
+                        : colors.surfaceSecondary,
                       borderColor: isSelected ? colors.primary : colors.border,
                     },
                   ]}
@@ -271,7 +308,9 @@ export function ActionConfirmationModal({
                     style={[
                       styles.priorityChipText,
                       {
-                        color: isSelected ? '#FFFFFF' : colors.text,
+                        color: isSelected
+                          ? getButtonForegroundColor('primary', colors, isDark)
+                          : colors.text,
                         fontFamily: isSelected
                           ? Typography.fontFamilies.sansBold
                           : Typography.fontFamilies.sans,
@@ -364,7 +403,6 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.three,
   },
   errorText: {
-    color: '#DC2626',
     fontSize: Typography.fontSize.xs,
     fontFamily: Typography.fontFamilies.sansMedium,
   },
@@ -426,6 +464,7 @@ const styles = StyleSheet.create({
   },
   priorityChip: {
     flex: 1,
+    minHeight: 42,
     paddingVertical: 8,
     borderRadius: Radius.md,
     borderWidth: 1,

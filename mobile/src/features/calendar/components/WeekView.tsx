@@ -8,6 +8,7 @@ import { View, StyleSheet, Pressable } from 'react-native';
 import { SymbolView } from 'expo-symbols';
 import { useAppTheme } from '@/context/ThemeContext';
 import { ThemedText } from '@/components/themed-text';
+import { getButtonForegroundColor } from '@/components/ui';
 import { Typography } from '@/constants/typography';
 import { Spacing, Radius } from '@/constants/spacing';
 import { CalendarDayCell, CalendarEventItem } from '../types';
@@ -87,8 +88,10 @@ export function WeekView({
                     style={[
                       styles.dateNumberText,
                       {
-                        color: cell.isToday ? '#FFFFFF' : colors.text,
-                        fontWeight: Typography.fontWeight.bold,
+                        color: cell.isToday
+                          ? getButtonForegroundColor('primary', colors, isDark)
+                          : colors.text,
+                        fontFamily: Typography.fontFamilies.sansBold,
                       },
                     ]}
                   >
@@ -101,10 +104,8 @@ export function WeekView({
                     style={[
                       styles.weekdayText,
                       {
-                        color: cell.isToday
-                          ? colors.primary
-                          : colors.text,
-                        fontWeight: Typography.fontWeight.semibold,
+                        color: cell.isToday ? colors.primary : colors.text,
+                        fontFamily: Typography.fontFamilies.sansSemiBold,
                       },
                     ]}
                   >
@@ -119,13 +120,10 @@ export function WeekView({
 
               <Pressable
                 onPress={() => onAddEvent(cell.date)}
+                hitSlop={8}
                 style={[
                   styles.quickAddBtn,
-                  {
-                    backgroundColor: isDark
-                      ? 'rgba(255, 255, 255, 0.05)'
-                      : '#F1F5F9',
-                  },
+                  { backgroundColor: colors.surfaceSecondary },
                 ]}
                 accessibilityRole="button"
                 accessibilityLabel={`Add event on ${weekdayName}`}
@@ -197,23 +195,23 @@ const styles = StyleSheet.create({
   },
   dateNumberText: {
     fontSize: Typography.fontSize.xs,
+    fontVariant: ['tabular-nums'],
   },
   weekdayText: {
     fontSize: Typography.fontSize.sm,
   },
   itemCountText: {
-    fontSize: 10,
+    fontSize: Typography.fontSize.micro,
   },
   quickAddBtn: {
-    width: 28,
-    height: 28,
+    width: 34,
+    height: 34,
     borderRadius: Radius.full,
     alignItems: 'center',
     justifyContent: 'center',
   },
   emptyText: {
     fontSize: Typography.fontSize.xs,
-    fontStyle: 'italic',
     paddingVertical: Spacing.one,
     paddingHorizontal: Spacing.two,
   },

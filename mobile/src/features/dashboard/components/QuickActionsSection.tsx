@@ -11,6 +11,7 @@ import { useAppTheme } from '@/context/ThemeContext';
 import { ThemedText } from '@/components/themed-text';
 import { Typography } from '@/constants/typography';
 import { Spacing, Radius } from '@/constants/spacing';
+import { createShadow } from '@/constants/shadows';
 import { QuickActionType } from '../types';
 
 interface QuickActionsSectionProps {
@@ -51,7 +52,7 @@ export function QuickActionsSection({
       route: '/bills',
       routeLabel: 'Bills',
       icon: { ios: 'creditcard.badge.plus', android: 'receipt_long', web: 'receipt_long' },
-      accentColor: '#059669',
+      accentColor: isDark ? '#34D399' : '#059669',
     },
     {
       type: 'appointment',
@@ -60,7 +61,7 @@ export function QuickActionsSection({
       route: '/appointments',
       routeLabel: 'Visits',
       icon: { ios: 'person.crop.circle.badge.plus', android: 'medical_services', web: 'medical_services' },
-      accentColor: '#0284C7',
+      accentColor: isDark ? '#38BDF8' : '#0284C7',
     },
     {
       type: 'event',
@@ -69,7 +70,7 @@ export function QuickActionsSection({
       route: '/calendar',
       routeLabel: 'Calendar',
       icon: { ios: 'calendar.badge.plus', android: 'event', web: 'event' },
-      accentColor: '#7C3AED',
+      accentColor: colors.primary,
     },
     {
       type: 'reminder',
@@ -78,7 +79,7 @@ export function QuickActionsSection({
       route: '/reminders',
       routeLabel: 'Alerts',
       icon: { ios: 'bell.badge.fill', android: 'alarm_add', web: 'alarm_add' },
-      accentColor: '#D97706',
+      accentColor: isDark ? '#FBBF24' : '#D97706',
     },
     {
       type: 'document',
@@ -87,7 +88,7 @@ export function QuickActionsSection({
       route: '/documents',
       routeLabel: 'Vault',
       icon: { ios: 'doc.badge.plus', android: 'upload_file', web: 'upload_file' },
-      accentColor: '#0D9488',
+      accentColor: colors.primaryDeep,
     },
   ];
 
@@ -112,6 +113,7 @@ export function QuickActionsSection({
                 backgroundColor: colors.surface,
                 borderColor: isDark ? colors.border : colors.borderSubtle,
               },
+              createShadow(isDark, 'xs'),
             ]}
           >
             <Pressable
@@ -201,7 +203,6 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: Typography.fontSize.xl,
     fontFamily: Typography.fontFamilies.editorial,
-    fontWeight: Typography.fontWeight.bold,
   },
   sectionHint: {
     fontSize: Typography.fontSize.xs,
@@ -218,11 +219,6 @@ const styles = StyleSheet.create({
     borderRadius: Radius.lg,
     borderWidth: 1,
     overflow: 'hidden',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.03,
-    shadowRadius: 4,
-    elevation: 1,
   },
   createArea: {
     paddingHorizontal: Spacing.three + 2,

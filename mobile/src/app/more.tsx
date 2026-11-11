@@ -11,8 +11,11 @@ import { useAppTheme } from '@/context/ThemeContext';
 import { useAuth } from '@/context/AuthContext';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
+import { getButtonForegroundColor } from '@/components/ui/Button';
+import { Colors } from '@/constants/colors';
 import { Typography } from '@/constants/typography';
 import { Spacing, Radius } from '@/constants/spacing';
+import { createShadow } from '@/constants/shadows';
 import { BottomTabInset } from '@/constants/theme';
 import { CompanionSanctuaryModal } from '@/features/companions';
 import { settingsService } from '@/features/settings';
@@ -206,6 +209,7 @@ export default function MoreScreen() {
             accessibilityLabel="Open Settings and Profile"
             style={({ pressed }) => [
               styles.userCard,
+              createShadow(isDark, 'card'),
               {
                 backgroundColor: colors.surface,
                 borderColor: colors.border,
@@ -219,7 +223,12 @@ export default function MoreScreen() {
                 { backgroundColor: colors.primary },
               ]}
             >
-              <ThemedText style={styles.avatarText}>
+              <ThemedText
+                style={[
+                  styles.avatarText,
+                  { color: getButtonForegroundColor('primary', colors, isDark) },
+                ]}
+              >
                 {(user?.name?.charAt(0) || 'U').toUpperCase()}
               </ThemedText>
             </View>
@@ -233,13 +242,21 @@ export default function MoreScreen() {
                   <View
                     style={[
                       styles.guestBadge,
-                      { backgroundColor: isDark ? '#5C4813' : '#FEF3C7' },
+                      {
+                        backgroundColor: isDark
+                          ? Colors.urgency.dueSoon.darkBg
+                          : Colors.urgency.dueSoon.lightBg,
+                      },
                     ]}
                   >
                     <ThemedText
                       style={[
                         styles.guestBadgeText,
-                        { color: isDark ? '#FDE68A' : '#92400E' },
+                        {
+                          color: isDark
+                            ? Colors.urgency.dueSoon.darkText
+                            : Colors.urgency.dueSoon.lightText,
+                        },
                       ]}
                     >
                       Demo Guest
@@ -265,7 +282,13 @@ export default function MoreScreen() {
               <ThemedText style={[styles.sectionTitle, { color: colors.textMuted }]}>
                 {sec.title}
               </ThemedText>
-              <View style={[styles.menuList, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+              <View
+                style={[
+                  styles.menuList,
+                  createShadow(isDark, 'card'),
+                  { backgroundColor: colors.surface, borderColor: colors.border },
+                ]}
+              >
                 {sec.items.map((item, itemIdx) => (
                   <Pressable
                     key={itemIdx}
@@ -282,8 +305,8 @@ export default function MoreScreen() {
                         {
                           backgroundColor: item.destructive
                             ? isDark
-                              ? 'rgba(239, 68, 68, 0.15)'
-                              : '#FEE2E2'
+                              ? Colors.urgency.critical.darkBg
+                              : Colors.urgency.critical.lightBg
                             : colors.surfaceSecondary,
                         },
                       ]}
@@ -291,7 +314,13 @@ export default function MoreScreen() {
                       <SymbolView
                         name={{ ios: 'circle.fill', android: item.icon, web: item.icon } as any}
                         size={18}
-                        tintColor={item.destructive ? colors.notification : colors.primary}
+                        tintColor={
+                          item.destructive
+                            ? isDark
+                              ? Colors.urgency.critical.darkText
+                              : Colors.urgency.critical.accent
+                            : colors.primary
+                        }
                       />
                     </View>
                     <View style={styles.menuText}>
@@ -300,7 +329,9 @@ export default function MoreScreen() {
                           styles.menuLabel,
                           {
                             color: item.destructive
-                              ? colors.notification
+                              ? isDark
+                                ? Colors.urgency.critical.darkText
+                                : Colors.urgency.critical.lightText
                               : colors.text,
                           },
                         ]}
@@ -349,9 +380,9 @@ const styles = StyleSheet.create({
   title: {
     fontSize: Typography.fontSize['3xl'],
     fontFamily: Typography.fontFamilies.editorial,
-    fontWeight: Typography.fontWeight.bold,
   },
   subtitle: {
+    fontFamily: Typography.fontFamilies.sans,
     fontSize: Typography.fontSize.sm,
     marginTop: 4,
   },
@@ -360,7 +391,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: Spacing.three,
     padding: Spacing.four,
-    borderRadius: Radius.lg,
+    borderRadius: Radius.xl,
     borderWidth: 1,
     marginBottom: Spacing.five,
   },
@@ -372,9 +403,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   avatarText: {
-    color: '#FFFFFF',
+    fontFamily: Typography.fontFamilies.sansBold,
     fontSize: 20,
-    fontWeight: '700',
   },
   userInfoCol: {
     flex: 1,
@@ -385,8 +415,8 @@ const styles = StyleSheet.create({
     gap: Spacing.two,
   },
   userName: {
+    fontFamily: Typography.fontFamilies.sansBold,
     fontSize: Typography.fontSize.base,
-    fontWeight: Typography.fontWeight.bold,
   },
   guestBadge: {
     paddingHorizontal: Spacing.two,
@@ -394,11 +424,12 @@ const styles = StyleSheet.create({
     borderRadius: Radius.full,
   },
   guestBadgeText: {
+    fontFamily: Typography.fontFamilies.sansBold,
     fontSize: 10,
-    fontWeight: '700',
     textTransform: 'uppercase',
   },
   userEmail: {
+    fontFamily: Typography.fontFamilies.sans,
     fontSize: Typography.fontSize.xs,
     marginTop: 2,
   },
@@ -406,19 +437,20 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.four,
   },
   sectionTitle: {
+    fontFamily: Typography.fontFamilies.sansBold,
     fontSize: 11,
-    fontWeight: Typography.fontWeight.bold,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
     marginBottom: Spacing.two,
     paddingHorizontal: Spacing.one,
   },
   menuList: {
-    borderRadius: Radius.lg,
+    borderRadius: Radius.xl,
     borderWidth: 1,
     overflow: 'hidden',
   },
   menuRow: {
+    minHeight: 56,
     flexDirection: 'row',
     alignItems: 'center',
     padding: Spacing.three + 2,
@@ -438,10 +470,11 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   menuLabel: {
+    fontFamily: Typography.fontFamilies.sansSemiBold,
     fontSize: Typography.fontSize.sm,
-    fontWeight: Typography.fontWeight.semibold,
   },
   menuDesc: {
+    fontFamily: Typography.fontFamilies.sans,
     fontSize: 11,
     marginTop: 2,
   },

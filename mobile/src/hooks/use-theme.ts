@@ -3,22 +3,31 @@
  * Synchronized with Website Authority
  */
 
+import { useContext } from 'react';
 import { Colors, ThemeColors, ThemeType } from '@/constants/colors';
+import ThemeContext from '@/context/ThemeContext';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 
-export function useTheme(): ThemeColors {
+function useResolvedThemeState() {
+  const context = useContext(ThemeContext);
   const scheme = useColorScheme();
-  const theme: ThemeType = scheme === 'dark' ? 'dark' : 'light';
+  const fallbackTheme: ThemeType = scheme === 'dark' ? 'dark' : 'light';
 
-  return Colors[theme];
+  return {
+    theme: context ? context.activeTheme : fallbackTheme,
+    colors: context ? context.colors : Colors[fallbackTheme],
+    isDark: context ? context.isDark : fallbackTheme === 'dark',
+  };
+}
+
+export function useTheme(): ThemeColors {
+  return useResolvedThemeState().colors;
 }
 
 export function useThemeMode(): ThemeType {
-  const scheme = useColorScheme();
-  return scheme === 'dark' ? 'dark' : 'light';
+  return useResolvedThemeState().theme;
 }
 
 export function useIsDark(): boolean {
-  const scheme = useColorScheme();
-  return scheme === 'dark';
+  return useResolvedThemeState().isDark;
 }

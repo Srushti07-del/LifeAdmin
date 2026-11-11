@@ -14,9 +14,11 @@ import {
 import { SymbolView } from 'expo-symbols';
 import { useAppTheme } from '@/context/ThemeContext';
 import { ThemedText } from '@/components/themed-text';
-import { Button, Input } from '@/components/ui';
+import { Button, Input, getButtonForegroundColor } from '@/components/ui';
 import { Typography } from '@/constants/typography';
 import { Spacing, Radius } from '@/constants/spacing';
+import { createShadow } from '@/constants/shadows';
+import { BottomTabInset } from '@/constants/theme';
 import { PlanResponse, ProposedAction } from '../types';
 import {
   GOAL_TEMPLATES,
@@ -64,12 +66,17 @@ export function GoalPlannerView({
   return (
     <ScrollView
       showsVerticalScrollIndicator={false}
-      contentContainerStyle={styles.scrollContent}
+      keyboardShouldPersistTaps="handled"
+      contentContainerStyle={[
+        styles.scrollContent,
+        { paddingBottom: BottomTabInset + Spacing.eight },
+      ]}
     >
       {/* Goal Input Card */}
       <View
         style={[
           styles.card,
+          createShadow(isDark, 'card'),
           {
             backgroundColor: colors.surface,
             borderColor: colors.border,
@@ -119,11 +126,12 @@ export function GoalPlannerView({
             <Pressable
               key={tmpl}
               onPress={() => handleApplyTemplate(tmpl)}
+              hitSlop={4}
               style={[
                 styles.presetChip,
                 {
-                  backgroundColor: isDark ? '#1C292D' : '#F1F5F9',
-                  borderColor: isDark ? '#304247' : colors.border,
+                  backgroundColor: colors.surfaceSecondary,
+                  borderColor: colors.border,
                 },
               ]}
             >
@@ -148,7 +156,11 @@ export function GoalPlannerView({
           <View style={styles.quickDateRow}>
             <Pressable
               onPress={() => handleSetQuickDate(7)}
-              style={[styles.quickDateChip, { borderColor: colors.border }]}
+              hitSlop={4}
+              style={[
+                styles.quickDateChip,
+                { backgroundColor: colors.surfaceSecondary, borderColor: colors.border },
+              ]}
             >
               <ThemedText style={[styles.quickDateText, { color: colors.primary }]}>
                 +1 Week
@@ -156,7 +168,11 @@ export function GoalPlannerView({
             </Pressable>
             <Pressable
               onPress={() => handleSetQuickDate(14)}
-              style={[styles.quickDateChip, { borderColor: colors.border }]}
+              hitSlop={4}
+              style={[
+                styles.quickDateChip,
+                { backgroundColor: colors.surfaceSecondary, borderColor: colors.border },
+              ]}
             >
               <ThemedText style={[styles.quickDateText, { color: colors.primary }]}>
                 +2 Weeks
@@ -164,7 +180,11 @@ export function GoalPlannerView({
             </Pressable>
             <Pressable
               onPress={() => handleSetQuickDate(30)}
-              style={[styles.quickDateChip, { borderColor: colors.border }]}
+              hitSlop={4}
+              style={[
+                styles.quickDateChip,
+                { backgroundColor: colors.surfaceSecondary, borderColor: colors.border },
+              ]}
             >
               <ThemedText style={[styles.quickDateText, { color: colors.primary }]}>
                 +1 Month
@@ -180,12 +200,15 @@ export function GoalPlannerView({
           disabled={isLoading || !goal.trim()}
           icon={
             isLoading ? (
-              <ActivityIndicator size="small" color="#FFFFFF" />
+              <ActivityIndicator
+                size="small"
+                color={getButtonForegroundColor('primary', colors, isDark)}
+              />
             ) : (
               <SymbolView
                 name={{ ios: 'sparkles', android: 'auto_awesome' }}
                 size={16}
-                tintColor="#FFFFFF"
+                tintColor={getButtonForegroundColor('primary', colors, isDark)}
               />
             )
           }
@@ -199,6 +222,7 @@ export function GoalPlannerView({
       <View
         style={[
           styles.card,
+          createShadow(isDark, 'card'),
           {
             backgroundColor: colors.surface,
             borderColor: colors.border,
@@ -219,7 +243,7 @@ export function GoalPlannerView({
               style={[
                 styles.sourceBadge,
                 {
-                  backgroundColor: isDark ? '#1C292D' : '#F1F5F9',
+                  backgroundColor: colors.surfaceSecondary,
                   borderColor: colors.border,
                 },
               ]}
@@ -238,8 +262,8 @@ export function GoalPlannerView({
               style={[
                 styles.planSummaryBox,
                 {
-                  backgroundColor: isDark ? '#141F23' : '#F8FAFA',
-                  borderColor: colors.border,
+                  backgroundColor: colors.surfaceSecondary,
+                  borderColor: colors.borderSubtle,
                 },
               ]}
             >
@@ -260,8 +284,8 @@ export function GoalPlannerView({
                     style={[
                       styles.taskCard,
                       {
-                        backgroundColor: isDark ? '#1C292D' : colors.surface,
-                        borderColor: isDark ? '#304247' : colors.border,
+                        backgroundColor: colors.surfaceSecondary,
+                        borderColor: colors.border,
                       },
                     ]}
                   >
@@ -304,12 +328,15 @@ export function GoalPlannerView({
                 disabled={isActionBusy}
                 icon={
                   isActionBusy ? (
-                    <ActivityIndicator size="small" color="#FFFFFF" />
+                    <ActivityIndicator
+                      size="small"
+                      color={getButtonForegroundColor('primary', colors, isDark)}
+                    />
                   ) : (
                     <SymbolView
                       name={{ ios: 'checkmark.circle.fill', android: 'check_circle' }}
                       size={16}
-                      tintColor="#FFFFFF"
+                      tintColor={getButtonForegroundColor('primary', colors, isDark)}
                     />
                   )
                 }
@@ -382,6 +409,8 @@ const styles = StyleSheet.create({
     paddingBottom: Spacing.two,
   },
   presetChip: {
+    minHeight: 38,
+    justifyContent: 'center',
     paddingHorizontal: Spacing.three,
     paddingVertical: 6,
     borderRadius: Radius.full,
@@ -397,14 +426,17 @@ const styles = StyleSheet.create({
     marginTop: Spacing.one,
   },
   quickDateChip: {
-    paddingHorizontal: Spacing.two,
-    paddingVertical: 4,
+    minHeight: 36,
+    justifyContent: 'center',
+    paddingHorizontal: Spacing.three,
+    paddingVertical: 6,
     borderRadius: Radius.md,
     borderWidth: 1,
   },
   quickDateText: {
     fontSize: 11,
     fontFamily: Typography.fontFamilies.sansMedium,
+    fontVariant: ['tabular-nums'],
   },
   generateBtn: {
     marginTop: Spacing.two,
@@ -454,6 +486,7 @@ const styles = StyleSheet.create({
   taskIndexText: {
     fontSize: Typography.fontSize.sm,
     fontFamily: Typography.fontFamilies.sansBold,
+    fontVariant: ['tabular-nums'],
   },
   taskTextCol: {
     flex: 1,
@@ -465,6 +498,7 @@ const styles = StyleSheet.create({
   taskSubtitle: {
     fontSize: 10,
     fontFamily: Typography.fontFamilies.sans,
+    fontVariant: ['tabular-nums'],
     marginTop: 2,
   },
   batchBtn: {

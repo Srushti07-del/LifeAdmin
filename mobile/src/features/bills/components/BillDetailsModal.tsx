@@ -15,7 +15,8 @@ import {
 import { SymbolView } from 'expo-symbols';
 import { useAppTheme } from '@/context/ThemeContext';
 import { ThemedText } from '@/components/themed-text';
-import { ModalSheet, Button, UrgencyTag, UrgencyType } from '@/components/ui';
+import { ModalSheet, Button, UrgencyTag, UrgencyType, getButtonForegroundColor } from '@/components/ui';
+import { Colors } from '@/constants/colors';
 import { Typography } from '@/constants/typography';
 import { Spacing, Radius } from '@/constants/spacing';
 import {
@@ -300,7 +301,9 @@ export function BillDetailsModal({
                   web: isPaid ? 'undo' : 'check_circle',
                 }}
                 size={18}
-                tintColor={isPaid ? colors.text : '#FFFFFF'}
+                tintColor={
+                  isPaid ? colors.text : getButtonForegroundColor('primary', colors, isDark)
+                }
               />
             }
           >
@@ -334,7 +337,7 @@ export function BillDetailsModal({
                 <SymbolView
                   name={{ ios: 'trash', android: 'delete', web: 'delete' }}
                   size={16}
-                  tintColor="#EF4444"
+                  tintColor="#FFFFFF"
                 />
               }
             >
@@ -369,13 +372,12 @@ const styles = StyleSheet.create({
     borderRadius: Radius.full,
   },
   categoryBadgeText: {
+    fontFamily: Typography.fontFamilies.sansSemiBold,
     fontSize: Typography.fontSize.xs,
-    fontWeight: Typography.fontWeight.semibold,
   },
   billName: {
     fontSize: Typography.fontSize.xl,
     fontFamily: Typography.fontFamilies.editorial,
-    fontWeight: Typography.fontWeight.bold,
     marginTop: Spacing.one,
   },
   providerName: {
@@ -386,8 +388,9 @@ const styles = StyleSheet.create({
     marginTop: Spacing.three,
   },
   amountText: {
+    fontFamily: Typography.fontFamilies.sansBold,
     fontSize: Typography.fontSize['3xl'],
-    fontWeight: Typography.fontWeight.bold,
+    fontVariant: ['tabular-nums'],
   },
   convertedAmountText: {
     fontSize: Typography.fontSize.xs,

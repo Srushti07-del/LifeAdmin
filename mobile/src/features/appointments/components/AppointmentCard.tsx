@@ -11,6 +11,7 @@ import { useAppTheme } from '@/context/ThemeContext';
 import { ThemedText } from '@/components/themed-text';
 import { Typography } from '@/constants/typography';
 import { Spacing, Radius } from '@/constants/spacing';
+import { createShadow } from '@/constants/shadows';
 import { Appointment } from '../types';
 import {
   isAppointmentToday,
@@ -34,25 +35,23 @@ export function AppointmentCard({ appointment, onPress }: AppointmentCardProps) 
   const statusConfig = isToday
     ? {
         label: 'Today',
-        bg: isDark ? 'rgba(22, 143, 145, 0.25)' : '#D3EAE7',
+        bg: colors.primarySoft,
         color: colors.primary,
         dot: colors.primary,
       }
     : isUpcoming
     ? {
         label: 'Upcoming',
-        bg: isDark ? 'rgba(139, 92, 246, 0.25)' : 'rgba(139, 92, 246, 0.12)',
-        color: '#8B5CF6',
-        dot: '#8B5CF6',
+        bg: colors.surfaceSecondary,
+        color: colors.text,
+        dot: colors.primary,
       }
     : {
         label: 'Past',
-        bg: isDark ? 'rgba(255, 255, 255, 0.06)' : '#F1F5F9',
+        bg: colors.surfaceSecondary,
         color: colors.textSecondary,
-        dot: '#94A3B8',
+        dot: colors.textMuted,
       };
-
-  const accentColor = isToday ? colors.primary : '#8B5CF6';
 
   return (
     <Pressable
@@ -61,15 +60,10 @@ export function AppointmentCard({ appointment, onPress }: AppointmentCardProps) 
         styles.card,
         {
           backgroundColor: colors.surface,
-          borderColor: isToday
-            ? colors.primary
-            : isDark
-            ? 'rgba(255, 255, 255, 0.08)'
-            : colors.border,
-          borderLeftColor: accentColor,
-          borderLeftWidth: 4,
+          borderColor: isToday ? colors.primary : colors.border,
           opacity: pressed ? 0.88 : 1,
         },
+        createShadow(isDark, 'card'),
       ]}
       accessibilityRole="button"
       accessibilityLabel={`Appointment: ${appointment.title}, ${formatAppointmentDate(appointment.date)}, ${statusConfig.label}`}
@@ -80,7 +74,7 @@ export function AppointmentCard({ appointment, onPress }: AppointmentCardProps) 
           <View
             style={[
               styles.categoryBadge,
-              { backgroundColor: isDark ? 'rgba(255, 255, 255, 0.06)' : '#F1F5F9' },
+              { backgroundColor: colors.surfaceSecondary },
             ]}
           >
             <ThemedText style={[styles.categoryText, { color: colors.textSecondary }]}>
@@ -245,7 +239,6 @@ const styles = StyleSheet.create({
   title: {
     fontSize: Typography.fontSize.base,
     fontFamily: Typography.fontFamilies.editorial,
-    fontWeight: Typography.fontWeight.bold,
     lineHeight: 22,
   },
   timeLine: {
@@ -261,7 +254,8 @@ const styles = StyleSheet.create({
   },
   dateText: {
     fontSize: Typography.fontSize.xs,
-    fontWeight: Typography.fontWeight.semibold,
+    fontFamily: Typography.fontFamilies.sansSemiBold,
+    fontVariant: ['tabular-nums'],
   },
   separator: {
     fontSize: Typography.fontSize.xs,
@@ -269,6 +263,7 @@ const styles = StyleSheet.create({
   },
   timeText: {
     fontSize: Typography.fontSize.xs,
+    fontVariant: ['tabular-nums'],
   },
   entityRow: {
     flexDirection: 'row',

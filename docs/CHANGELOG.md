@@ -5,6 +5,16 @@ All notable changes to the LifeAdmin project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.0] - 2026-11-11
+
+### Added
+- **Mobile Native Tasks Feature**: Replaced the tasks placeholder in `mobile/src/app/tasks.tsx` with a dedicated Tasks feature module (`mobile/src/features/tasks/` and `mobile/src/tests/tasks.test.ts`) featuring List and Board views, priority and status filtering, search, sorting, summary metrics, optimistic completion, and detail/create/edit modal sheets.
+
+### Changed
+- **Mobile UI/UX Polish & Visual Parity**:
+  - Updated `mobile/src/constants/typography.ts` (`editorialItalic`), `mobile/src/components/app-tabs.tsx`, `mobile/src/components/themed-text.tsx`, and shared UI primitives (`ModalSheet`, `Button`, `StatCard`, `FilterBar`, `SegmentedControl`, `Card`) with `getButtonForegroundColor`, `createShadow`, `tabular-nums`, sticky modal footers, Android `KeyboardAvoidingView` `behavior="height"`, and improved touch targets.
+  - Standardized Ocean Teal light/dark contrast, theme/urgency color tokens, typography hierarchy, modal flows, empty/loading states, and Android ergonomics across Dashboard, Tasks, Bills (Grid/List toggle), Calendar, Appointments, Documents Vault (distinct `processing`/`failed`/`completed` states and `en-IN` INR formatting), Reminders (timeline urgency styling, recurrence labels, and exact-alarm permission handling), AI Assistant (`SegmentedControl`, chat bubbles, `ActionConfirmationModal`, `GoalPlannerView`, `ResponsibilityDetectorView`), LifeBuddy (`LifeBuddyWidget`, `CompanionSanctuaryModal`), More, Settings, Auth, and Onboarding screens.
+
 ## [1.1.0] - 2026-11-10
 
 ### Added

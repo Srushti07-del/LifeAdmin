@@ -14,9 +14,11 @@ import {
 import { SymbolView } from 'expo-symbols';
 import { useAppTheme } from '@/context/ThemeContext';
 import { ThemedText } from '@/components/themed-text';
-import { Button, Input } from '@/components/ui';
+import { Button, Input, getButtonForegroundColor } from '@/components/ui';
 import { Typography } from '@/constants/typography';
 import { Spacing, Radius } from '@/constants/spacing';
+import { createShadow } from '@/constants/shadows';
+import { BottomTabInset } from '@/constants/theme';
 import { DetectResponse, ProposedAction } from '../types';
 import {
   SAMPLE_TEXT_SNIPPETS,
@@ -58,12 +60,17 @@ export function ResponsibilityDetectorView({
   return (
     <ScrollView
       showsVerticalScrollIndicator={false}
-      contentContainerStyle={styles.scrollContent}
+      keyboardShouldPersistTaps="handled"
+      contentContainerStyle={[
+        styles.scrollContent,
+        { paddingBottom: BottomTabInset + Spacing.eight },
+      ]}
     >
       {/* Input Card */}
       <View
         style={[
           styles.card,
+          createShadow(isDark, 'card'),
           {
             backgroundColor: colors.surface,
             borderColor: colors.border,
@@ -114,11 +121,12 @@ export function ResponsibilityDetectorView({
             <Pressable
               key={snippet.title}
               onPress={() => handleApplySnippet(snippet.text)}
+              hitSlop={4}
               style={[
                 styles.presetChip,
                 {
-                  backgroundColor: isDark ? '#1C292D' : '#F1F5F9',
-                  borderColor: isDark ? '#304247' : colors.border,
+                  backgroundColor: colors.surfaceSecondary,
+                  borderColor: colors.border,
                 },
               ]}
             >
@@ -136,12 +144,15 @@ export function ResponsibilityDetectorView({
           disabled={isLoading || !text.trim()}
           icon={
             isLoading ? (
-              <ActivityIndicator size="small" color="#FFFFFF" />
+              <ActivityIndicator
+                size="small"
+                color={getButtonForegroundColor('primary', colors, isDark)}
+              />
             ) : (
               <SymbolView
                 name={{ ios: 'sparkles', android: 'auto_awesome' }}
                 size={16}
-                tintColor="#FFFFFF"
+                tintColor={getButtonForegroundColor('primary', colors, isDark)}
               />
             )
           }
@@ -155,6 +166,7 @@ export function ResponsibilityDetectorView({
       <View
         style={[
           styles.card,
+          createShadow(isDark, 'card'),
           {
             backgroundColor: colors.surface,
             borderColor: colors.border,
@@ -175,7 +187,7 @@ export function ResponsibilityDetectorView({
               style={[
                 styles.sourceBadge,
                 {
-                  backgroundColor: isDark ? '#1C292D' : '#F1F5F9',
+                  backgroundColor: colors.surfaceSecondary,
                   borderColor: colors.border,
                 },
               ]}
@@ -194,8 +206,8 @@ export function ResponsibilityDetectorView({
               style={[
                 styles.summaryBox,
                 {
-                  backgroundColor: isDark ? '#141F23' : '#F8FAFA',
-                  borderColor: colors.border,
+                  backgroundColor: colors.surfaceSecondary,
+                  borderColor: colors.borderSubtle,
                 },
               ]}
             >
@@ -218,8 +230,8 @@ export function ResponsibilityDetectorView({
                       style={[
                         styles.itemCard,
                         {
-                          backgroundColor: isDark ? '#1C292D' : colors.surface,
-                          borderColor: isDark ? '#304247' : colors.border,
+                          backgroundColor: colors.surfaceSecondary,
+                          borderColor: colors.border,
                         },
                       ]}
                     >
@@ -379,6 +391,8 @@ const styles = StyleSheet.create({
     paddingBottom: Spacing.two,
   },
   presetChip: {
+    minHeight: 38,
+    justifyContent: 'center',
     paddingHorizontal: Spacing.three,
     paddingVertical: 6,
     borderRadius: Radius.full,
@@ -455,6 +469,7 @@ const styles = StyleSheet.create({
   itemSubtitle: {
     fontSize: 11,
     fontFamily: Typography.fontFamilies.sansMedium,
+    fontVariant: ['tabular-nums'],
   },
   itemSnippet: {
     fontSize: 11,

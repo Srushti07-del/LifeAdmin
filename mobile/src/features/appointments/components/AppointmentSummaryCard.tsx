@@ -10,6 +10,7 @@ import { useAppTheme } from '@/context/ThemeContext';
 import { ThemedText } from '@/components/themed-text';
 import { Typography } from '@/constants/typography';
 import { Spacing, Radius } from '@/constants/spacing';
+import { createShadow } from '@/constants/shadows';
 import { AppointmentTotals } from '../types';
 
 export interface AppointmentSummaryCardProps {
@@ -27,6 +28,7 @@ export function AppointmentSummaryCard({ totals }: AppointmentSummaryCardProps) 
           backgroundColor: colors.surface,
           borderColor: colors.border,
         },
+        createShadow(isDark, 'card'),
       ]}
     >
       {/* Top Banner Row */}
@@ -43,13 +45,13 @@ export function AppointmentSummaryCard({ totals }: AppointmentSummaryCardProps) 
         <View
           style={[
             styles.iconWrapper,
-            { backgroundColor: isDark ? 'rgba(139, 92, 246, 0.2)' : 'rgba(139, 92, 246, 0.1)' },
+            { backgroundColor: colors.primarySoft },
           ]}
         >
           <SymbolView
             name={{ ios: 'calendar.badge.clock', android: 'schedule', web: 'schedule' }}
             size={24}
-            tintColor="#8B5CF6"
+            tintColor={colors.primary}
           />
         </View>
       </View>
@@ -63,9 +65,7 @@ export function AppointmentSummaryCard({ totals }: AppointmentSummaryCardProps) 
             totals.todayCount > 0 && [
               styles.todayTileActive,
               {
-                backgroundColor: isDark
-                  ? 'rgba(22, 143, 145, 0.2)'
-                  : 'rgba(22, 143, 145, 0.08)',
+                backgroundColor: colors.primarySoft,
               },
             ],
           ]}
@@ -90,7 +90,7 @@ export function AppointmentSummaryCard({ totals }: AppointmentSummaryCardProps) 
           <ThemedText style={[styles.metricLabel, { color: colors.textSecondary }]}>
             Upcoming
           </ThemedText>
-          <ThemedText style={[styles.metricValue, { color: '#8B5CF6' }]}>
+          <ThemedText style={[styles.metricValue, { color: colors.primary }]}>
             {totals.upcomingCount}
           </ThemedText>
         </View>
@@ -135,7 +135,7 @@ const styles = StyleSheet.create({
   mainCount: {
     fontSize: Typography.fontSize['2xl'],
     fontFamily: Typography.fontFamilies.editorial,
-    fontWeight: Typography.fontWeight.bold,
+    fontVariant: ['tabular-nums'],
     marginTop: 2,
   },
   iconWrapper: {
@@ -174,7 +174,8 @@ const styles = StyleSheet.create({
   },
   metricValue: {
     fontSize: Typography.fontSize.lg,
-    fontWeight: Typography.fontWeight.bold,
+    fontFamily: Typography.fontFamilies.sansBold,
+    fontVariant: ['tabular-nums'],
     marginTop: 2,
   },
 });

@@ -17,6 +17,7 @@ import {
   ActivityIndicator,
   Pressable,
   Alert,
+  useWindowDimensions,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { SymbolView } from 'expo-symbols';
@@ -30,6 +31,7 @@ import {
   FilterItem,
   Button,
   EmptyState,
+  getButtonForegroundColor,
 } from '@/components/ui';
 import { Typography } from '@/constants/typography';
 import { Spacing, Radius } from '@/constants/spacing';
@@ -70,6 +72,8 @@ const SORT_OPTIONS: SortOption[] = [
 export default function BillsScreen() {
   const { colors, isDark } = useAppTheme();
   const { user } = useAuth();
+  const { width } = useWindowDimensions();
+  const primaryFg = getButtonForegroundColor('primary', colors, isDark);
 
   // Data state
   const [bills, setBills] = useState<Bill[]>([]);
@@ -78,12 +82,15 @@ export default function BillsScreen() {
   const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Filter & Search state
+  // Layout, Filter & Search state
+  const [layoutMode, setLayoutMode] = useState<'grid' | 'list'>('grid');
   const [activeFilter, setActiveFilter] = useState<BillFilterKey>('all');
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [activeSort, setActiveSort] = useState<BillSortKey>('dueDate');
   const [showSortPicker, setShowSortPicker] = useState<boolean>(false);
+
+  const numColumns = layoutMode === 'list' ? 1 : width >= 768 ? 3 : width >= 360 ? 2 : 1;
 
   // Modal states
   const [isFormOpen, setIsFormOpen] = useState<boolean>(false);
@@ -260,7 +267,7 @@ export default function BillsScreen() {
               <SymbolView
                 name={{ ios: 'plus', android: 'add', web: 'add' }}
                 size={16}
-                tintColor="#FFFFFF"
+                tintColor={primaryFg}
               />
             }
           >
@@ -288,7 +295,7 @@ export default function BillsScreen() {
           {/* Summary Dashboard Card */}
           <BillSummaryCard totals={totals} preferredCurrency={preferredCurrency} />
 
-          {/* Search Bar & Sort Toggle Row */}
+          {/* Search Bar, Layout Toggle & Sort Row */}
           <View style={styles.searchSortRow}>
             <View style={styles.searchWrapper}>
               <SearchInput
@@ -299,6 +306,30 @@ export default function BillsScreen() {
             </View>
 
             <Pressable
+              onPress={() => setLayoutMode((m) => (m === 'grid' ? 'list' : 'grid'))}
+              style={[
+                styles.sortButton,
+                {
+                  backgroundColor: colors.surface,
+                  borderColor: colors.border,
+                },
+              ]}
+              hitSlop={4}
+              accessibilityRole="button"
+              accessibilityLabel={`Switch to ${layoutMode === 'grid' ? 'list' : 'grid'} view`}
+            >
+              <SymbolView
+                name={
+                  layoutMode === 'grid'
+                    ? { ios: 'list.bullet', android: 'view_list', web: 'view_list' }
+                    : { ios: 'square.grid.2x2', android: 'grid_view', web: 'grid_view' }
+                }
+                size={16}
+                tintColor={colors.primary}
+              />
+            </Pressable>
+
+            <Pressable
               onPress={() => setShowSortPicker((prev) => !prev)}
               style={[
                 styles.sortButton,
@@ -307,6 +338,7 @@ export default function BillsScreen() {
                   borderColor: showSortPicker ? colors.primary : colors.border,
                 },
               ]}
+              hitSlop={4}
               accessibilityRole="button"
               accessibilityLabel={`Sort by: ${currentSortLabel}`}
             >
@@ -317,7 +349,7 @@ export default function BillsScreen() {
                   web: 'sort',
                 }}
                 size={16}
-                tintColor={showSortPicker ? '#FFFFFF' : colors.text}
+                tintColor={showSortPicker ? primaryFg : colors.text}
               />
             </Pressable>
           </View>
@@ -328,7 +360,7 @@ export default function BillsScreen() {
               style={[
                 styles.sortTray,
                 {
-                  backgroundColor: isDark ? colors.surfaceSecondary : '#F8FAFC',
+                  backgroundColor: colors.surfaceSecondary,
                   borderColor: colors.border,
                 },
               ]}
@@ -349,13 +381,7 @@ export default function BillsScreen() {
                       style={[
                         styles.sortOptionChip,
                         {
-                          backgroundColor: isSelected
-                            ? isDark
-                              ? colors.primary
-                              : '#168F91'
-                            : isDark
-                            ? 'rgba(255, 255, 255, 0.05)'
-                            : '#FFFFFF',
+                          backgroundColor: isSelected ? colors.primary : colors.surface,
                           borderColor: isSelected ? colors.primary : colors.border,
                         },
                       ]}
@@ -364,10 +390,10 @@ export default function BillsScreen() {
                         style={[
                           styles.sortOptionText,
                           {
-                            color: isSelected ? '#FFFFFF' : colors.text,
-                            fontWeight: isSelected
-                              ? Typography.fontWeight.semibold
-                              : Typography.fontWeight.normal,
+                            color: isSelected ? primaryFg : colors.text,
+                            fontFamily: isSelected
+                              ? Typography.fontFamilies.sansSemiBold
+                              : Typography.fontFamilies.sans,
                           },
                         ]}
                       >
@@ -401,17 +427,14 @@ export default function BillsScreen() {
                 <Pressable
                   key={cat}
                   onPress={() => setSelectedCategory(cat)}
+                  hitSlop={{ top: 6, bottom: 6, left: 2, right: 2 }}
                   style={[
                     styles.categoryChip,
                     {
                       backgroundColor: isSelected
-                        ? isDark
-                          ? 'rgba(22, 143, 145, 0.25)'
-                          : '#D3EAE7'
-                        : isDark
-                        ? 'rgba(255, 255, 255, 0.04)'
-                        : '#F1F5F9',
-                      borderColor: isSelected ? colors.primary : 'transparent',
+                        ? colors.primarySoft
+                        : colors.surfaceSecondary,
+                      borderColor: isSelected ? colors.primary : colors.borderSubtle,
                     },
                   ]}
                   accessibilityRole="button"
@@ -422,9 +445,9 @@ export default function BillsScreen() {
                       styles.categoryChipText,
                       {
                         color: isSelected ? colors.primary : colors.textSecondary,
-                        fontWeight: isSelected
-                          ? Typography.fontWeight.semibold
-                          : Typography.fontWeight.normal,
+                        fontFamily: isSelected
+                          ? Typography.fontFamilies.sansSemiBold
+                          : Typography.fontFamilies.sans,
                       },
                     ]}
                   >
@@ -501,7 +524,7 @@ export default function BillsScreen() {
               onAction={handleResetFilters}
             />
           ) : (
-            /* Bills List */
+            /* Bills Grid / List */
             <View style={styles.billsList}>
               <View style={styles.listHeaderRow}>
                 <ThemedText style={[styles.listCountText, { color: colors.textSecondary }]}>
@@ -509,15 +532,25 @@ export default function BillsScreen() {
                 </ThemedText>
               </View>
 
-              {filteredBills.map((bill) => (
-                <BillCard
-                  key={bill._id}
-                  bill={bill}
-                  onPress={(b) => setSelectedBillForDetails(b)}
-                  onTogglePaid={handleTogglePaid}
-                  isActionLoading={actionLoadingBillId === bill._id}
-                />
-              ))}
+              <View style={numColumns > 1 ? styles.billsGrid : undefined}>
+                {filteredBills.map((bill) => (
+                  <BillCard
+                    key={bill._id}
+                    bill={bill}
+                    compact={numColumns > 1}
+                    style={
+                      numColumns === 3
+                        ? styles.gridItem3
+                        : numColumns === 2
+                          ? styles.gridItem2
+                          : undefined
+                    }
+                    onPress={(b) => setSelectedBillForDetails(b)}
+                    onTogglePaid={handleTogglePaid}
+                    isActionLoading={actionLoadingBillId === bill._id}
+                  />
+                ))}
+              </View>
             </View>
           )}
         </ScrollView>
@@ -573,7 +606,6 @@ const styles = StyleSheet.create({
   title: {
     fontSize: Typography.fontSize['2xl'],
     fontFamily: Typography.fontFamilies.editorial,
-    fontWeight: Typography.fontWeight.bold,
   },
   subtitle: {
     fontSize: Typography.fontSize.xs,
@@ -650,6 +682,18 @@ const styles = StyleSheet.create({
   },
   billsList: {
     gap: Spacing.three,
+  },
+  billsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+    rowGap: Spacing.three,
+  },
+  gridItem2: {
+    width: '48.4%',
+  },
+  gridItem3: {
+    width: '31.8%',
   },
   listHeaderRow: {
     flexDirection: 'row',

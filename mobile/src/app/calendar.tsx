@@ -23,6 +23,7 @@ import {
   Button,
   SegmentedControl,
   EmptyState,
+  getButtonForegroundColor,
 } from '@/components/ui';
 import { Typography } from '@/constants/typography';
 import { Spacing, Radius } from '@/constants/spacing';
@@ -206,7 +207,7 @@ export default function CalendarScreen() {
               <SymbolView
                 name={{ ios: 'plus', android: 'add', web: 'add' }}
                 size={16}
-                tintColor="#FFFFFF"
+                tintColor={getButtonForegroundColor('primary', colors, isDark)}
               />
             }
           >
@@ -236,12 +237,11 @@ export default function CalendarScreen() {
 
             <Pressable
               onPress={handleGoToToday}
+              hitSlop={6}
               style={[
                 styles.todayBtn,
                 {
-                  backgroundColor: isDark
-                    ? 'rgba(22, 143, 145, 0.2)'
-                    : 'rgba(22, 143, 145, 0.1)',
+                  backgroundColor: colors.primarySoft,
                   borderColor: colors.primary,
                 },
               ]}
@@ -268,13 +268,10 @@ export default function CalendarScreen() {
             <View style={styles.arrowsRow}>
               <Pressable
                 onPress={() => handleNavigate(-1)}
+                hitSlop={6}
                 style={[
                   styles.arrowBtn,
-                  {
-                    backgroundColor: isDark
-                      ? 'rgba(255, 255, 255, 0.05)'
-                      : '#F1F5F9',
-                  },
+                  { backgroundColor: colors.surfaceSecondary },
                 ]}
                 accessibilityRole="button"
                 accessibilityLabel="Previous Period"
@@ -292,13 +289,10 @@ export default function CalendarScreen() {
 
               <Pressable
                 onPress={() => handleNavigate(1)}
+                hitSlop={6}
                 style={[
                   styles.arrowBtn,
-                  {
-                    backgroundColor: isDark
-                      ? 'rgba(255, 255, 255, 0.05)'
-                      : '#F1F5F9',
-                  },
+                  { backgroundColor: colors.surfaceSecondary },
                 ]}
                 accessibilityRole="button"
                 accessibilityLabel="Next Period"
@@ -327,22 +321,20 @@ export default function CalendarScreen() {
             {FILTER_TYPES.map((filter) => {
               const isSelected = selectedType === filter.key;
               const typeCfg = filter.type ? ENTITY_CONFIG[filter.type] : null;
+              const selectedFg = getButtonForegroundColor('primary', colors, isDark);
 
               return (
                 <Pressable
                   key={filter.key}
                   onPress={() => setSelectedType(filter.key)}
+                  hitSlop={{ top: 6, bottom: 6, left: 2, right: 2 }}
                   style={[
                     styles.filterChip,
                     {
                       backgroundColor: isSelected
-                        ? isDark
-                          ? colors.primary
-                          : '#168F91'
-                        : isDark
-                        ? 'rgba(255, 255, 255, 0.05)'
-                        : '#F1F5F9',
-                      borderColor: isSelected ? colors.primary : 'transparent',
+                        ? colors.primary
+                        : colors.surfaceSecondary,
+                      borderColor: isSelected ? colors.primary : colors.borderSubtle,
                     },
                   ]}
                   accessibilityRole="button"
@@ -356,17 +348,17 @@ export default function CalendarScreen() {
                         web: typeCfg.icon as any,
                       }}
                       size={12}
-                      tintColor={isSelected ? '#FFFFFF' : typeCfg.color}
+                      tintColor={isSelected ? selectedFg : typeCfg.color}
                     />
                   )}
                   <ThemedText
                     style={[
                       styles.filterChipText,
                       {
-                        color: isSelected ? '#FFFFFF' : colors.textSecondary,
-                        fontWeight: isSelected
-                          ? Typography.fontWeight.semibold
-                          : Typography.fontWeight.normal,
+                        color: isSelected ? selectedFg : colors.textSecondary,
+                        fontFamily: isSelected
+                          ? Typography.fontFamilies.sansSemiBold
+                          : Typography.fontFamilies.sans,
                       },
                     ]}
                   >
@@ -489,7 +481,6 @@ const styles = StyleSheet.create({
   title: {
     fontSize: Typography.fontSize['2xl'],
     fontFamily: Typography.fontFamilies.editorial,
-    fontWeight: Typography.fontWeight.bold,
   },
   subtitle: {
     fontSize: Typography.fontSize.xs,
@@ -533,17 +524,16 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   navTitle: {
-    fontSize: Typography.fontSize.base,
+    fontSize: Typography.fontSize.lg,
     fontFamily: Typography.fontFamilies.editorial,
-    fontWeight: Typography.fontWeight.bold,
   },
   arrowsRow: {
     flexDirection: 'row',
     gap: Spacing.two,
   },
   arrowBtn: {
-    width: 32,
-    height: 32,
+    width: 38,
+    height: 38,
     borderRadius: Radius.md,
     justifyContent: 'center',
     alignItems: 'center',
