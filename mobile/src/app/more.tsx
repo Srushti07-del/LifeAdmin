@@ -75,7 +75,12 @@ export default function MoreScreen() {
           desc: 'Virtual positive reinforcement companions',
           action: () => setIsSanctuaryVisible(true),
         },
-        { label: 'AI Assistant', icon: 'smart_toy', desc: 'Planning and intelligent summaries' },
+        {
+          label: 'AI Assistant',
+          icon: 'smart_toy',
+          desc: 'Planning and intelligent summaries',
+          action: () => router.push('/ai' as any),
+        },
       ],
     },
     {

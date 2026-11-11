@@ -191,7 +191,7 @@ describe('Filtering, Searching, and Sorting', () => {
       _id: 'a1',
       title: 'Pediatric Checkup',
       date: today.toISOString(),
-      time: '23:50',
+      time: '',
       category: 'Health',
       relatedPerson: 'Dr. Alice Brown',
       relatedOrganization: 'Childrens Clinic',

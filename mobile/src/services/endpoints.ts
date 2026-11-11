@@ -104,7 +104,12 @@ export const Endpoints = {
   // AI Assistant (server/src/routes/ai.ts)
   ai: {
     chat: '/ai/chat',
+    conversations: '/ai/conversations',
+    conversationById: (id: string) => `/ai/conversations/${id}`,
     plan: '/ai/plan',
+    detect: '/ai/detect',
+    executeAction: '/ai/actions/execute',
+    acceptSuggestions: '/ai/accept-suggestions',
     extractDocument: '/ai/extract-document',
   },
 } as const;
