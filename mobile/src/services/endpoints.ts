@@ -18,6 +18,7 @@ export const Endpoints = {
     updateProfile: '/users/profile',
     updateSettings: '/users/settings',
     updateCompanion: '/users/companion',
+    exportData: '/users/export',
     deleteAccount: '/users/account',
     forgotPassword: '/auth/forgot-password',
     resetPassword: (token: string) => `/auth/reset-password/${encodeURIComponent(token)}`,

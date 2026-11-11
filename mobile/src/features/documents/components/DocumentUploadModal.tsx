@@ -12,8 +12,10 @@ import {
   Pressable,
   ActivityIndicator,
   Alert,
+  Platform,
 } from 'react-native';
-import * as DocumentPicker from 'expo-document-picker';
+import { requireOptionalNativeModule } from 'expo';
+import type * as DocumentPickerTypes from 'expo-document-picker';
 import { SymbolView } from 'expo-symbols';
 import { useAppTheme } from '@/context/ThemeContext';
 import { ThemedText } from '@/components/themed-text';
@@ -83,6 +85,27 @@ export function DocumentUploadModal({
   const pickFile = async (typeFilter: string | string[]) => {
     try {
       setUploadError(null);
+
+      if (Platform.OS !== 'web' && !requireOptionalNativeModule('ExpoDocumentPicker')) {
+        const message =
+          'Document picking is unavailable because the native ExpoDocumentPicker module is not included in this build. Please rebuild and install an updated development APK.';
+        setUploadError(message);
+        Alert.alert('Document Picker Unavailable', message);
+        return;
+      }
+
+      let DocumentPicker: typeof DocumentPickerTypes;
+      try {
+        DocumentPicker = await import('expo-document-picker');
+      } catch (loadErr) {
+        console.warn('Error loading expo-document-picker:', loadErr);
+        const message =
+          'Failed to initialize the native document picker module. Please rebuild and reinstall the development APK.';
+        setUploadError(message);
+        Alert.alert('Document Picker Unavailable', message);
+        return;
+      }
+
       const result = await DocumentPicker.getDocumentAsync({
         type: typeFilter,
         copyToCacheDirectory: true,

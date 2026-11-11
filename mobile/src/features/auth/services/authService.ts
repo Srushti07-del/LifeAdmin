@@ -70,6 +70,26 @@ export const authService = {
   },
 
   /**
+   * Update user profile display name / avatar
+   */
+  async updateProfile(payload: {
+    name?: string;
+    profilePicture?: string;
+  }): Promise<{ message: string; user: User }> {
+    return apiClient.put<{ message: string; user: User }>(Endpoints.auth.updateProfile, payload);
+  },
+
+  /**
+   * Update additional profile fields handled on /auth/profile (e.g. quietHoursStart / quietHoursEnd)
+   */
+  async updateAuthProfile(payload: {
+    quietHoursStart?: string;
+    quietHoursEnd?: string;
+  }): Promise<{ message: string; user: User }> {
+    return apiClient.put<{ message: string; user: User }>(Endpoints.auth.profile, payload);
+  },
+
+  /**
    * Update user settings & preferences
    */
   async updateSettings(settings: {
@@ -78,9 +98,27 @@ export const authService = {
     defaultReminderTiming?: number[];
     preferredCurrency?: string;
     theme?: 'light' | 'dark' | 'system';
+    aiPreferences?: {
+      autoExtract?: boolean;
+      suggestionsEnabled?: boolean;
+    };
     companion?: Partial<CompanionState>;
   }): Promise<{ message: string; user: User }> {
     return apiClient.put<{ message: string; user: User }>(Endpoints.auth.updateSettings, settings);
+  },
+
+  /**
+   * Export all authenticated user data as JSON backup
+   */
+  async exportUserData(): Promise<Record<string, unknown>> {
+    return apiClient.get<Record<string, unknown>>(Endpoints.auth.exportData);
+  },
+
+  /**
+   * Permanently delete user account and cascade server data
+   */
+  async deleteAccount(): Promise<{ message: string }> {
+    return apiClient.delete<{ message: string }>(Endpoints.auth.deleteAccount);
   },
 
   /**

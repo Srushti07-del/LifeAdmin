@@ -12,18 +12,22 @@ import { ThemedText } from '@/components/themed-text';
 import { Colors } from '@/constants/colors';
 import { Typography } from '@/constants/typography';
 import { Spacing, Radius } from '@/constants/spacing';
-import { formatCurrency } from '@/utils/currency';
+import { CurrencyCode, convertAmountTo, formatCurrency } from '@/utils/currency';
 import { formatShortDate } from '@/utils/date';
 import { AttentionItem } from '../types';
 
 interface NeedsAttentionSectionProps {
   items: AttentionItem[];
+  preferredCurrency?: CurrencyCode;
+  exchangeRates?: Record<string, number>;
   onItemPress?: (item: AttentionItem) => void;
   onActionPress?: (item: AttentionItem) => void;
 }
 
 export function NeedsAttentionSection({
   items,
+  preferredCurrency,
+  exchangeRates = {},
   onItemPress,
   onActionPress,
 }: NeedsAttentionSectionProps) {
@@ -171,7 +175,12 @@ export function NeedsAttentionSection({
                 <View style={styles.cardFooter}>
                   {item.amount !== undefined ? (
                     <ThemedText style={[styles.amountText, { color: colors.text }]}>
-                      {formatCurrency(item.amount, item.currency)}
+                      {preferredCurrency
+                        ? formatCurrency(
+                            convertAmountTo(item.amount, item.currency, preferredCurrency, exchangeRates),
+                            preferredCurrency
+                          )
+                        : formatCurrency(item.amount, item.currency)}
                     </ThemedText>
                   ) : (
                     <ThemedText style={[styles.dueDateText, { color: colors.textMuted }]}>

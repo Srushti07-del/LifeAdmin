@@ -1,6 +1,6 @@
 /**
  * Stats Overview Component
- * Metric pills highlighting count of Overdue, Due Soon, and Upcoming responsibilities.
+ * 2x2 metric grid highlighting Overdue, Due Soon, Upcoming, and Active Alerts.
  */
 
 import React from 'react';
@@ -132,9 +132,7 @@ export function StatsOverview({ stats, onStatPress }: StatsOverviewProps) {
         style={({ pressed }) => [
           styles.statCard,
           {
-            backgroundColor: isDark
-              ? colors.surfaceSecondary
-              : colors.surfaceSecondary,
+            backgroundColor: colors.surfaceSecondary,
             borderColor: colors.border,
           },
           pressed && styles.pressed,
@@ -154,6 +152,36 @@ export function StatsOverview({ stats, onStatPress }: StatsOverviewProps) {
           Upcoming
         </ThemedText>
       </Pressable>
+
+      {/* Active Alerts / Reminders Card */}
+      <Pressable
+        onPress={() => onStatPress?.('reminders')}
+        accessible
+        accessibilityRole="button"
+        accessibilityLabel={`${stats.activeReminders ?? 0} Active reminders`}
+        style={({ pressed }) => [
+          styles.statCard,
+          {
+            backgroundColor: colors.surfaceSecondary,
+            borderColor: colors.border,
+          },
+          pressed && styles.pressed,
+        ]}
+      >
+        <View style={styles.statHeader}>
+          <SymbolView
+            name={{ ios: 'bell.fill', android: 'notifications_active', web: 'notifications_active' }}
+            size={18}
+            tintColor="#D97706"
+          />
+          <ThemedText style={[styles.statCount, { color: colors.text }]}>
+            {stats.activeReminders ?? 0}
+          </ThemedText>
+        </View>
+        <ThemedText style={[styles.statLabel, { color: colors.textSecondary }]}>
+          Active Alerts
+        </ThemedText>
+      </Pressable>
     </View>
   );
 }
@@ -161,12 +189,14 @@ export function StatsOverview({ stats, onStatPress }: StatsOverviewProps) {
 const styles = StyleSheet.create({
   container: {
     flexDirection: 'row',
-    gap: Spacing.three,
+    flexWrap: 'wrap',
+    gap: Spacing.two + 2,
     paddingHorizontal: Spacing.four,
     marginBottom: Spacing.five,
   },
   statCard: {
     flex: 1,
+    minWidth: '47%',
     paddingVertical: Spacing.three,
     paddingHorizontal: Spacing.three,
     borderRadius: Radius.lg,

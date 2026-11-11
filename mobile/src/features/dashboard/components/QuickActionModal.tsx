@@ -81,6 +81,20 @@ export function QuickActionModal({
           buttonLabel: 'Set Reminder',
           accent: '#D97706',
         };
+      case 'event':
+        return {
+          title: 'Add Calendar Event',
+          placeholder: 'e.g. Team planning session',
+          buttonLabel: 'Save Event',
+          accent: '#7C3AED',
+        };
+      case 'document':
+        return {
+          title: 'Upload Document',
+          placeholder: 'Document title',
+          buttonLabel: 'Upload',
+          accent: '#0D9488',
+        };
       case 'task':
       default:
         return {

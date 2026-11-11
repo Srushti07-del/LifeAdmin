@@ -57,11 +57,12 @@
           "imageWidth": 76
         }
       ],
+      "expo-dev-client",
       "expo-secure-store",
       [
         "expo-notifications",
         {
-          "icon": "./assets/images/icon.png",
+          "icon": "./assets/images/notification-icon.png",
           "color": "#087E83",
           "defaultChannel": "reminders"
         }
@@ -70,6 +71,16 @@
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
+    },
+    "extra": {
+      "router": {
+        "asyncRoutes": {
+          "web": true
+        }
+      },
+      "eas": {
+        "projectId": "4323976b-9d64-4554-9226-4de05bf9ed69"
+      }
     }
   }
 }

@@ -14,6 +14,8 @@ export interface User {
   theme?: 'light' | 'dark' | 'system';
   notificationsEnabled?: boolean;
   defaultReminderTiming?: number[];
+  quietHoursStart?: string;
+  quietHoursEnd?: string;
   categories?: string[];
   aiPreferences?: {
     autoExtract: boolean;
@@ -48,4 +50,6 @@ export interface AuthContextType {
   resetPassword: (token: string, password: string, confirmPassword: string) => Promise<{ message: string }>;
   clearError: () => void;
   refreshUser: () => Promise<void>;
+  updateUser: (updates: Partial<User>) => Promise<void>;
+  deleteAccount: () => Promise<void>;
 }

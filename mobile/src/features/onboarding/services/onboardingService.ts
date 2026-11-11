@@ -48,6 +48,7 @@ export const onboardingService = {
         categories?: string[];
         notificationsEnabled?: boolean;
         defaultReminderTiming?: number[];
+        preferredCurrency?: string;
       }>();
 
       if (
@@ -60,7 +61,7 @@ export const onboardingService = {
           categories: cachedUser.categories,
           notificationsEnabled: cachedUser.notificationsEnabled ?? true,
           defaultReminderTiming: cachedUser.defaultReminderTiming ?? [7, 3, 1, 0],
-          preferredCurrency: 'INR',
+          preferredCurrency: cachedUser.preferredCurrency || 'INR',
           companionId: 'aura',
           companionName: 'Aura',
         };

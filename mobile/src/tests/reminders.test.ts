@@ -24,6 +24,8 @@ import {
   isExactAlarmRequiredOnPlatform,
   shouldFallbackToBestEffort,
   ALLOWED_OFFSETS,
+  REMINDERS_NOTIFICATION_CHANNEL_ID,
+  buildRemindersChannelConfig,
 } from '../features/reminders/services/reminderCalculations.ts';
 import { Reminder } from '../features/reminders/types.ts';
 
@@ -577,5 +579,21 @@ describe('Android Exact-Alarm Permissions & Best-Effort Fallback (SCHEDULE_EXACT
 
     // When granted, exact delivery is used
     assert.strictEqual(shouldFallbackToBestEffort(true), false);
+  });
+});
+
+describe('Android Notification Channel Configuration', () => {
+  it('builds the reminders channel config without a custom sound property', () => {
+    const config = buildRemindersChannelConfig(6);
+
+    assert.strictEqual(REMINDERS_NOTIFICATION_CHANNEL_ID, 'reminders');
+    assert.strictEqual(config.name, 'Reminders & Alerts');
+    assert.strictEqual(config.importance, 6);
+    assert.strictEqual(config.lightColor, '#087E83');
+    assert.deepStrictEqual(config.vibrationPattern, [0, 250, 250, 250]);
+    assert.strictEqual(config.enableLights, true);
+    assert.strictEqual(config.enableVibrate, true);
+    assert.strictEqual(config.showBadge, true);
+    assert.strictEqual('sound' in config, false);
   });
 });

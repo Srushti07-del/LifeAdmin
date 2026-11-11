@@ -7,7 +7,8 @@ import {
   useLocalSearchParams,
 } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
-import * as Notifications from 'expo-notifications';
+import type { NotificationResponse } from 'expo-notifications';
+import { Platform } from 'react-native';
 import { useEffect, useRef, useCallback } from 'react';
 import { useFonts } from 'expo-font';
 import { DMSerifDisplay_400Regular, DMSerifDisplay_400Regular_Italic } from '@expo-google-fonts/dm-serif-display';
@@ -47,9 +48,11 @@ function RootNavigator() {
     reminderId?: string;
     userId?: string;
   } | null>(null);
+  const handledInitialNotificationIdRef = useRef<string | null>(null);
 
-  // Initialize Android notification channel on mount
+  // Initialize Android notification channel safely on native platforms only
   useEffect(() => {
+    if (Platform.OS !== 'android' && Platform.OS !== 'ios') return;
     notificationService.initialize().catch(() => {});
   }, []);
 
@@ -73,40 +76,44 @@ function RootNavigator() {
 
   // Listen for local/push notification tap (background and cold start)
   useEffect(() => {
-    const subscription = Notifications.addNotificationResponseReceivedListener((response) => {
-      const data = response?.notification?.request?.content?.data as {
-        url?: string;
-        reminderId?: string;
-        userId?: string;
-      } | undefined;
+    if (Platform.OS !== 'android' && Platform.OS !== 'ios') return;
+
+    let isMounted = true;
+
+    const handleResponse = (response: NotificationResponse) => {
+      const data = response?.notification?.request?.content?.data as
+        | {
+            url?: string;
+            reminderId?: string;
+            userId?: string;
+          }
+        | undefined;
 
       if (isLoading || !user) {
         pendingNotificationRef.current = data || null;
       } else {
         navigateToNotificationTarget(data);
       }
-    });
+    };
 
-    Notifications.getLastNotificationResponseAsync()
+    const subscription = notificationService.addNotificationResponseListener(handleResponse);
+
+    notificationService
+      .getLastNotificationResponseAsync()
       .then((response) => {
-        if (response) {
-          const data = response?.notification?.request?.content?.data as {
-            url?: string;
-            reminderId?: string;
-            userId?: string;
-          } | undefined;
-
-          if (isLoading || !user) {
-            pendingNotificationRef.current = data || null;
-          } else {
-            navigateToNotificationTarget(data);
-          }
+        if (!isMounted || !response) return;
+        const responseId = response.notification?.request?.identifier ?? null;
+        if (responseId && handledInitialNotificationIdRef.current === responseId) {
+          return;
         }
+        handledInitialNotificationIdRef.current = responseId;
+        handleResponse(response);
       })
       .catch(() => {});
 
     return () => {
-      subscription.remove();
+      isMounted = false;
+      subscription?.remove();
     };
   }, [isLoading, user, navigateToNotificationTarget]);
 

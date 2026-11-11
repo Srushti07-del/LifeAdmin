@@ -15,6 +15,7 @@ import { getGreeting } from '@/utils/date';
 interface DashboardHeaderProps {
   userName?: string;
   unreadCount?: number;
+  onCustomizePress?: () => void;
   onNotificationPress?: () => void;
   onAvatarPress?: () => void;
 }
@@ -22,6 +23,7 @@ interface DashboardHeaderProps {
 export function DashboardHeader({
   userName = 'User',
   unreadCount = 0,
+  onCustomizePress,
   onNotificationPress,
   onAvatarPress,
 }: DashboardHeaderProps) {
@@ -50,8 +52,28 @@ export function DashboardHeader({
         </ThemedText>
       </View>
 
-      {/* Right: Notification Bell & Profile Avatar */}
+      {/* Right: Customize, Notification Bell & Profile Avatar */}
       <View style={styles.rightContent}>
+        {onCustomizePress && (
+          <Pressable
+            onPress={onCustomizePress}
+            accessible
+            accessibilityLabel="Customize dashboard widgets"
+            accessibilityRole="button"
+            style={({ pressed }) => [
+              styles.iconButton,
+              { backgroundColor: colors.surfaceSecondary },
+              pressed && styles.pressed,
+            ]}
+          >
+            <SymbolView
+              name={{ ios: 'slider.horizontal.3', android: 'tune', web: 'tune' }}
+              size={20}
+              tintColor={colors.text}
+            />
+          </Pressable>
+        )}
+
         {/* Notification Bell with Badge */}
         <Pressable
           onPress={onNotificationPress}
@@ -136,7 +158,7 @@ const styles = StyleSheet.create({
   rightContent: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: Spacing.three,
+    gap: Spacing.two,
   },
   iconButton: {
     width: 44,

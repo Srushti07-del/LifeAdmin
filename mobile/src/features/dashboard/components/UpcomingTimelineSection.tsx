@@ -10,17 +10,21 @@ import { useAppTheme } from '@/context/ThemeContext';
 import { ThemedText } from '@/components/themed-text';
 import { Typography } from '@/constants/typography';
 import { Spacing, Radius } from '@/constants/spacing';
-import { formatCurrency } from '@/utils/currency';
+import { CurrencyCode, convertAmountTo, formatCurrency } from '@/utils/currency';
 import { formatTime, formatTimelineDate } from '@/utils/date';
 import { UpcomingItem } from '../types';
 
 interface UpcomingTimelineSectionProps {
   items: UpcomingItem[];
+  preferredCurrency?: CurrencyCode;
+  exchangeRates?: Record<string, number>;
   onItemPress?: (item: UpcomingItem) => void;
 }
 
 export function UpcomingTimelineSection({
   items,
+  preferredCurrency,
+  exchangeRates = {},
   onItemPress,
 }: UpcomingTimelineSectionProps) {
   const { colors, isDark } = useAppTheme();
@@ -68,6 +72,12 @@ export function UpcomingTimelineSection({
           label: 'Calendar Event',
           icon: { ios: 'calendar', android: 'calendar_month', web: 'calendar_month' },
           accent: '#8B5CF6', // Purple
+        };
+      case 'document':
+        return {
+          label: 'Document',
+          icon: { ios: 'doc.text.fill', android: 'description', web: 'description' },
+          accent: '#0D9488', // Teal
         };
       case 'task':
       default:
@@ -184,7 +194,12 @@ export function UpcomingTimelineSection({
 
                 {item.amount !== undefined && (
                   <ThemedText style={[styles.amountText, { color: colors.primaryDeep }]}>
-                    {formatCurrency(item.amount, item.currency)}
+                    {preferredCurrency
+                      ? formatCurrency(
+                          convertAmountTo(item.amount, item.currency, preferredCurrency, exchangeRates),
+                          preferredCurrency
+                        )
+                      : formatCurrency(item.amount, item.currency)}
                   </ThemedText>
                 )}
               </Pressable>

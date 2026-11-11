@@ -381,6 +381,26 @@ export function buildNotificationContent(
 }
 
 /**
+ * Android notification channel identifier and configuration (omits `sound` on Android so
+ * Android uses the OS default notification tone rather than treating 'default' as a raw asset).
+ */
+export const REMINDERS_NOTIFICATION_CHANNEL_ID = 'reminders';
+
+export function buildRemindersChannelConfig(highImportance: number) {
+  return {
+    name: 'Reminders & Alerts',
+    description:
+      'Time-sensitive notifications for tasks, bills, appointments, and personal reminders.',
+    importance: highImportance,
+    vibrationPattern: [0, 250, 250, 250] as number[],
+    lightColor: '#087E83',
+    enableLights: true,
+    enableVibrate: true,
+    showBadge: true,
+  };
+}
+
+/**
  * Evaluates which permission banner (if any) should be displayed
  */
 export function determineActivePermissionBanner(
