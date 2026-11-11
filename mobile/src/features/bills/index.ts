@@ -1,10 +1,10 @@
 /**
- * Bills Feature Module
+ * Bills Feature Module Exports
  */
 
-export const BillsFeature = {
-  name: 'Bills',
-  description: 'Track bills, payments, recurring cycles, and INR-aware amounts',
-};
-
-export default BillsFeature;
+export * from './types';
+export * from './services/billService';
+export * from './components/BillCard';
+export * from './components/BillSummaryCard';
+export * from './components/BillFormModal';
+export * from './components/BillDetailsModal';

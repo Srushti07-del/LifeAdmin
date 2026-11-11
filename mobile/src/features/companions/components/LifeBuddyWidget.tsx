@@ -8,6 +8,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { View, StyleSheet, Pressable } from 'react-native';
+import { useRouter } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
 import { useAppTheme } from '@/context/ThemeContext';
 import { useAuth } from '@/context/AuthContext';
@@ -25,6 +26,7 @@ export interface LifeBuddyWidgetProps {
 }
 
 export function LifeBuddyWidget({ onPressSanctuary }: LifeBuddyWidgetProps) {
+  const router = useRouter();
   const { colors, isDark } = useAppTheme();
   const { user } = useAuth();
 
@@ -180,6 +182,37 @@ export function LifeBuddyWidget({ onPressSanctuary }: LifeBuddyWidgetProps) {
             &ldquo;{activeCompanion.quote}&rdquo;
           </ThemedText>
         </View>
+        {/* Ask LifeBuddy AI Action Trigger */}
+        <Pressable
+          onPress={(e) => {
+            e.stopPropagation?.();
+            router.push('/ai' as any);
+          }}
+          style={({ pressed }) => [
+            styles.aiBar,
+            {
+              backgroundColor: isDark ? 'rgba(32, 75, 90, 0.8)' : '#F0F9F9',
+              borderColor: isDark ? 'rgba(85, 189, 181, 0.25)' : 'rgba(8, 126, 131, 0.2)',
+            },
+            pressed && { opacity: 0.8 },
+          ]}
+          accessibilityRole="button"
+          accessibilityLabel="Ask LifeBuddy AI for planning and responsibility summaries"
+        >
+          <View style={styles.aiBarLeft}>
+            <SymbolView
+              name={{ ios: 'sparkles', android: 'smart_toy', web: 'smart_toy' } as any}
+              size={14}
+              tintColor={colors.primary}
+            />
+            <ThemedText style={[styles.aiBarText, { color: colors.primary }]}>
+              Ask LifeBuddy AI
+            </ThemedText>
+          </View>
+          <ThemedText style={[styles.aiBarSubtext, { color: colors.textSecondary }]}>
+            Plan & summarize &rarr;
+          </ThemedText>
+        </Pressable>
       </Pressable>
 
       {/* Internal Sanctuary Modal fallback */}
@@ -301,6 +334,29 @@ const styles = StyleSheet.create({
     fontSize: Typography.fontSize.xs,
     fontStyle: 'italic',
     lineHeight: 18,
+  },
+  aiBar: {
+    marginTop: Spacing.two,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: Spacing.three,
+    paddingVertical: Spacing.two,
+    borderRadius: Radius.lg,
+    borderWidth: 1,
+  },
+  aiBarLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  aiBarText: {
+    fontFamily: Typography.fontFamilies.sansSemiBold,
+    fontSize: Typography.fontSize.xs,
+  },
+  aiBarSubtext: {
+    fontFamily: Typography.fontFamilies.sans,
+    fontSize: Typography.fontSize.micro,
   },
 });
 

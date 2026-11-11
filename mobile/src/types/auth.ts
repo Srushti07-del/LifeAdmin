@@ -14,6 +14,8 @@ export interface User {
   theme?: 'light' | 'dark' | 'system';
   notificationsEnabled?: boolean;
   defaultReminderTiming?: number[];
+  quietHoursStart?: string;
+  quietHoursEnd?: string;
   categories?: string[];
   aiPreferences?: {
     autoExtract: boolean;
@@ -22,6 +24,16 @@ export interface User {
   preferredCurrency?: string;
   companion?: CompanionState;
   subscriptionTier?: 'free' | 'premium' | 'premium_ai';
+  onboardingCompleted?: boolean;
+  onboardingStep?: number;
+  notificationTypes?: {
+    tasks: boolean;
+    bills: boolean;
+    appointments: boolean;
+    reminders: boolean;
+  };
+  emailReminderIntervals?: number[];
+  timezone?: string;
   isDemo?: boolean;
   createdAt?: string;
 }
@@ -48,4 +60,6 @@ export interface AuthContextType {
   resetPassword: (token: string, password: string, confirmPassword: string) => Promise<{ message: string }>;
   clearError: () => void;
   refreshUser: () => Promise<void>;
+  updateUser: (updates: Partial<User>) => Promise<void>;
+  deleteAccount: () => Promise<void>;
 }

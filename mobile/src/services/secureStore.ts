@@ -163,6 +163,26 @@ export const secureStorage = {
   },
 
   /**
+<<<<<<< HEAD
+   * Deletes custom preference/state data by key.
+   */
+  async removeCustomData(key: string): Promise<void> {
+    try {
+      if (Platform.OS === 'web') {
+        if (typeof window !== 'undefined' && window.localStorage) {
+          window.localStorage.removeItem(key);
+        }
+        return;
+      }
+      await SecureStore.deleteItemAsync(key);
+    } catch (error) {
+      console.warn(`[SecureStore] Failed to remove custom data for ${key}:`, error);
+    }
+  },
+
+  /**
+=======
+>>>>>>> origin/main
    * Checks whether onboarding is marked completed for a specific user ID.
    */
   async isOnboardingCompleted(userId: string): Promise<boolean> {

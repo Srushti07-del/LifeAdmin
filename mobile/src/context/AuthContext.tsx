@@ -18,11 +18,15 @@ import { secureStorage } from '@/services/secureStore';
 import { authService } from '@/features/auth/services/authService';
 import { onboardingService } from '@/features/onboarding/services/onboardingService';
 import { companionService } from '@/features/companions/services/companionService';
+import { notificationService } from '@/features/reminders/services/notificationService';
+import { settingsService } from '@/features/settings/services/settingsService';
+import { useAppTheme } from '@/context/ThemeContext';
 import { AuthContextType, User } from '@/types/auth';
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
+  const { applyUserTheme, resetToUnauthenticatedTheme } = useAppTheme();
   const [user, setUser] = useState<User | null>(null);
   const [token, setToken] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
@@ -39,19 +43,30 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
    */
   const logout = useCallback(async () => {
     try {
+      if (user?.id) {
+        await notificationService.clearAllUserSchedules(user.id);
+      } else {
+        await notificationService.clearAllUserSchedules();
+      }
+    } catch (e) {
+      console.warn('Error clearing notification schedules on logout:', e);
+    }
+
+    try {
       await secureStorage.clearSession();
     } catch (e) {
       console.warn('Error clearing secure storage session:', e);
     } finally {
+      await resetToUnauthenticatedTheme().catch(() => {});
       apiConfig.setAuthToken(null);
       setToken(null);
       setUser(null);
       setIsOnboardingCompleted(true);
     }
-  }, []);
+  }, [user?.id, resetToUnauthenticatedTheme]);
 
   /**
-   * Exit ephemeral demo/guest session: cleans up demo data on server, then logs out
+   * Exit ephemeral demo/guest session: cleans up demo data on server, clears guest caches, then logs out
    */
   const exitGuest = useCallback(async () => {
     try {
@@ -59,9 +74,67 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } catch (e) {
       console.warn('Server-side demo session cleanup failed:', e);
     } finally {
+      await settingsService.clearUserScopedData(user?.id, true, true).catch(() => {});
       await logout();
     }
-  }, [logout]);
+  }, [logout, user?.id]);
+
+  /**
+   * Updates the active user in React state and persistent encrypted cache
+   */
+  const updateUser = useCallback(async (updates: Partial<User>) => {
+    let nextUserRef: User | null = null;
+    setUser((prev) => {
+      if (!prev) return prev;
+      const merged: User = {
+        ...prev,
+        ...updates,
+        aiPreferences: updates.aiPreferences
+          ? {
+              autoExtract:
+                updates.aiPreferences.autoExtract ??
+                prev.aiPreferences?.autoExtract ??
+                true,
+              suggestionsEnabled:
+                updates.aiPreferences.suggestionsEnabled ??
+                prev.aiPreferences?.suggestionsEnabled ??
+                true,
+            }
+          : prev.aiPreferences,
+      };
+      nextUserRef = merged;
+      return merged;
+    });
+    if (nextUserRef) {
+      await secureStorage.setCachedUser(nextUserRef);
+    }
+  }, []);
+
+  /**
+   * Permanently deletes the authenticated user's account and cleans up all local state
+   */
+  const deleteAccount = useCallback(async () => {
+    const activeUserId = user?.id;
+    const isDemoUser = Boolean(user?.isDemo);
+
+    await settingsService.deleteAccount();
+
+    try {
+      if (activeUserId) {
+        await notificationService.clearAllUserSchedules(activeUserId);
+      } else {
+        await notificationService.clearAllUserSchedules();
+      }
+      await settingsService.clearUserScopedData(activeUserId, isDemoUser, true);
+      await secureStorage.clearSession();
+    } finally {
+      await resetToUnauthenticatedTheme().catch(() => {});
+      apiConfig.setAuthToken(null);
+      setToken(null);
+      setUser(null);
+      setIsOnboardingCompleted(true);
+    }
+  }, [user?.id, user?.isDemo, resetToUnauthenticatedTheme]);
 
   /**
    * Refreshes user profile from the server
@@ -75,11 +148,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (res.user.companion) {
           await companionService.saveCompanionState(res.user.id, res.user.companion, false);
         }
+        await applyUserTheme(
+          res.user.id,
+          Boolean(res.user.isDemo),
+          res.user.theme,
+          true
+        );
       }
     } catch (err: any) {
       console.warn('Failed to refresh user profile:', err);
     }
-  }, []);
+  }, [applyUserTheme]);
 
   /**
    * Restore existing session from SecureStore on cold start
@@ -103,6 +182,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const cachedUser = await secureStorage.getCachedUser<User>();
         if (cachedUser && isMounted) {
           setUser(cachedUser);
+          await applyUserTheme(
+            cachedUser.id,
+            Boolean(cachedUser.isDemo),
+            cachedUser.theme,
+            false
+          );
         }
 
         // Validate token with live backend
@@ -114,19 +199,27 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             if (res.user.companion) {
               await companionService.saveCompanionState(res.user.id, res.user.companion, false);
             }
-
             // Check onboarding completion status for hydrated session
             const isGuestUser = Boolean(res.user.isDemo);
-            const isCompleted = await onboardingService.isOnboardingCompleted(res.user.id, isGuestUser);
+            const isCompleted =
+              res.user.onboardingCompleted === true ||
+              (await onboardingService.isOnboardingCompleted(res.user.id, isGuestUser));
             if (isMounted) {
               setIsOnboardingCompleted(isCompleted);
             }
+            await applyUserTheme(
+              res.user.id,
+              isGuestUser,
+              res.user.theme,
+              true
+            );
           }
         } catch (fetchErr: any) {
           // If token is invalid or expired (401), clear the session
           if (fetchErr?.status === 401) {
             console.log('Session expired or invalid token detected during startup');
             await secureStorage.clearSession();
+            await resetToUnauthenticatedTheme().catch(() => {});
             apiConfig.setAuthToken(null);
             if (isMounted) {
               setToken(null);
@@ -149,7 +242,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return () => {
       isMounted = false;
     };
-  }, []);
+  }, [applyUserTheme, resetToUnauthenticatedTheme]);
 
   /**
    * Focus/Resume synchronization: refreshes user profile and active companion
@@ -206,6 +299,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         await secureStorage.setOnboardingCompleted(userData.id, true);
       }
 
+      await applyUserTheme(userData.id, false, userData.theme, true);
+
       setToken(newToken);
       setUser(userData);
       setIsOnboardingCompleted(true);
@@ -219,7 +314,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } finally {
       setIsAuthenticating(false);
     }
-  }, []);
+  }, [applyUserTheme]);
 
   /**
    * Register a new account
@@ -240,6 +335,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         await companionService.saveCompanionState(userData.id, userData.companion, false);
       }
 
+      await applyUserTheme(userData.id, false, userData.theme, true);
+
       setToken(newToken);
       setUser(userData);
       setIsOnboardingCompleted(false);
@@ -253,7 +350,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } finally {
       setIsAuthenticating(false);
     }
-  }, []);
+  }, [applyUserTheme]);
 
   /**
    * Start a guest demo session
@@ -273,6 +370,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         await companionService.saveCompanionState(userData.id, userData.companion, false);
       }
 
+      await applyUserTheme(userData.id, true, userData.theme, true);
+
       const guestCompleted = await secureStorage.isGuestOnboardingCompleted();
 
       setToken(newToken);
@@ -288,7 +387,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } finally {
       setIsAuthenticating(false);
     }
-  }, []);
+  }, [applyUserTheme]);
 
   /**
    * Complete onboarding and transition to dashboard
@@ -393,6 +492,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       resetPassword,
       clearError,
       refreshUser,
+      updateUser,
+      deleteAccount,
     }),
     [
       user,
@@ -414,6 +515,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       resetPassword,
       clearError,
       refreshUser,
+      updateUser,
+      deleteAccount,
     ]
   );
 

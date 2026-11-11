@@ -1,9 +1,11 @@
 /**
  * LifeAdmin Mobile Dashboard Screen
- * Production-quality personal command center.
+ * Production-quality personal command center with customizable widget layouts,
+ * presets (Standard / Focus / Finance), AI Daily Briefing, multi-currency awareness,
+ * and quick creation / navigation across all core modules.
  */
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   ScrollView,
   RefreshControl,
@@ -23,6 +25,7 @@ import { ThemedView } from '@/components/themed-view';
 import { Typography } from '@/constants/typography';
 import { Spacing, Radius } from '@/constants/spacing';
 import { BottomTabInset, MaxContentWidth } from '@/constants/theme';
+import { DEFAULT_CURRENCY, normalizeCurrencyCode } from '@/utils/currency';
 import {
   DashboardHeader,
   StatsOverview,
@@ -30,6 +33,11 @@ import {
   QuickActionsSection,
   UpcomingTimelineSection,
   QuickActionModal,
+  DashboardCustomizeModal,
+  AIDailyBriefingWidget,
+  DashboardTasksWidget,
+  DashboardBillsWidget,
+  DashboardRemindersWidget,
   DashboardSkeleton,
   DashboardErrorState,
   LifeBuddyWidget,
@@ -37,10 +45,33 @@ import {
   AttentionItem,
   UpcomingItem,
   QuickActionType,
+  WidgetConfig,
+  DEFAULT_WIDGETS,
+  DASHBOARD_PRESETS,
+  detectActivePreset,
+  dashboardPreferencesService,
   fetchDashboardOverview,
   markTaskCompleted,
   markBillPaid,
 } from '@/features/dashboard';
+import { billService, Bill, BillFormModal } from '@/features/bills';
+import {
+  appointmentService,
+  AppointmentFormData,
+  AppointmentFormModal,
+} from '@/features/appointments';
+import { calendarService, EventFormData, EventFormModal } from '@/features/calendar';
+import {
+  reminderService,
+  notificationService,
+  ReminderFormData,
+  ReminderFormModal,
+} from '@/features/reminders';
+import {
+  documentService,
+  UploadDocumentParams,
+  DocumentUploadModal,
+} from '@/features/documents';
 import { ApiError } from '@/types/api';
 
 export default function DashboardScreen() {
@@ -49,75 +80,282 @@ export default function DashboardScreen() {
   const router = useRouter();
 
   const [data, setData] = useState<DashboardOverview | null>(null);
+  const [exchangeRates, setExchangeRates] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<ApiError | null>(null);
 
-  // Quick Action Modal State
+  // Dashboard Widget Layout State (persisted per user / guest locally)
+  const [widgets, setWidgets] = useState<WidgetConfig[]>(() =>
+    DEFAULT_WIDGETS.map((w) => ({ ...w }))
+  );
+  const [isCustomizeVisible, setIsCustomizeVisible] = useState(false);
+
+  // Quick Action Modals State
   const [quickActionType, setQuickActionType] = useState<QuickActionType | null>(null);
   const [isQuickActionVisible, setIsQuickActionVisible] = useState(false);
+  const [isBillModalVisible, setIsBillModalVisible] = useState(false);
+  const [isAppointmentModalVisible, setIsAppointmentModalVisible] = useState(false);
+  const [isEventModalVisible, setIsEventModalVisible] = useState(false);
+  const [isReminderModalVisible, setIsReminderModalVisible] = useState(false);
+  const [isDocumentModalVisible, setIsDocumentModalVisible] = useState(false);
 
   // Notifications summary sheet state
   const [isNotifSheetVisible, setIsNotifSheetVisible] = useState(false);
 
-  const loadDashboard = useCallback(async (isPullToRefresh = false) => {
-    if (isPullToRefresh) {
-      setRefreshing(true);
-    } else {
-      setLoading(true);
-    }
-    setError(null);
+  const preferredCurrency = useMemo(
+    () => normalizeCurrencyCode(user?.preferredCurrency || DEFAULT_CURRENCY),
+    [user?.preferredCurrency]
+  );
 
-    try {
-      const [result] = await Promise.all([
-        fetchDashboardOverview(),
-        refreshUser().catch(() => {}),
-      ]);
-      setData(result);
-    } catch (err: any) {
-      setError(err);
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
-    }
-  }, [refreshUser]);
+  const activePreset = useMemo(() => detectActivePreset(widgets), [widgets]);
+  const activeLayoutLabel = useMemo(() => {
+    if (activePreset === 'custom') return 'Custom Layout';
+    return `${DASHBOARD_PRESETS[activePreset].label} Layout`;
+  }, [activePreset]);
+  const visibleWidgets = useMemo(() => widgets.filter((w) => w.visible), [widgets]);
+
+  // Load saved dashboard layout whenever user or guest status changes
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const saved = await dashboardPreferencesService.loadWidgets(user?.id, isGuest);
+      if (!cancelled) {
+        setWidgets(saved);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [user?.id, isGuest]);
+
+  const loadDashboard = useCallback(
+    async (isPullToRefresh = false) => {
+      if (isPullToRefresh) {
+        setRefreshing(true);
+      } else {
+        setLoading(true);
+      }
+      setError(null);
+
+      try {
+        const [result, ratesRes] = await Promise.all([
+          fetchDashboardOverview(),
+          billService.fetchRates().catch(() => ({ rates: {} })),
+          refreshUser().catch(() => {}),
+        ]);
+        setData(result);
+        setExchangeRates(ratesRes?.rates || {});
+      } catch (err: any) {
+        setError(err);
+      } finally {
+        setLoading(false);
+        setRefreshing(false);
+      }
+    },
+    [refreshUser]
+  );
 
   useEffect(() => {
     loadDashboard();
   }, [loadDashboard]);
 
-  // Handle Action button on Attention Cards (e.g., Mark Done, Pay Bill)
-  const handleItemAction = async (item: AttentionItem) => {
-    try {
-      if (item.type === 'task') {
-        await markTaskCompleted(item.id);
-        Alert.alert('Task Completed', `"${item.title}" marked as complete.`);
-        loadDashboard(true);
-      } else if (item.type === 'bill') {
-        await markBillPaid(item.id);
-        Alert.alert('Bill Paid', `Payment for "${item.title}" recorded.`);
-        loadDashboard(true);
-      } else if (item.type === 'appointment') {
-        router.push('/calendar' as any);
+  const navigateToEntityRoute = useCallback(
+    (type: string) => {
+      switch (type) {
+        case 'bill':
+          router.push('/bills' as any);
+          break;
+        case 'appointment':
+          router.push('/appointments' as any);
+          break;
+        case 'reminder':
+          router.push('/reminders' as any);
+          break;
+        case 'document':
+          router.push('/documents' as any);
+          break;
+        case 'event':
+          router.push('/calendar' as any);
+          break;
+        case 'task':
+        default:
+          router.push('/tasks' as any);
+          break;
       }
+    },
+    [router]
+  );
+
+  const handleCompleteTask = async (id: string, title: string) => {
+    try {
+      await markTaskCompleted(id);
+      Alert.alert('Task Completed', `"${title}" marked as complete.`);
+      loadDashboard(true);
     } catch (err: any) {
-      Alert.alert('Action Failed', err?.message || 'Could not complete action');
+      Alert.alert('Action Failed', err?.message || 'Could not complete task.');
+    }
+  };
+
+  const handlePayBill = async (id: string, title: string) => {
+    try {
+      await markBillPaid(id);
+      Alert.alert('Bill Paid', `Payment for "${title}" recorded.`);
+      loadDashboard(true);
+    } catch (err: any) {
+      Alert.alert('Action Failed', err?.message || 'Could not record payment.');
+    }
+  };
+
+  // Handle Action button on Attention Cards (e.g., Mark Done, Pay Bill, View)
+  const handleItemAction = async (item: AttentionItem) => {
+    if (item.type === 'task') {
+      await handleCompleteTask(item.id, item.title);
+    } else if (item.type === 'bill') {
+      await handlePayBill(item.id, item.title);
+    } else {
+      navigateToEntityRoute(item.type);
     }
   };
 
   const handleItemPress = (item: AttentionItem | UpcomingItem) => {
-    if (item.type === 'bill') {
-      router.push('/bills' as any);
-    } else if (item.type === 'appointment' || item.type === 'event') {
-      router.push('/calendar' as any);
-    } else {
-      router.push('/tasks' as any);
-    }
+    navigateToEntityRoute(item.type);
   };
 
   const handleOpenQuickAction = (type: QuickActionType) => {
-    setQuickActionType(type);
-    setIsQuickActionVisible(true);
+    switch (type) {
+      case 'task':
+        setQuickActionType('task');
+        setIsQuickActionVisible(true);
+        break;
+      case 'bill':
+        setIsBillModalVisible(true);
+        break;
+      case 'appointment':
+        setIsAppointmentModalVisible(true);
+        break;
+      case 'event':
+        setIsEventModalVisible(true);
+        break;
+      case 'reminder':
+        setIsReminderModalVisible(true);
+        break;
+      case 'document':
+        setIsDocumentModalVisible(true);
+        break;
+    }
+  };
+
+  const handleSaveWidgets = async (nextWidgets: WidgetConfig[]) => {
+    setWidgets(nextWidgets);
+    await dashboardPreferencesService.saveWidgets(nextWidgets, user?.id, isGuest);
+  };
+
+  const handleCreateBill = async (formData: Partial<Bill>) => {
+    await billService.createBill(formData);
+    Alert.alert('Bill Created', 'Your bill has been added.');
+    await loadDashboard(true);
+  };
+
+  const handleCreateAppointment = async (formData: Partial<AppointmentFormData>) => {
+    await appointmentService.createAppointment(formData);
+    Alert.alert('Appointment Scheduled', 'Your appointment has been added.');
+    await loadDashboard(true);
+  };
+
+  const handleCreateEvent = async (formData: Partial<EventFormData>) => {
+    await calendarService.createEvent(formData);
+    Alert.alert('Event Added', 'Your calendar event has been scheduled.');
+    await loadDashboard(true);
+  };
+
+  const handleCreateReminder = async (formData: Partial<ReminderFormData>) => {
+    const created = await reminderService.createReminder(formData);
+    const notificationUserId = user?.id || 'default_user';
+    await notificationService.scheduleReminderNotification(created, notificationUserId);
+    Alert.alert('Reminder Created', 'Your alert has been scheduled.');
+    await loadDashboard(true);
+  };
+
+  const handleUploadDocument = async (params: UploadDocumentParams) => {
+    await documentService.uploadDocument(params);
+    Alert.alert('Document Uploaded', 'Your document has been stored in the vault.');
+    await loadDashboard(true);
+  };
+
+  const renderWidget = (widget: WidgetConfig) => {
+    switch (widget.id) {
+      case 'needs_attention':
+        return (
+          <NeedsAttentionSection
+            key="needs_attention"
+            items={data?.needsAttention || []}
+            preferredCurrency={preferredCurrency}
+            exchangeRates={exchangeRates}
+            onItemPress={handleItemPress}
+            onActionPress={handleItemAction}
+          />
+        );
+      case 'lifebuddy':
+        return <LifeBuddyWidget key="lifebuddy" />;
+      case 'ai_briefing':
+        return (
+          <AIDailyBriefingWidget
+            key="ai_briefing"
+            overview={data}
+            preferredCurrency={preferredCurrency}
+            exchangeRates={exchangeRates}
+            isLoadingOverview={loading}
+            onOpenAssistant={() => router.push('/ai' as any)}
+            onPressItem={(type) => navigateToEntityRoute(type)}
+          />
+        );
+      case 'tasks':
+        return (
+          <DashboardTasksWidget
+            key="tasks"
+            needsAttention={data?.needsAttention || []}
+            upcoming={data?.upcoming || []}
+            onViewAll={() => router.push('/tasks' as any)}
+            onAddTask={() => handleOpenQuickAction('task')}
+            onCompleteTask={handleCompleteTask}
+          />
+        );
+      case 'bills':
+        return (
+          <DashboardBillsWidget
+            key="bills"
+            needsAttention={data?.needsAttention || []}
+            upcoming={data?.upcoming || []}
+            preferredCurrency={preferredCurrency}
+            exchangeRates={exchangeRates}
+            onManageBills={() => router.push('/bills' as any)}
+            onPayBill={handlePayBill}
+          />
+        );
+      case 'schedule':
+        return (
+          <UpcomingTimelineSection
+            key="schedule"
+            items={data?.upcoming || []}
+            preferredCurrency={preferredCurrency}
+            exchangeRates={exchangeRates}
+            onItemPress={handleItemPress}
+          />
+        );
+      case 'reminders':
+        return (
+          <DashboardRemindersWidget
+            key="reminders"
+            activeCount={data?.stats?.activeReminders || 0}
+            reminders={data?.reminders || []}
+            onViewAll={() => router.push('/reminders' as any)}
+            onAddReminder={() => handleOpenQuickAction('reminder')}
+          />
+        );
+      default:
+        return null;
+    }
   };
 
   const totalUnreadCount = data
@@ -151,10 +389,11 @@ export default function DashboardScreen() {
               />
             }
           >
-            {/* 1. Header with greeting, user info, notification bell */}
+            {/* 1. Header with greeting, customize button, notification bell, avatar */}
             <DashboardHeader
               userName={user?.name || 'Friend'}
               unreadCount={totalUnreadCount}
+              onCustomizePress={() => setIsCustomizeVisible(true)}
               onNotificationPress={() => setIsNotifSheetVisible(true)}
               onAvatarPress={() => router.push('/more' as any)}
             />
@@ -204,39 +443,88 @@ export default function DashboardScreen() {
               </View>
             )}
 
-            {/* Quick Metrics Bar */}
+            {/* Quick Metrics Bar (2x2: Overdue, Due Soon, Upcoming, Active Alerts) */}
             {data?.stats && (
               <StatsOverview
                 stats={data.stats}
                 onStatPress={(filter) => {
                   if (filter === 'upcoming') router.push('/calendar' as any);
+                  else if (filter === 'reminders') router.push('/reminders' as any);
                   else router.push('/tasks' as any);
                 }}
               />
             )}
 
-            {/* LifeBuddy Companion Command Widget */}
-            <LifeBuddyWidget />
+            {/* Layout Preset & Customize Strip */}
+            <Pressable
+              onPress={() => setIsCustomizeVisible(true)}
+              accessible
+              accessibilityRole="button"
+              accessibilityLabel={`Customize dashboard layout. Current: ${activeLayoutLabel}, ${visibleWidgets.length} widgets visible`}
+              style={({ pressed }) => [
+                styles.layoutBar,
+                {
+                  backgroundColor: colors.surface,
+                  borderColor: isDark ? colors.border : colors.borderSubtle,
+                },
+                pressed && { opacity: 0.8 },
+              ]}
+            >
+              <View style={styles.layoutBarLeft}>
+                <View style={[styles.layoutDot, { backgroundColor: colors.primary }]} />
+                <ThemedText style={[styles.layoutBarLabel, { color: colors.text }]}>
+                  {activeLayoutLabel}
+                </ThemedText>
+                <ThemedText style={[styles.layoutBarMeta, { color: colors.textMuted }]}>
+                  · {visibleWidgets.length}/{widgets.length} widgets
+                </ThemedText>
+              </View>
+              <View style={styles.layoutBarRight}>
+                <SymbolView
+                  name={{ ios: 'slider.horizontal.3', android: 'tune', web: 'tune' }}
+                  size={14}
+                  tintColor={colors.primary}
+                />
+                <ThemedText style={[styles.layoutActionText, { color: colors.primary }]}>
+                  Customize
+                </ThemedText>
+              </View>
+            </Pressable>
 
-            {/* 2. Needs Attention Section */}
-            <NeedsAttentionSection
-              items={data?.needsAttention || []}
-              onItemPress={handleItemPress}
-              onActionPress={handleItemAction}
-            />
+            {/* Dynamically Ordered & Toggled Dashboard Widgets */}
+            {visibleWidgets.length > 0 ? (
+              visibleWidgets.map(renderWidget)
+            ) : (
+              <View
+                style={[
+                  styles.emptyLayoutCard,
+                  { backgroundColor: colors.surface, borderColor: colors.border },
+                ]}
+              >
+                <ThemedText style={[styles.emptyLayoutTitle, { color: colors.text }]}>
+                  All dashboard widgets are hidden
+                </ThemedText>
+                <ThemedText style={[styles.emptyLayoutDesc, { color: colors.textSecondary }]}>
+                  Open Customize Layout to restore widgets or switch to a preset.
+                </ThemedText>
+                <Pressable
+                  onPress={() => setIsCustomizeVisible(true)}
+                  style={[styles.emptyLayoutBtn, { backgroundColor: colors.primary }]}
+                >
+                  <ThemedText style={styles.emptyLayoutBtnText}>Customize Layout</ThemedText>
+                </Pressable>
+              </View>
+            )}
 
-            {/* 3. Quick Actions Grid */}
-            <QuickActionsSection onActionPress={handleOpenQuickAction} />
-
-            {/* 4. Upcoming Activities Timeline */}
-            <UpcomingTimelineSection
-              items={data?.upcoming || []}
-              onItemPress={handleItemPress}
+            {/* Expanded Quick Actions & Module Navigation Grid (all 6 modules) */}
+            <QuickActionsSection
+              onActionPress={handleOpenQuickAction}
+              onNavigatePress={(route) => router.push(route as any)}
             />
           </ScrollView>
         )}
 
-        {/* Quick Action Modal Bottom Sheet */}
+        {/* Quick Create Modal (Tasks) */}
         <QuickActionModal
           visible={isQuickActionVisible}
           type={quickActionType}
@@ -244,7 +532,47 @@ export default function DashboardScreen() {
           onSuccess={() => loadDashboard(true)}
         />
 
-        {/* Notifications Quick Summary Sheet */}
+        {/* Reusable Native Modals for Bills, Appointments, Events, Reminders, Documents */}
+        <BillFormModal
+          isOpen={isBillModalVisible}
+          onClose={() => setIsBillModalVisible(false)}
+          onSubmit={handleCreateBill}
+          defaultCurrency={preferredCurrency}
+        />
+
+        <AppointmentFormModal
+          isOpen={isAppointmentModalVisible}
+          onClose={() => setIsAppointmentModalVisible(false)}
+          onSubmit={handleCreateAppointment}
+        />
+
+        <EventFormModal
+          isOpen={isEventModalVisible}
+          onClose={() => setIsEventModalVisible(false)}
+          onSubmit={handleCreateEvent}
+        />
+
+        <ReminderFormModal
+          isOpen={isReminderModalVisible}
+          onClose={() => setIsReminderModalVisible(false)}
+          onSubmit={handleCreateReminder}
+        />
+
+        <DocumentUploadModal
+          isOpen={isDocumentModalVisible}
+          onClose={() => setIsDocumentModalVisible(false)}
+          onUpload={handleUploadDocument}
+        />
+
+        {/* Dashboard Customization Bottom Sheet */}
+        <DashboardCustomizeModal
+          isOpen={isCustomizeVisible}
+          onClose={() => setIsCustomizeVisible(false)}
+          widgets={widgets}
+          onSave={handleSaveWidgets}
+        />
+
+        {/* Notifications Summary Sheet Modal */}
         <Modal
           visible={isNotifSheetVisible}
           transparent
@@ -277,8 +605,12 @@ export default function DashboardScreen() {
               <ScrollView style={styles.notifList}>
                 {data?.needsAttention && data.needsAttention.length > 0 ? (
                   data.needsAttention.map((item) => (
-                    <View
-                      key={item.id}
+                    <Pressable
+                      key={`${item.type}-${item.id}`}
+                      onPress={() => {
+                        setIsNotifSheetVisible(false);
+                        navigateToEntityRoute(item.type);
+                      }}
                       style={[
                         styles.notifItem,
                         { borderBottomColor: colors.borderSubtle },
@@ -290,7 +622,7 @@ export default function DashboardScreen() {
                       <ThemedText style={[styles.notifItemDesc, { color: colors.textSecondary }]}>
                         {item.reason}
                       </ThemedText>
-                    </View>
+                    </Pressable>
                   ))
                 ) : (
                   <View style={styles.noNotifs}>
@@ -322,6 +654,72 @@ const styles = StyleSheet.create({
     maxWidth: MaxContentWidth,
     alignSelf: 'center',
     width: '100%',
+  },
+  layoutBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginHorizontal: Spacing.four,
+    marginBottom: Spacing.five,
+    paddingHorizontal: Spacing.three + 2,
+    paddingVertical: Spacing.two + 2,
+    borderRadius: Radius.lg,
+    borderWidth: 1,
+  },
+  layoutBarLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    flex: 1,
+  },
+  layoutDot: {
+    width: 7,
+    height: 7,
+    borderRadius: 4,
+  },
+  layoutBarLabel: {
+    fontSize: Typography.fontSize.xs,
+    fontWeight: Typography.fontWeight.semibold,
+  },
+  layoutBarMeta: {
+    fontSize: Typography.fontSize.xs,
+  },
+  layoutBarRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+  },
+  layoutActionText: {
+    fontSize: Typography.fontSize.xs,
+    fontWeight: Typography.fontWeight.bold,
+  },
+  emptyLayoutCard: {
+    marginHorizontal: Spacing.four,
+    marginBottom: Spacing.five,
+    padding: Spacing.five,
+    borderRadius: Radius.xl,
+    borderWidth: 1,
+    alignItems: 'center',
+    gap: Spacing.two,
+  },
+  emptyLayoutTitle: {
+    fontSize: Typography.fontSize.base,
+    fontWeight: Typography.fontWeight.bold,
+  },
+  emptyLayoutDesc: {
+    fontSize: Typography.fontSize.xs,
+    textAlign: 'center',
+    marginBottom: Spacing.one,
+  },
+  emptyLayoutBtn: {
+    paddingHorizontal: Spacing.four,
+    paddingVertical: Spacing.two,
+    borderRadius: Radius.full,
+  },
+  emptyLayoutBtnText: {
+    color: '#FFFFFF',
+    fontSize: Typography.fontSize.xs,
+    fontWeight: Typography.fontWeight.bold,
   },
   modalOverlay: {
     flex: 1,
@@ -380,6 +778,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    marginHorizontal: Spacing.four,
     paddingHorizontal: Spacing.three,
     paddingVertical: Spacing.two,
     borderRadius: Radius.md,

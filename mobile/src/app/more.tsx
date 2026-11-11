@@ -5,6 +5,7 @@
 import React, { useState } from 'react';
 import { View, StyleSheet, Pressable, Alert, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useRouter } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
 import { useAppTheme } from '@/context/ThemeContext';
 import { useAuth } from '@/context/AuthContext';
@@ -14,6 +15,7 @@ import { Typography } from '@/constants/typography';
 import { Spacing, Radius } from '@/constants/spacing';
 import { BottomTabInset } from '@/constants/theme';
 import { CompanionSanctuaryModal } from '@/features/companions';
+import { settingsService } from '@/features/settings';
 
 interface MenuItem {
   label: string;
@@ -30,8 +32,33 @@ interface MenuSection {
 
 export default function MoreScreen() {
   const { colors, isDark, themePreference, setThemePreference } = useAppTheme();
-  const { user, isGuest, logout, exitGuest, restartOnboarding } = useAuth();
+  const { user, isGuest, logout, exitGuest, restartOnboarding, updateUser } = useAuth();
+  const router = useRouter();
   const [isSanctuaryVisible, setIsSanctuaryVisible] = useState(false);
+
+  const handleCycleTheme = async () => {
+    const next =
+      themePreference === 'light'
+        ? 'dark'
+        : themePreference === 'dark'
+        ? 'system'
+        : 'light';
+    setThemePreference(next);
+    try {
+      const { user: remoteUser } = await settingsService.savePreferences(
+        { theme: next },
+        user?.id,
+        isGuest
+      );
+      if (remoteUser) {
+        await updateUser(remoteUser);
+      } else {
+        await updateUser({ theme: next });
+      }
+    } catch {
+      // ThemeContext preserves unsynced local preference automatically
+    }
+  };
 
   const handleLogout = () => {
     Alert.alert(
@@ -73,27 +100,51 @@ export default function MoreScreen() {
           desc: 'Virtual positive reinforcement companions',
           action: () => setIsSanctuaryVisible(true),
         },
-        { label: 'AI Assistant', icon: 'smart_toy', desc: 'Planning and intelligent summaries' },
+        {
+          label: 'AI Assistant',
+          icon: 'smart_toy',
+          desc: 'Planning and intelligent summaries',
+          action: () => router.push('/ai' as any),
+        },
       ],
     },
     {
-      title: 'Vault & Storage',
+      title: 'Responsibilities & Records',
       items: [
-        { label: 'Documents Vault', icon: 'folder', desc: 'Secure storage & expiry dates' },
-        { label: 'Reminders Timeline', icon: 'notifications', desc: 'Time-sensitive nudges' },
+        {
+          label: 'Appointments',
+          icon: 'calendar_month',
+          desc: 'Consultations, doctor visits & meetings',
+          action: () => router.push('/appointments' as any),
+        },
+        {
+          label: 'Documents Vault',
+          icon: 'folder',
+          desc: 'Secure storage & expiry dates',
+          action: () => router.push('/documents' as any),
+        },
+        {
+          label: 'Reminders Timeline',
+          icon: 'notifications',
+          desc: 'Time-sensitive nudges & native alerts',
+          action: () => router.push('/reminders' as any),
+        },
       ],
     },
     {
       title: 'Preferences',
       items: [
         {
+          label: 'Settings & Profile',
+          icon: 'tune',
+          desc: 'Profile, currency, categories, notifications & security',
+          action: () => router.push('/settings' as any),
+        },
+        {
           label: `Theme: ${themePreference.charAt(0).toUpperCase() + themePreference.slice(1)}`,
           icon: isDark ? 'dark_mode' : 'light_mode',
           desc: 'Toggle light, dark, or system mode',
-          action: () => {
-            const next = themePreference === 'light' ? 'dark' : themePreference === 'dark' ? 'system' : 'light';
-            setThemePreference(next);
-          },
+          action: handleCycleTheme,
         },
         {
           label: 'Setup & Onboarding',
@@ -106,6 +157,12 @@ export default function MoreScreen() {
     {
       title: 'Account & Session',
       items: [
+        {
+          label: 'Privacy, Export & Security',
+          icon: 'shield',
+          desc: 'Password recovery, JSON backup & account controls',
+          action: () => router.push('/settings' as any),
+        },
         isGuest
           ? {
               label: 'Exit Guest Demo',
@@ -143,13 +200,17 @@ export default function MoreScreen() {
           </View>
 
           {/* User Profile / Session Card */}
-          <View
-            style={[
+          <Pressable
+            onPress={() => router.push('/settings' as any)}
+            accessibilityRole="button"
+            accessibilityLabel="Open Settings and Profile"
+            style={({ pressed }) => [
               styles.userCard,
               {
                 backgroundColor: colors.surface,
                 borderColor: colors.border,
               },
+              pressed && { opacity: 0.85 },
             ]}
           >
             <View
@@ -188,10 +249,16 @@ export default function MoreScreen() {
               </View>
 
               <ThemedText style={[styles.userEmail, { color: colors.textSecondary }]}>
-                {user?.email || 'Authenticated User'}
+                {user?.email || 'Tap to manage profile & settings'}
               </ThemedText>
             </View>
-          </View>
+
+            <SymbolView
+              name={{ ios: 'chevron.right', android: 'chevron_right', web: 'chevron_right' }}
+              size={18}
+              tintColor={colors.textMuted}
+            />
+          </Pressable>
 
           {menuSections.map((sec, idx) => (
             <View key={idx} style={styles.section}>

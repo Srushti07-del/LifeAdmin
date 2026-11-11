@@ -1,6 +1,7 @@
 /**
  * Quick Actions Section Component
- * 4 primary creation triggers: Add Task, Add Bill, Add Reminder, Add Appointment.
+ * 6 creation and navigation triggers across Tasks, Bills, Appointments,
+ * Calendar Events, Reminders, and Documents.
  */
 
 import React from 'react';
@@ -14,17 +15,23 @@ import { QuickActionType } from '../types';
 
 interface QuickActionsSectionProps {
   onActionPress: (type: QuickActionType) => void;
+  onNavigatePress?: (route: string) => void;
 }
 
 interface ActionConfig {
   type: QuickActionType;
   label: string;
   sublabel: string;
+  route: string;
+  routeLabel: string;
   icon: { ios: string; android: string; web: string };
   accentColor: string;
 }
 
-export function QuickActionsSection({ onActionPress }: QuickActionsSectionProps) {
+export function QuickActionsSection({
+  onActionPress,
+  onNavigatePress,
+}: QuickActionsSectionProps) {
   const { colors, isDark } = useAppTheme();
 
   const actions: ActionConfig[] = [
@@ -32,29 +39,55 @@ export function QuickActionsSection({ onActionPress }: QuickActionsSectionProps)
       type: 'task',
       label: 'Add Task',
       sublabel: 'To-do / deadline',
+      route: '/tasks',
+      routeLabel: 'Tasks',
       icon: { ios: 'checkmark.circle.badge.plus', android: 'add_task', web: 'add_task' },
       accentColor: colors.primary,
     },
     {
       type: 'bill',
       label: 'Add Bill',
-      sublabel: 'Payment / INR',
+      sublabel: 'Payment / due',
+      route: '/bills',
+      routeLabel: 'Bills',
       icon: { ios: 'creditcard.badge.plus', android: 'receipt_long', web: 'receipt_long' },
-      accentColor: '#059669', // Emerald
+      accentColor: '#059669',
+    },
+    {
+      type: 'appointment',
+      label: 'Appointment',
+      sublabel: 'Doctor / visit',
+      route: '/appointments',
+      routeLabel: 'Visits',
+      icon: { ios: 'person.crop.circle.badge.plus', android: 'medical_services', web: 'medical_services' },
+      accentColor: '#0284C7',
+    },
+    {
+      type: 'event',
+      label: 'Calendar Event',
+      sublabel: 'Date & schedule',
+      route: '/calendar',
+      routeLabel: 'Calendar',
+      icon: { ios: 'calendar.badge.plus', android: 'event', web: 'event' },
+      accentColor: '#7C3AED',
     },
     {
       type: 'reminder',
       label: 'Reminder',
       sublabel: 'Alert & nudge',
+      route: '/reminders',
+      routeLabel: 'Alerts',
       icon: { ios: 'bell.badge.fill', android: 'alarm_add', web: 'alarm_add' },
-      accentColor: '#D97706', // Amber
+      accentColor: '#D97706',
     },
     {
-      type: 'appointment',
-      label: 'Appointment',
-      sublabel: 'Doctor / meet',
-      icon: { ios: 'calendar.badge.plus', android: 'event', web: 'event' },
-      accentColor: '#0284C7', // Sky
+      type: 'document',
+      label: 'Upload Doc',
+      sublabel: 'Scan / vault',
+      route: '/documents',
+      routeLabel: 'Vault',
+      icon: { ios: 'doc.badge.plus', android: 'upload_file', web: 'upload_file' },
+      accentColor: '#0D9488',
     },
   ];
 
@@ -64,46 +97,93 @@ export function QuickActionsSection({ onActionPress }: QuickActionsSectionProps)
         <ThemedText style={[styles.sectionTitle, { color: colors.text }]}>
           Quick Actions
         </ThemedText>
+        <ThemedText style={[styles.sectionHint, { color: colors.textSecondary }]}>
+          Create or jump directly to any module
+        </ThemedText>
       </View>
 
       <View style={styles.grid}>
         {actions.map((action) => (
-          <Pressable
+          <View
             key={action.type}
-            onPress={() => onActionPress(action.type)}
-            accessible
-            accessibilityRole="button"
-            accessibilityLabel={`${action.label}, ${action.sublabel}`}
-            style={({ pressed }) => [
+            style={[
               styles.actionCard,
               {
                 backgroundColor: colors.surface,
                 borderColor: isDark ? colors.border : colors.borderSubtle,
               },
-              pressed && styles.pressed,
             ]}
           >
-            <View
-              style={[
-                styles.iconContainer,
-                { backgroundColor: isDark ? colors.surfaceSecondary : colors.surfaceSecondary },
+            <Pressable
+              onPress={() => onActionPress(action.type)}
+              accessible
+              accessibilityRole="button"
+              accessibilityLabel={`${action.label}, ${action.sublabel}`}
+              style={({ pressed }) => [
+                styles.createArea,
+                pressed && styles.pressed,
               ]}
             >
-              <SymbolView
-                name={action.icon as any}
-                size={22}
-                tintColor={action.accentColor}
-              />
-            </View>
+              <View style={styles.topRow}>
+                <View
+                  style={[
+                    styles.iconContainer,
+                    { backgroundColor: colors.surfaceSecondary },
+                  ]}
+                >
+                  <SymbolView
+                    name={action.icon as any}
+                    size={21}
+                    tintColor={action.accentColor}
+                  />
+                </View>
 
-            <ThemedText numberOfLines={1} style={[styles.actionLabel, { color: colors.text }]}>
-              {action.label}
-            </ThemedText>
+                <View
+                  style={[
+                    styles.plusPill,
+                    { backgroundColor: `${action.accentColor}16` },
+                  ]}
+                >
+                  <SymbolView
+                    name={{ ios: 'plus', android: 'add', web: 'add' }}
+                    size={13}
+                    tintColor={action.accentColor}
+                  />
+                </View>
+              </View>
 
-            <ThemedText numberOfLines={1} style={[styles.actionSublabel, { color: colors.textMuted }]}>
-              {action.sublabel}
-            </ThemedText>
-          </Pressable>
+              <ThemedText numberOfLines={1} style={[styles.actionLabel, { color: colors.text }]}>
+                {action.label}
+              </ThemedText>
+
+              <ThemedText numberOfLines={1} style={[styles.actionSublabel, { color: colors.textMuted }]}>
+                {action.sublabel}
+              </ThemedText>
+            </Pressable>
+
+            {onNavigatePress && (
+              <Pressable
+                onPress={() => onNavigatePress(action.route)}
+                accessible
+                accessibilityRole="button"
+                accessibilityLabel={`Open ${action.routeLabel}`}
+                style={({ pressed }) => [
+                  styles.navFooter,
+                  { borderTopColor: isDark ? colors.border : colors.borderSubtle },
+                  pressed && { opacity: 0.7 },
+                ]}
+              >
+                <ThemedText style={[styles.navFooterText, { color: colors.primary }]}>
+                  Open {action.routeLabel}
+                </ThemedText>
+                <SymbolView
+                  name={{ ios: 'chevron.right', android: 'chevron_right', web: 'chevron_right' }}
+                  size={12}
+                  tintColor={colors.primary}
+                />
+              </Pressable>
+            )}
+          </View>
         ))}
       </View>
     </View>
@@ -123,6 +203,10 @@ const styles = StyleSheet.create({
     fontFamily: Typography.fontFamilies.editorial,
     fontWeight: Typography.fontWeight.bold,
   },
+  sectionHint: {
+    fontSize: Typography.fontSize.xs,
+    marginTop: 2,
+  },
   grid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -131,22 +215,39 @@ const styles = StyleSheet.create({
   actionCard: {
     flex: 1,
     minWidth: '47%',
-    padding: Spacing.three + 2,
     borderRadius: Radius.lg,
     borderWidth: 1,
+    overflow: 'hidden',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.03,
     shadowRadius: 4,
     elevation: 1,
   },
+  createArea: {
+    paddingHorizontal: Spacing.three + 2,
+    paddingTop: Spacing.three + 2,
+    paddingBottom: Spacing.three,
+  },
+  topRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: Spacing.two,
+  },
   iconContainer: {
-    width: 42,
-    height: 42,
+    width: 40,
+    height: 40,
     borderRadius: Radius.md,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: Spacing.two,
+  },
+  plusPill: {
+    width: 24,
+    height: 24,
+    borderRadius: Radius.full,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   actionLabel: {
     fontSize: Typography.fontSize.sm,
@@ -156,9 +257,20 @@ const styles = StyleSheet.create({
     fontSize: 11,
     marginTop: 2,
   },
+  navFooter: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: Spacing.three + 2,
+    paddingVertical: 8,
+    borderTopWidth: StyleSheet.hairlineWidth,
+  },
+  navFooterText: {
+    fontSize: 11,
+    fontWeight: Typography.fontWeight.semibold,
+  },
   pressed: {
     opacity: 0.8,
-    transform: [{ scale: 0.97 }],
   },
 });
 

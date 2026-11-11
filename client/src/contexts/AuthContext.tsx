@@ -18,6 +18,7 @@ interface User {
   subscriptionTier: 'free' | 'premium' | 'premium_ai';
   preferredCurrency: string;
   companion?: CompanionState;
+  isDemo?: boolean;
   onboardingCompleted: boolean;
   onboardingStep: number;
   notificationTypes: {
@@ -28,7 +29,6 @@ interface User {
   };
   emailReminderIntervals: number[];
   timezone: string;
-}
 
 interface AuthContextType {
   user: User | null;
@@ -159,10 +159,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     applyTheme('light');
   }, []);
 
-  const register = useCallback(async (name: string, email: string, password: string) => {
-    const res = await api.post('/auth/register', { name, email, password });
-    const { token: newToken, user: userData } = res.data;
-    localStorage.setItem('lifeadmin_token', newToken);
+<<<<<<< HEAD
     if (userData.companion) {
       saveCompanionStorage(userData.companion, false);
     }

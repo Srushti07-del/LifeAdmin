@@ -1,44 +1,552 @@
 /**
- * Bills Screen
+ * LifeAdmin Mobile — Bills & Payments Screen
+ * Complete production-ready implementation of native bills management:
+ * - Summary dashboard (Monthly total due, Settled progress bar, Paid, Due soon, Overdue)
+ * - Preferred currency normalization (defaults to INR ₹)
+ * - Multi-criteria organization (Status tabs, Category pills, Search, Sort)
+ * - Native bottom-sheet modals for Create, Edit, and Details inspection
+ * - Quick Mark-as-Paid / Unpay actions and deletion confirmation
  */
 
-import React from 'react';
-import { View, StyleSheet } from 'react-native';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import {
+  View,
+  StyleSheet,
+  ScrollView,
+  RefreshControl,
+  ActivityIndicator,
+  Pressable,
+  Alert,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { SymbolView } from 'expo-symbols';
 import { useAppTheme } from '@/context/ThemeContext';
+import { useAuth } from '@/context/AuthContext';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
+import {
+  SearchInput,
+  FilterBar,
+  FilterItem,
+  Button,
+  EmptyState,
+} from '@/components/ui';
 import { Typography } from '@/constants/typography';
 import { Spacing, Radius } from '@/constants/spacing';
+import { BottomTabInset } from '@/constants/theme';
+import {
+  CurrencyCode,
+  DEFAULT_CURRENCY,
+  normalizeCurrencyCode,
+  CURRENCIES,
+} from '@/utils/currency';
+import {
+  Bill,
+  BillFilterKey,
+  BillSortKey,
+  billService,
+  calculateBillTotals,
+  filterAndSortBills,
+  BillCard,
+  BillSummaryCard,
+  BillFormModal,
+  BillDetailsModal,
+} from '@/features/bills';
+
+const CATEGORIES = ['All', 'Finance', 'Home', 'Personal', 'Work', 'Health', 'Education'];
+
+interface SortOption {
+  key: BillSortKey;
+  label: string;
+}
+
+const SORT_OPTIONS: SortOption[] = [
+  { key: 'dueDate', label: 'Earliest Due' },
+  { key: '-dueDate', label: 'Latest Due' },
+  { key: '-amount', label: 'Highest Amount' },
+  { key: 'amount', label: 'Lowest Amount' },
+];
 
 export default function BillsScreen() {
-  const { colors } = useAppTheme();
+  const { colors, isDark } = useAppTheme();
+  const { user } = useAuth();
+
+  // Data state
+  const [bills, setBills] = useState<Bill[]>([]);
+  const [rates, setRates] = useState<Record<string, number>>({});
+  const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
+  const [error, setError] = useState<string | null>(null);
+
+  // Filter & Search state
+  const [activeFilter, setActiveFilter] = useState<BillFilterKey>('all');
+  const [selectedCategory, setSelectedCategory] = useState<string>('All');
+  const [searchQuery, setSearchQuery] = useState<string>('');
+  const [activeSort, setActiveSort] = useState<BillSortKey>('dueDate');
+  const [showSortPicker, setShowSortPicker] = useState<boolean>(false);
+
+  // Modal states
+  const [isFormOpen, setIsFormOpen] = useState<boolean>(false);
+  const [editingBill, setEditingBill] = useState<Bill | null>(null);
+  const [selectedBillForDetails, setSelectedBillForDetails] = useState<Bill | null>(null);
+  const [actionLoadingBillId, setActionLoadingBillId] = useState<string | null>(null);
+
+  // User preferred currency
+  const preferredCurrency = normalizeCurrencyCode(user?.preferredCurrency || DEFAULT_CURRENCY);
+  const currencyMeta = CURRENCIES[preferredCurrency];
+
+  // Load bills and currency exchange rates
+  const loadData = useCallback(async (isSilent = false) => {
+    try {
+      if (!isSilent) setIsLoading(true);
+      setError(null);
+
+      const [billsResponse, ratesResponse] = await Promise.allSettled([
+        billService.fetchBills({ limit: 300 }),
+        billService.fetchRates(),
+      ]);
+
+      if (billsResponse.status === 'fulfilled') {
+        const fetchedBills = billsResponse.value?.bills || [];
+        setBills(fetchedBills);
+      } else {
+        throw new Error('Failed to load bills.');
+      }
+
+      if (ratesResponse.status === 'fulfilled') {
+        setRates(ratesResponse.value?.rates || {});
+      }
+    } catch (err: any) {
+      console.warn('Error loading bills:', err);
+      setError(err?.message || 'Unable to connect to server. Please try again.');
+    } finally {
+      setIsLoading(false);
+      setIsRefreshing(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
+
+  const handleRefresh = useCallback(() => {
+    setIsRefreshing(true);
+    loadData(true);
+  }, [loadData]);
+
+  // Derived calculations
+  const totals = useMemo(() => {
+    return calculateBillTotals(bills, preferredCurrency, rates);
+  }, [bills, preferredCurrency, rates]);
+
+  const filteredBills = useMemo(() => {
+    return filterAndSortBills(
+      bills,
+      activeFilter,
+      searchQuery,
+      activeSort,
+      selectedCategory
+    );
+  }, [bills, activeFilter, searchQuery, activeSort, selectedCategory]);
+
+  // Status Filter Tabs with dynamic counters
+  const filterItems: FilterItem<BillFilterKey>[] = useMemo(
+    () => [
+      { value: 'all', label: 'All', count: totals.totalBillsCount },
+      { value: 'upcoming', label: 'Upcoming', count: totals.upcomingCount },
+      { value: 'paid', label: 'Paid', count: totals.paidCount },
+      { value: 'overdue', label: 'Overdue', count: totals.overdueCount },
+    ],
+    [totals]
+  );
+
+  // Toggle Mark as Paid / Unpaid
+  const handleTogglePaid = async (bill: Bill) => {
+    const isPaid = bill.paymentStatus === 'paid' || bill.status === 'paid';
+    setActionLoadingBillId(bill._id);
+
+    try {
+      if (isPaid) {
+        const res = await billService.markBillUnpaid(bill._id);
+        const updated = res.bill;
+        setBills((prev) => prev.map((b) => (b._id === bill._id ? updated : b)));
+        if (selectedBillForDetails?._id === bill._id) {
+          setSelectedBillForDetails(updated);
+        }
+      } else {
+        const res = await billService.markBillPaid(bill._id);
+        const updated = res.bill;
+        setBills((prev) => prev.map((b) => (b._id === bill._id ? updated : b)));
+        if (selectedBillForDetails?._id === bill._id) {
+          setSelectedBillForDetails(updated);
+        }
+      }
+    } catch (err: any) {
+      Alert.alert(
+        'Action Failed',
+        err?.message || 'Could not update bill payment status. Please try again.'
+      );
+    } finally {
+      setActionLoadingBillId(null);
+    }
+  };
+
+  // Submit Create or Edit form
+  const handleFormSubmit = async (billData: Partial<Bill>) => {
+    if (editingBill) {
+      const res = await billService.updateBill(editingBill._id, billData);
+      setBills((prev) => prev.map((b) => (b._id === editingBill._id ? res.bill : b)));
+      if (selectedBillForDetails?._id === editingBill._id) {
+        setSelectedBillForDetails(res.bill);
+      }
+      setEditingBill(null);
+    } else {
+      const res = await billService.createBill(billData);
+      setBills((prev) => [res.bill, ...prev]);
+    }
+  };
+
+  // Delete Bill
+  const handleDeleteBill = async (billId: string) => {
+    await billService.deleteBill(billId);
+    setBills((prev) => prev.filter((b) => b._id !== billId));
+    if (selectedBillForDetails?._id === billId) {
+      setSelectedBillForDetails(null);
+    }
+  };
+
+  // Open Form in Create Mode
+  const handleOpenCreateModal = () => {
+    setEditingBill(null);
+    setIsFormOpen(true);
+  };
+
+  // Open Form in Edit Mode
+  const handleOpenEditModal = (bill: Bill) => {
+    setEditingBill(bill);
+    setIsFormOpen(true);
+  };
+
+  // Reset all filters
+  const handleResetFilters = () => {
+    setActiveFilter('all');
+    setSelectedCategory('All');
+    setSearchQuery('');
+  };
+
+  const currentSortLabel = SORT_OPTIONS.find((s) => s.key === activeSort)?.label || 'Sort';
 
   return (
     <ThemedView style={styles.container}>
-      <SafeAreaView style={styles.safeArea}>
+      <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
+        {/* Header */}
         <View style={styles.header}>
-          <ThemedText style={[styles.title, { color: colors.text }]}>Bills & Payments</ThemedText>
-          <ThemedText style={[styles.subtitle, { color: colors.textSecondary }]}>
-            INR-aware payment tracking and recurring subscriptions
-          </ThemedText>
+          <View style={styles.headerTitleCol}>
+            <ThemedText style={[styles.title, { color: colors.text }]}>
+              Bills & Payments
+            </ThemedText>
+            <View style={styles.currencyBadge}>
+              <ThemedText style={[styles.subtitle, { color: colors.textSecondary }]}>
+                Tracking in {currencyMeta.name} ({currencyMeta.symbol})
+              </ThemedText>
+            </View>
+          </View>
+
+          <Button
+            variant="primary"
+            size="sm"
+            onPress={handleOpenCreateModal}
+            icon={
+              <SymbolView
+                name={{ ios: 'plus', android: 'add', web: 'add' }}
+                size={16}
+                tintColor="#FFFFFF"
+              />
+            }
+          >
+            Add Bill
+          </Button>
         </View>
 
-        <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-          <SymbolView
-            name={{ ios: 'creditcard', android: 'receipt_long', web: 'receipt_long' }}
-            size={40}
-            tintColor={colors.primary}
-          />
-          <ThemedText style={[styles.cardTitle, { color: colors.text }]}>
-            Bills Management
-          </ThemedText>
-          <ThemedText style={[styles.cardDesc, { color: colors.textSecondary }]}>
-            Track upcoming utilities, credit cards, rent, and recurring subscriptions.
-          </ThemedText>
-        </View>
+        {/* Scrollable Content */}
+        <ScrollView
+          style={styles.scrollArea}
+          contentContainerStyle={[
+            styles.scrollContent,
+            { paddingBottom: BottomTabInset + Spacing.eight },
+          ]}
+          showsVerticalScrollIndicator={false}
+          refreshControl={
+            <RefreshControl
+              refreshing={isRefreshing}
+              onRefresh={handleRefresh}
+              colors={[colors.primary]}
+              tintColor={colors.primary}
+            />
+          }
+        >
+          {/* Summary Dashboard Card */}
+          <BillSummaryCard totals={totals} preferredCurrency={preferredCurrency} />
+
+          {/* Search Bar & Sort Toggle Row */}
+          <View style={styles.searchSortRow}>
+            <View style={styles.searchWrapper}>
+              <SearchInput
+                value={searchQuery}
+                onChangeText={setSearchQuery}
+                placeholder="Search bills, providers..."
+              />
+            </View>
+
+            <Pressable
+              onPress={() => setShowSortPicker((prev) => !prev)}
+              style={[
+                styles.sortButton,
+                {
+                  backgroundColor: showSortPicker ? colors.primary : colors.surface,
+                  borderColor: showSortPicker ? colors.primary : colors.border,
+                },
+              ]}
+              accessibilityRole="button"
+              accessibilityLabel={`Sort by: ${currentSortLabel}`}
+            >
+              <SymbolView
+                name={{
+                  ios: 'arrow.up.arrow.down',
+                  android: 'sort',
+                  web: 'sort',
+                }}
+                size={16}
+                tintColor={showSortPicker ? '#FFFFFF' : colors.text}
+              />
+            </Pressable>
+          </View>
+
+          {/* Sort Options Tray (When opened) */}
+          {showSortPicker && (
+            <View
+              style={[
+                styles.sortTray,
+                {
+                  backgroundColor: isDark ? colors.surfaceSecondary : '#F8FAFC',
+                  borderColor: colors.border,
+                },
+              ]}
+            >
+              <ThemedText style={[styles.sortTrayTitle, { color: colors.textSecondary }]}>
+                Sort Bills By
+              </ThemedText>
+              <View style={styles.sortOptionsGrid}>
+                {SORT_OPTIONS.map((opt) => {
+                  const isSelected = activeSort === opt.key;
+                  return (
+                    <Pressable
+                      key={opt.key}
+                      onPress={() => {
+                        setActiveSort(opt.key);
+                        setShowSortPicker(false);
+                      }}
+                      style={[
+                        styles.sortOptionChip,
+                        {
+                          backgroundColor: isSelected
+                            ? isDark
+                              ? colors.primary
+                              : '#168F91'
+                            : isDark
+                            ? 'rgba(255, 255, 255, 0.05)'
+                            : '#FFFFFF',
+                          borderColor: isSelected ? colors.primary : colors.border,
+                        },
+                      ]}
+                    >
+                      <ThemedText
+                        style={[
+                          styles.sortOptionText,
+                          {
+                            color: isSelected ? '#FFFFFF' : colors.text,
+                            fontWeight: isSelected
+                              ? Typography.fontWeight.semibold
+                              : Typography.fontWeight.normal,
+                          },
+                        ]}
+                      >
+                        {opt.label}
+                      </ThemedText>
+                    </Pressable>
+                  );
+                })}
+              </View>
+            </View>
+          )}
+
+          {/* Status Tabs Filter */}
+          <View style={styles.filterSection}>
+            <FilterBar
+              items={filterItems}
+              selected={activeFilter}
+              onSelect={setActiveFilter}
+            />
+          </View>
+
+          {/* Category Chip Selector */}
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.categoryScroll}
+          >
+            {CATEGORIES.map((cat) => {
+              const isSelected = selectedCategory === cat;
+              return (
+                <Pressable
+                  key={cat}
+                  onPress={() => setSelectedCategory(cat)}
+                  style={[
+                    styles.categoryChip,
+                    {
+                      backgroundColor: isSelected
+                        ? isDark
+                          ? 'rgba(22, 143, 145, 0.25)'
+                          : '#D3EAE7'
+                        : isDark
+                        ? 'rgba(255, 255, 255, 0.04)'
+                        : '#F1F5F9',
+                      borderColor: isSelected ? colors.primary : 'transparent',
+                    },
+                  ]}
+                  accessibilityRole="button"
+                  accessibilityState={{ selected: isSelected }}
+                >
+                  <ThemedText
+                    style={[
+                      styles.categoryChipText,
+                      {
+                        color: isSelected ? colors.primary : colors.textSecondary,
+                        fontWeight: isSelected
+                          ? Typography.fontWeight.semibold
+                          : Typography.fontWeight.normal,
+                      },
+                    ]}
+                  >
+                    {cat}
+                  </ThemedText>
+                </Pressable>
+              );
+            })}
+          </ScrollView>
+
+          {/* Loading Skeleton / State */}
+          {isLoading && !isRefreshing ? (
+            <View style={styles.loadingContainer}>
+              <ActivityIndicator size="large" color={colors.primary} />
+              <ThemedText style={[styles.loadingText, { color: colors.textSecondary }]}>
+                Loading your bills & payment status...
+              </ThemedText>
+            </View>
+          ) : error ? (
+            /* Error State */
+            <EmptyState
+              icon={
+                <SymbolView
+                  name={{
+                    ios: 'exclamationmark.triangle',
+                    android: 'warning',
+                    web: 'warning',
+                  }}
+                  size={36}
+                  tintColor={colors.notification || '#EF4444'}
+                />
+              }
+              title="Unable to Load Bills"
+              description={error}
+              actionLabel="Retry"
+              onAction={() => loadData(false)}
+            />
+          ) : bills.length === 0 ? (
+            /* Empty State: No Bills Added */
+            <EmptyState
+              icon={
+                <SymbolView
+                  name={{
+                    ios: 'receipt',
+                    android: 'receipt_long',
+                    web: 'receipt_long',
+                  }}
+                  size={40}
+                  tintColor={colors.primary}
+                />
+              }
+              title="No bills or obligations"
+              description="Keep track of recurring utilities, subscriptions, credit cards, and rent in one calm place."
+              actionLabel="Add Your First Bill"
+              onAction={handleOpenCreateModal}
+            />
+          ) : filteredBills.length === 0 ? (
+            /* Empty State: Filters Matched Nothing */
+            <EmptyState
+              icon={
+                <SymbolView
+                  name={{
+                    ios: 'line.3.horizontal.decrease.circle',
+                    android: 'filter_alt_off',
+                    web: 'filter_alt_off',
+                  }}
+                  size={36}
+                  tintColor={colors.textSecondary}
+                />
+              }
+              title="No matching bills"
+              description="We couldn't find any bills matching your current search or filter criteria."
+              actionLabel="Reset Filters"
+              onAction={handleResetFilters}
+            />
+          ) : (
+            /* Bills List */
+            <View style={styles.billsList}>
+              <View style={styles.listHeaderRow}>
+                <ThemedText style={[styles.listCountText, { color: colors.textSecondary }]}>
+                  Showing {filteredBills.length} of {bills.length} bills
+                </ThemedText>
+              </View>
+
+              {filteredBills.map((bill) => (
+                <BillCard
+                  key={bill._id}
+                  bill={bill}
+                  onPress={(b) => setSelectedBillForDetails(b)}
+                  onTogglePaid={handleTogglePaid}
+                  isActionLoading={actionLoadingBillId === bill._id}
+                />
+              ))}
+            </View>
+          )}
+        </ScrollView>
       </SafeAreaView>
+
+      {/* Create & Edit Modal Sheet */}
+      <BillFormModal
+        isOpen={isFormOpen}
+        onClose={() => {
+          setIsFormOpen(false);
+          setEditingBill(null);
+        }}
+        onSubmit={handleFormSubmit}
+        bill={editingBill}
+        defaultCurrency={preferredCurrency}
+      />
+
+      {/* Bill Details Inspection Modal Sheet */}
+      <BillDetailsModal
+        isOpen={!!selectedBillForDetails}
+        onClose={() => setSelectedBillForDetails(null)}
+        bill={selectedBillForDetails}
+        onEdit={handleOpenEditModal}
+        onDelete={handleDeleteBill}
+        onTogglePaid={handleTogglePaid}
+        preferredCurrency={preferredCurrency}
+        rates={rates}
+        isActionLoading={actionLoadingBillId === selectedBillForDetails?._id}
+      />
     </ThemedView>
   );
 }
@@ -49,37 +557,116 @@ const styles = StyleSheet.create({
   },
   safeArea: {
     flex: 1,
-    padding: Spacing.four,
   },
   header: {
-    marginBottom: Spacing.six,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: Spacing.four,
     paddingTop: Spacing.two,
+    paddingBottom: Spacing.three,
+  },
+  headerTitleCol: {
+    flex: 1,
+    marginRight: Spacing.three,
   },
   title: {
-    fontSize: Typography.fontSize['3xl'],
+    fontSize: Typography.fontSize['2xl'],
     fontFamily: Typography.fontFamilies.editorial,
     fontWeight: Typography.fontWeight.bold,
   },
   subtitle: {
-    fontSize: Typography.fontSize.sm,
-    marginTop: 4,
+    fontSize: Typography.fontSize.xs,
+    marginTop: 2,
   },
-  card: {
-    padding: Spacing.six,
-    borderRadius: Radius.xl,
-    borderWidth: 1,
+  currencyBadge: {
+    flexDirection: 'row',
     alignItems: 'center',
-    marginTop: Spacing.four,
   },
-  cardTitle: {
-    fontSize: Typography.fontSize.lg,
+  scrollArea: {
+    flex: 1,
+  },
+  scrollContent: {
+    paddingHorizontal: Spacing.four,
+    gap: Spacing.four,
+  },
+  searchSortRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.two,
+  },
+  searchWrapper: {
+    flex: 1,
+  },
+  sortButton: {
+    width: 44,
+    height: 44,
+    borderRadius: Radius.md,
+    borderWidth: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  sortTray: {
+    padding: Spacing.three,
+    borderRadius: Radius.lg,
+    borderWidth: 1,
+    gap: Spacing.two,
+  },
+  sortTrayTitle: {
+    fontSize: Typography.fontSize.xs,
     fontWeight: Typography.fontWeight.semibold,
-    marginTop: Spacing.three,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
   },
-  cardDesc: {
+  sortOptionsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: Spacing.two,
+  },
+  sortOptionChip: {
+    paddingHorizontal: Spacing.three,
+    paddingVertical: 6,
+    borderRadius: Radius.full,
+    borderWidth: 1,
+  },
+  sortOptionText: {
+    fontSize: Typography.fontSize.xs,
+  },
+  filterSection: {
+    marginTop: -Spacing.one,
+  },
+  categoryScroll: {
+    gap: Spacing.two,
+    paddingVertical: Spacing.one,
+  },
+  categoryChip: {
+    paddingHorizontal: Spacing.three,
+    paddingVertical: 6,
+    borderRadius: Radius.full,
+    borderWidth: 1,
+  },
+  categoryChipText: {
+    fontSize: Typography.fontSize.xs,
+  },
+  billsList: {
+    gap: Spacing.three,
+  },
+  listHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: Spacing.one,
+  },
+  listCountText: {
+    fontSize: Typography.fontSize.xs,
+  },
+  loadingContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: Spacing.ten,
+    gap: Spacing.three,
+  },
+  loadingText: {
     fontSize: Typography.fontSize.sm,
-    textAlign: 'center',
-    marginTop: Spacing.one,
-    maxWidth: 280,
   },
 });

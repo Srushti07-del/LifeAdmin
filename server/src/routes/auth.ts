@@ -1,11 +1,18 @@
 import { Router, Request, Response } from 'express';
 import { body, validationResult } from 'express-validator';
-import { randomBytes, createHash } from 'crypto';
+import { randomUUID, randomBytes, createHash } from 'crypto';
 import bcrypt from 'bcryptjs';
 import rateLimit from 'express-rate-limit';
 import User from '../models/User';
+import Task from '../models/Task';
+import Bill from '../models/Bill';
+import Appointment from '../models/Appointment';
+import Reminder from '../models/Reminder';
+import CalendarEvent from '../models/CalendarEvent';
+import DocumentModel from '../models/Document';
 import { authenticate, generateToken } from '../middleware/auth';
 import config from '../config';
+import { seedDemoData } from '../utils/demoSeed';
 import { sendPasswordResetEmail, isEmailConfigured } from '../services/email';
 import { generatePasswordResetUrl } from '../services/passwordResetUrl';
 
@@ -70,6 +77,12 @@ router.post(
           subscriptionTier: user.subscriptionTier,
           preferredCurrency: user.preferredCurrency,
           companion: user.companion,
+          onboardingCompleted: user.onboardingCompleted,
+          onboardingStep: user.onboardingStep,
+          notificationTypes: user.notificationTypes,
+          emailReminderIntervals: user.emailReminderIntervals,
+          timezone: user.timezone,
+          isDemo: user.isDemo,
         },
       });
     } catch (error: any) {
@@ -132,6 +145,12 @@ router.post(
           subscriptionTier: user.subscriptionTier,
           preferredCurrency: user.preferredCurrency,
           companion: user.companion,
+          onboardingCompleted: user.onboardingCompleted,
+          onboardingStep: user.onboardingStep,
+          notificationTypes: user.notificationTypes,
+          emailReminderIntervals: user.emailReminderIntervals,
+          timezone: user.timezone,
+          isDemo: user.isDemo,
         },
       });
     } catch (error: any) {
@@ -147,28 +166,31 @@ router.post(
 router.get('/me', authenticate, async (req: Request, res: Response): Promise<void> => {
   try {
     const user = req.user!;
-      res.json({
-        user: {
-          id: user._id,
-          name: user.name,
-          email: user.email,
-          profilePicture: user.profilePicture,
-          theme: user.theme,
-          notificationsEnabled: user.notificationsEnabled,
-          notificationTypes: user.notificationTypes,
-          defaultReminderTiming: user.defaultReminderTiming,
-          quietHoursStart: user.quietHoursStart,
-          quietHoursEnd: user.quietHoursEnd,
-          categories: user.categories,
-          aiPreferences: user.aiPreferences,
-          subscriptionTier: user.subscriptionTier,
-          preferredCurrency: user.preferredCurrency,
-          companion: user.companion,
-          onboardingCompleted: user.onboardingCompleted,
-          onboardingStep: user.onboardingStep,
-          createdAt: user.createdAt,
-        },
-      });
+    res.json({
+      user: {
+        id: user._id,
+        name: user.name,
+        email: user.email,
+        profilePicture: user.profilePicture,
+        theme: user.theme,
+        notificationsEnabled: user.notificationsEnabled,
+        notificationTypes: user.notificationTypes,
+        defaultReminderTiming: user.defaultReminderTiming,
+        quietHoursStart: user.quietHoursStart,
+        quietHoursEnd: user.quietHoursEnd,
+        categories: user.categories,
+        aiPreferences: user.aiPreferences,
+        subscriptionTier: user.subscriptionTier,
+        preferredCurrency: user.preferredCurrency,
+        companion: user.companion,
+        onboardingCompleted: user.onboardingCompleted,
+        onboardingStep: user.onboardingStep,
+        emailReminderIntervals: user.emailReminderIntervals,
+        timezone: user.timezone,
+        isDemo: user.isDemo,
+        createdAt: user.createdAt,
+      },
+    });
   } catch (error) {
     console.error('Get user error:', error);
     res.status(500).json({ message: 'Failed to get user information' });
@@ -223,12 +245,20 @@ router.put(
           profilePicture: user.profilePicture,
           theme: user.theme,
           notificationsEnabled: user.notificationsEnabled,
+          notificationTypes: user.notificationTypes,
           defaultReminderTiming: user.defaultReminderTiming,
           quietHoursStart: user.quietHoursStart,
           quietHoursEnd: user.quietHoursEnd,
           categories: user.categories,
           aiPreferences: user.aiPreferences,
           subscriptionTier: user.subscriptionTier,
+          preferredCurrency: user.preferredCurrency,
+          companion: user.companion,
+          onboardingCompleted: user.onboardingCompleted,
+          onboardingStep: user.onboardingStep,
+          emailReminderIntervals: user.emailReminderIntervals,
+          timezone: user.timezone,
+          isDemo: user.isDemo,
         },
       });
     } catch (error) {
@@ -238,6 +268,97 @@ router.put(
   }
 );
 
+
+// POST /api/auth/guest — Start a demo/guest session (ephemeral user + seeded data)
+router.post('/guest', async (_req: Request, res: Response): Promise<void> => {
+  try {
+    const guestEmail = `guest_${randomUUID()}@lifeadmin.demo`;
+    const demoExpiresAt = new Date(Date.now() + 2 * 60 * 60 * 1000); // 2 hours
+
+    const user = await User.create({
+      name: 'Demo Guest',
+      email: guestEmail,
+      authProvider: 'local',
+      isDemo: true,
+      demoExpiresAt,
+      onboardingCompleted: true,
+      categories: ['Personal', 'Work', 'Finance', 'Health', 'Education', 'Home'],
+      companion: {
+        activeId: 'aura',
+        customName: 'Aura',
+        xp: 380,
+        level: 3,
+        growthStage: 'Bloom',
+        streakDays: 4,
+        lastActiveDate: new Date().toISOString().split('T')[0],
+      },
+    });
+
+    // Seed all demo data under this user's isolated userId
+    await seedDemoData(user._id);
+
+    // Short-lived 2-hour token — same JWT format as normal login
+    const token = generateToken(user._id.toString(), '2h');
+
+    res.status(201).json({
+      message: 'Demo session started',
+      token,
+      user: {
+        id: user._id,
+        name: user.name,
+        email: user.email,
+        profilePicture: user.profilePicture,
+        theme: user.theme,
+        notificationsEnabled: user.notificationsEnabled,
+        defaultReminderTiming: user.defaultReminderTiming,
+        categories: user.categories,
+        aiPreferences: user.aiPreferences,
+        subscriptionTier: user.subscriptionTier,
+        preferredCurrency: user.preferredCurrency,
+        companion: user.companion,
+        onboardingCompleted: user.onboardingCompleted,
+        isDemo: true,
+      },
+    });
+  } catch (error: any) {
+    console.error('Guest session error:', error);
+    const isDev = config.nodeEnv === 'development';
+    res.status(500).json({
+      message: isDev
+        ? (error?.message || 'Failed to start demo session')
+        : 'Failed to start demo session',
+    });
+  }
+});
+
+// DELETE /api/auth/guest — End a demo/guest session and purge ephemeral data
+router.delete('/guest', authenticate, async (req: Request, res: Response): Promise<void> => {
+  try {
+    const user = req.user!;
+    if (!user.isDemo) {
+      res.status(403).json({ message: 'Not a demo session' });
+      return;
+    }
+
+    const userId = user._id;
+
+    // Delete all data scoped to this demo user (in parallel for speed)
+    await Promise.all([
+      Task.deleteMany({ userId }),
+      Bill.deleteMany({ userId }),
+      Appointment.deleteMany({ userId }),
+      Reminder.deleteMany({ userId }),
+      CalendarEvent.deleteMany({ userId }),
+      DocumentModel.deleteMany({ userId }),
+      User.findByIdAndDelete(userId),
+    ]);
+
+    res.json({ message: 'Demo session ended and data purged' });
+  } catch (error) {
+    console.error('Guest cleanup error:', error);
+    res.status(500).json({ message: 'Failed to end demo session' });
+  }
+});
 
 // Rate limiter for password reset requests (5 per 15 minutes per IP)
 const forgotPasswordLimiter = rateLimit({
@@ -277,7 +398,7 @@ router.post(
       // Look up the user without revealing whether the account exists
       const user = await User.findOne({ email }).select('+password');
 
-      if (!user || user.authProvider !== 'local') {
+      if (!user || user.authProvider !== 'local' || user.isDemo) {
         // Generic response to prevent email enumeration
         res.json({ message: 'If an account exists for this email, a password reset link has been sent.' });
         return;

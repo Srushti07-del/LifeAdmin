@@ -18,9 +18,17 @@ export const Endpoints = {
     updateProfile: '/users/profile',
     updateSettings: '/users/settings',
     updateCompanion: '/users/companion',
+    exportData: '/users/export',
     deleteAccount: '/users/account',
     forgotPassword: '/auth/forgot-password',
     resetPassword: (token: string) => `/auth/reset-password/${encodeURIComponent(token)}`,
+  },
+
+  // Onboarding (server/src/routes/onboarding.ts)
+  onboarding: {
+    status: '/onboarding/status',
+    progress: '/onboarding/progress',
+    complete: '/onboarding/complete',
   },
 
   // Dashboard (server/src/routes/dashboard.ts)
@@ -45,6 +53,12 @@ export const Endpoints = {
     update: (id: string) => `/bills/${id}`,
     delete: (id: string) => `/bills/${id}`,
     pay: (id: string) => `/bills/${id}/pay`,
+    unpay: (id: string) => `/bills/${id}/unpay`,
+  },
+
+  // Currency & Exchange Rates (server/src/routes/currency.ts)
+  currency: {
+    rates: '/currency/rates',
   },
 
   // Appointments (server/src/routes/appointments.ts)
@@ -64,6 +78,8 @@ export const Endpoints = {
     update: (id: string) => `/reminders/${id}`,
     delete: (id: string) => `/reminders/${id}`,
     acknowledge: (id: string) => `/reminders/${id}/acknowledge`,
+    complete: (id: string) => `/reminders/${id}/complete`,
+    pending: (id: string) => `/reminders/${id}/pending`,
   },
 
   // Documents (server/src/routes/documents.ts)
@@ -71,8 +87,11 @@ export const Endpoints = {
     list: '/documents',
     upload: '/documents/upload',
     getById: (id: string) => `/documents/${id}`,
+    update: (id: string) => `/documents/${id}`,
     delete: (id: string) => `/documents/${id}`,
     downloadUrl: (id: string) => `/documents/${id}/download`,
+    reExtract: (id: string) => `/documents/${id}/re-extract`,
+    createEntities: (id: string) => `/documents/${id}/create-entities`,
   },
 
   // Calendar (server/src/routes/calendar.ts)
@@ -93,7 +112,12 @@ export const Endpoints = {
   // AI Assistant (server/src/routes/ai.ts)
   ai: {
     chat: '/ai/chat',
+    conversations: '/ai/conversations',
+    conversationById: (id: string) => `/ai/conversations/${id}`,
     plan: '/ai/plan',
+    detect: '/ai/detect',
+    executeAction: '/ai/actions/execute',
+    acceptSuggestions: '/ai/accept-suggestions',
     extractDocument: '/ai/extract-document',
   },
 } as const;
