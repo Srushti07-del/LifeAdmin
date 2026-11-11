@@ -1,9 +1,10 @@
 import { Router, Request, Response } from 'express';
-import { authenticate } from '../middleware/auth';
+import { authenticate, enforceOnboarding } from '../middleware/auth';
 import { calculateDashboardOverview } from '../services/attention';
 
 const router = Router();
 router.use(authenticate);
+router.use(enforceOnboarding);
 
 // GET /api/dashboard — Prioritized overview of user responsibilities
 router.get('/', async (req: Request, res: Response): Promise<void> => {

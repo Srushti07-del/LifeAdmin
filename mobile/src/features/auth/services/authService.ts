@@ -90,6 +90,13 @@ export const authService = {
   },
 
   /**
+   * Mark onboarding as completed on the server
+   */
+  async completeOnboarding(): Promise<{ message: string; completed: boolean }> {
+    return apiClient.post<{ message: string; completed: boolean }>(Endpoints.onboarding.complete);
+  },
+
+  /**
    * Update user settings & preferences
    */
   async updateSettings(settings: {

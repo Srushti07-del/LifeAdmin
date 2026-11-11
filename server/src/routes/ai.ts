@@ -8,11 +8,12 @@ import Bill from '../models/Bill';
 import Appointment from '../models/Appointment';
 import Reminder from '../models/Reminder';
 import DocumentModel from '../models/Document';
-import { authenticate } from '../middleware/auth';
+import { authenticate, enforceOnboarding } from '../middleware/auth';
 import config from '../config';
 
 const router = Router();
 router.use(authenticate);
+router.use(enforceOnboarding);
 
 let geminiModel: any = null;
 if (config.geminiApiKey && process.env.NODE_ENV !== 'test' && process.env.DISABLE_AI_MODEL !== '1') {

@@ -116,8 +116,14 @@ export const onboardingService = {
       lastActiveDate: new Date().toISOString().split('T')[0],
     };
 
-    // 1. Sync settings and companion to backend for registered accounts
+    // 1. Sync onboarding completion and settings to backend for registered accounts
     if (!isGuest) {
+      try {
+        await authService.completeOnboarding();
+      } catch (onboardingError) {
+        console.warn('[OnboardingService] Could not mark onboarding completed on backend:', onboardingError);
+      }
+
       try {
         await authService.updateSettings({
           categories: finalPrefs.categories,

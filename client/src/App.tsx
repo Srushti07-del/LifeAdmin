@@ -4,6 +4,7 @@ import AppLayout from './components/AppLayout';
 import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
 import DashboardPage from './pages/DashboardPage';
+import OnboardingPage from './pages/OnboardingPage';
 import TasksPage from './pages/TasksPage';
 import BillsPage from './pages/BillsPage';
 import AppointmentsPage from './pages/AppointmentsPage';
@@ -18,7 +19,7 @@ import SettingsPage from './pages/SettingsPage';
 import { Loader2 } from 'lucide-react';
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
-  const { token, loading } = useAuth();
+  const { token, user, loading } = useAuth();
 
   if (loading) {
     return (
@@ -30,6 +31,11 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
 
   if (!token) {
     return <Navigate to="/login" replace />;
+  }
+
+  // If onboarding is incomplete, redirect to onboarding wizard
+  if (user && !user.onboardingCompleted) {
+    return <Navigate to="/onboarding" replace />;
   }
 
   return <>{children}</>;
@@ -47,6 +53,29 @@ function PublicOnlyRoute({ children }: { children: React.ReactNode }) {
   }
 
   if (token) {
+    return <Navigate to="/dashboard" replace />;
+  }
+
+  return <>{children}</>;
+}
+
+function OnboardingRequiredRoute({ children }: { children: React.ReactNode }) {
+  const { user, token, loading } = useAuth();
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-surface-50 dark:bg-[#101719] text-primary-600 dark:text-primary-400">
+        <Loader2 className="w-8 h-8 animate-spin" />
+      </div>
+    );
+  }
+
+  if (!token || !user) {
+    return <Navigate to="/login" replace />;
+  }
+
+  // If onboarding is already completed, redirect to dashboard
+  if (user.onboardingCompleted) {
     return <Navigate to="/dashboard" replace />;
   }
 
@@ -85,6 +114,16 @@ export default function App() {
           />
           <Route path="/reset-password" element={<ResetPasswordPage />} />
 
+          {/* Onboarding Route */}
+          <Route
+            path="/onboarding"
+            element={
+              <OnboardingRequiredRoute>
+                <OnboardingPage />
+              </OnboardingRequiredRoute>
+            }
+          />
+
           {/* Protected Application Routes */}
           <Route
             element={
@@ -120,4 +159,3 @@ export default function App() {
     </BrowserRouter>
   );
 }
-

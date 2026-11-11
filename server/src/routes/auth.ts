@@ -77,6 +77,12 @@ router.post(
           subscriptionTier: user.subscriptionTier,
           preferredCurrency: user.preferredCurrency,
           companion: user.companion,
+          onboardingCompleted: user.onboardingCompleted,
+          onboardingStep: user.onboardingStep,
+          notificationTypes: user.notificationTypes,
+          emailReminderIntervals: user.emailReminderIntervals,
+          timezone: user.timezone,
+          isDemo: user.isDemo,
         },
       });
     } catch (error: any) {
@@ -139,6 +145,12 @@ router.post(
           subscriptionTier: user.subscriptionTier,
           preferredCurrency: user.preferredCurrency,
           companion: user.companion,
+          onboardingCompleted: user.onboardingCompleted,
+          onboardingStep: user.onboardingStep,
+          notificationTypes: user.notificationTypes,
+          emailReminderIntervals: user.emailReminderIntervals,
+          timezone: user.timezone,
+          isDemo: user.isDemo,
         },
       });
     } catch (error: any) {
@@ -162,6 +174,7 @@ router.get('/me', authenticate, async (req: Request, res: Response): Promise<voi
         profilePicture: user.profilePicture,
         theme: user.theme,
         notificationsEnabled: user.notificationsEnabled,
+        notificationTypes: user.notificationTypes,
         defaultReminderTiming: user.defaultReminderTiming,
         quietHoursStart: user.quietHoursStart,
         quietHoursEnd: user.quietHoursEnd,
@@ -170,6 +183,10 @@ router.get('/me', authenticate, async (req: Request, res: Response): Promise<voi
         subscriptionTier: user.subscriptionTier,
         preferredCurrency: user.preferredCurrency,
         companion: user.companion,
+        onboardingCompleted: user.onboardingCompleted,
+        onboardingStep: user.onboardingStep,
+        emailReminderIntervals: user.emailReminderIntervals,
+        timezone: user.timezone,
         isDemo: user.isDemo,
         createdAt: user.createdAt,
       },
@@ -198,7 +215,7 @@ router.put(
       const allowedUpdates = [
         'name', 'profilePicture', 'theme', 'notificationsEnabled',
         'defaultReminderTiming', 'quietHoursStart', 'quietHoursEnd',
-        'categories', 'aiPreferences',
+        'categories', 'aiPreferences', 'notificationTypes',
       ];
 
       const updates: Record<string, unknown> = {};
@@ -228,12 +245,20 @@ router.put(
           profilePicture: user.profilePicture,
           theme: user.theme,
           notificationsEnabled: user.notificationsEnabled,
+          notificationTypes: user.notificationTypes,
           defaultReminderTiming: user.defaultReminderTiming,
           quietHoursStart: user.quietHoursStart,
           quietHoursEnd: user.quietHoursEnd,
           categories: user.categories,
           aiPreferences: user.aiPreferences,
           subscriptionTier: user.subscriptionTier,
+          preferredCurrency: user.preferredCurrency,
+          companion: user.companion,
+          onboardingCompleted: user.onboardingCompleted,
+          onboardingStep: user.onboardingStep,
+          emailReminderIntervals: user.emailReminderIntervals,
+          timezone: user.timezone,
+          isDemo: user.isDemo,
         },
       });
     } catch (error) {
@@ -256,6 +281,7 @@ router.post('/guest', async (_req: Request, res: Response): Promise<void> => {
       authProvider: 'local',
       isDemo: true,
       demoExpiresAt,
+      onboardingCompleted: true,
       categories: ['Personal', 'Work', 'Finance', 'Health', 'Education', 'Home'],
       companion: {
         activeId: 'aura',
@@ -290,6 +316,7 @@ router.post('/guest', async (_req: Request, res: Response): Promise<void> => {
         subscriptionTier: user.subscriptionTier,
         preferredCurrency: user.preferredCurrency,
         companion: user.companion,
+        onboardingCompleted: user.onboardingCompleted,
         isDemo: true,
       },
     });

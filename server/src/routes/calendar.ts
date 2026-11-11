@@ -7,10 +7,11 @@ import Bill from '../models/Bill';
 import Appointment from '../models/Appointment';
 import Reminder from '../models/Reminder';
 import DocumentModel from '../models/Document';
-import { authenticate } from '../middleware/auth';
+import { authenticate, enforceOnboarding } from '../middleware/auth';
 
 const router = Router();
 router.use(authenticate);
+router.use(enforceOnboarding);
 
 // GET /api/calendar/events — Unified calendar feed across all LifeAdmin modules
 router.get('/events', async (req: Request, res: Response): Promise<void> => {

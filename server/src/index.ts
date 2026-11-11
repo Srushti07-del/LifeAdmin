@@ -2,8 +2,9 @@ import http from 'http';
 import os from 'os';
 import app from './app';
 import config from './config';
-import connectDB, { disconnectDB } from './config/database';
+import connectDB, { disconnectDB, sanitizeMongoError } from './config/database';
 import { startReminderScheduler, stopReminderScheduler } from './services/reminderScheduler';
+import { startEmailNotificationScheduler, stopEmailNotificationScheduler } from './services/emailNotificationScheduler';
 import { migrateStaleDocumentExtractions } from './utils/demoSeed';
 import { getPublicWebBaseUrl } from './services/passwordResetUrl';
 
@@ -42,6 +43,9 @@ export const gracefulShutdown = async (signal: string): Promise<void> => {
 
   // Stop background reminder polling
   stopReminderScheduler();
+
+  // Stop email notification scheduler
+  stopEmailNotificationScheduler();
 
   // Safety timer to prevent hanging shutdown
   const forceExitTimeout = setTimeout(() => {
@@ -110,6 +114,7 @@ export const startServer = async (): Promise<http.Server | void> => {
     }
 
     startReminderScheduler();
+    startEmailNotificationScheduler();
 
     const host = process.env.HOST || (config.nodeEnv === 'development' ? '0.0.0.0' : undefined);
     const lanIp = getLanIp();
@@ -161,7 +166,8 @@ export const startServer = async (): Promise<http.Server | void> => {
 
     return server;
   } catch (error) {
-    console.error('Failed to start server:', error);
+    const safeError = sanitizeMongoError(error, config.mongodbUri);
+    console.error('Failed to start server:', safeError);
     process.exit(1);
   }
 };
@@ -169,7 +175,8 @@ export const startServer = async (): Promise<http.Server | void> => {
 // Prevent auto-starting in test environments
 if (process.env.NODE_ENV !== 'test' && config.nodeEnv !== 'test') {
   startServer().catch((err) => {
-    console.error('Fatal startup error:', err);
+    const safeError = sanitizeMongoError(err, config.mongodbUri);
+    console.error('Fatal startup error:', safeError);
     process.exit(1);
   });
 }

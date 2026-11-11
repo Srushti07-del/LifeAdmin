@@ -69,8 +69,7 @@ export type WidgetId =
   | 'schedule'
   | 'tasks'
   | 'bills'
-  | 'reminders'
-  | 'ai_briefing';
+  | 'reminders';
 
 interface WidgetConfig {
   id: WidgetId;
@@ -81,7 +80,6 @@ interface WidgetConfig {
 const DEFAULT_WIDGETS: WidgetConfig[] = [
   { id: 'needs_attention', label: 'Needs Attention (High Priority)', visible: true },
   { id: 'lifebuddy', label: 'LifeBuddy Companion', visible: true },
-  { id: 'ai_briefing', label: 'AI Daily Briefing', visible: true },
   { id: 'tasks', label: 'Upcoming Tasks', visible: true },
   { id: 'bills', label: 'Upcoming Bills & Expenses', visible: true },
   { id: 'schedule', label: 'Today & Upcoming Schedule', visible: true },
@@ -89,9 +87,9 @@ const DEFAULT_WIDGETS: WidgetConfig[] = [
 ];
 
 const PRESETS: Record<string, WidgetId[]> = {
-  standard: ['needs_attention', 'lifebuddy', 'ai_briefing', 'tasks', 'bills', 'schedule', 'reminders'],
-  focus: ['needs_attention', 'tasks', 'schedule', 'ai_briefing', 'reminders', 'lifebuddy', 'bills'],
-  finance: ['needs_attention', 'bills', 'ai_briefing', 'tasks', 'schedule', 'lifebuddy', 'reminders'],
+  standard: ['needs_attention', 'lifebuddy', 'tasks', 'bills', 'schedule', 'reminders'],
+  focus: ['needs_attention', 'tasks', 'schedule', 'reminders', 'lifebuddy', 'bills'],
+  finance: ['needs_attention', 'bills', 'tasks', 'schedule', 'lifebuddy', 'reminders'],
 };
 
 export default function DashboardPage() {
@@ -646,34 +644,6 @@ export default function DashboardPage() {
               <div className="mt-4 p-3 rounded-xl bg-primary-50 dark:bg-primary-500/10 border border-primary-200 dark:border-primary-500/20 text-xs text-surface-800 dark:text-surface-200 italic">
                 &ldquo;{activeCompanion.quote}&rdquo;
               </div>
-            </div>
-          )}
-
-          {/* AI PRODUCTIVITY BRIEFING WIDGET */}
-          {widgets.find((w) => w.id === 'ai_briefing')?.visible && (
-            <div className="bg-white dark:bg-surface-0 rounded-3xl p-6 border border-surface-200 dark:border-surface-700 shadow-card">
-              <div className="flex items-center gap-2 pb-3 border-b border-surface-200 dark:border-surface-700 mb-3">
-                <div className="w-8 h-8 rounded-xl bg-primary-50 dark:bg-primary-950/50 text-primary-600 dark:text-primary-400 border border-primary-200/50 dark:border-primary-800/50 flex items-center justify-center">
-                  <Sparkles size={16} />
-                </div>
-                <div>
-                  <h3 className="text-sm font-semibold text-surface-900 dark:text-surface-100">
-                    AI Daily Briefing
-                  </h3>
-                  <p className="text-[11px] text-surface-600 dark:text-surface-400">Contextual morning summary</p>
-                </div>
-              </div>
-              <p className="text-xs text-surface-800 dark:text-surface-300 leading-relaxed font-normal">
-                {data && data.stats.overdueCount > 0
-                  ? `You have ${data.stats.overdueCount} overdue item requiring attention. Prioritize clearing this before taking on new tasks.`
-                  : "All current tasks are neatly on track. Consider reviewing upcoming bill renewals for the week ahead."}
-              </p>
-              <button
-                onClick={() => navigate('/ai')}
-                className="mt-3 text-xs font-semibold text-primary-600 dark:text-primary-400 hover:underline flex items-center gap-1"
-              >
-                Open Planning Assistant <ChevronRight size={14} />
-              </button>
             </div>
           )}
 

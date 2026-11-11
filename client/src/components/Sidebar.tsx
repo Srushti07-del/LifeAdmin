@@ -41,18 +41,14 @@ const navItems = [
 ];
 
 export default function Sidebar({ collapsed, onToggleCollapse, onOpenAI }: SidebarProps) {
-  const { user, logout, exitDemo, setTheme } = useAuth();
+  const { user, logout, setTheme } = useAuth();
   const navigate = useNavigate();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [showCreateMenu, setShowCreateMenu] = useState(false);
   const isDark = typeof document !== 'undefined' && document.documentElement.classList.contains('dark');
 
   const handleLogout = async () => {
-    if (user?.isDemo) {
-      await exitDemo();
-    } else {
-      logout();
-    }
+    await logout();
     navigate('/login');
   };
 
@@ -275,14 +271,9 @@ export default function Sidebar({ collapsed, onToggleCollapse, onOpenAI }: Sideb
                   <p className="text-xs font-semibold text-surface-900 dark:text-surface-100 truncate">
                     {user?.name || 'User'}
                   </p>
-                  {user?.isDemo && (
-                    <span className="text-[9px] px-1.5 py-0.2 rounded-full bg-amber-100 dark:bg-[#54390E] text-amber-900 dark:text-[#FFE8AD] font-bold uppercase tracking-wider border border-amber-200/60 dark:border-amber-700/60">
-                      Demo
-                    </span>
-                  )}
                 </div>
                 <p className="text-[10px] text-surface-600 dark:text-surface-300 truncate font-medium">
-                  {user?.isDemo ? 'Guest Session' : user?.email}
+                  {user?.email}
                 </p>
               </div>
             )}
@@ -290,7 +281,7 @@ export default function Sidebar({ collapsed, onToggleCollapse, onOpenAI }: Sideb
               <button
                 onClick={handleLogout}
                 className="p-1.5 rounded-lg text-surface-500 hover:text-danger-600 hover:bg-danger-50 dark:text-surface-300 dark:hover:text-danger-300 dark:hover:bg-danger-950/40 transition-colors"
-                title={user?.isDemo ? 'Exit demo' : 'Log out'}
+                title="Log out"
               >
                 <LogOut size={15} />
               </button>
@@ -361,7 +352,7 @@ export default function Sidebar({ collapsed, onToggleCollapse, onOpenAI }: Sideb
                 className="flex items-center gap-3 w-full px-3.5 py-2 rounded-xl text-xs font-medium text-rose-700 dark:text-rose-300 hover:bg-rose-50 dark:hover:bg-[#5C2828]"
               >
                 <LogOut size={17} />
-                <span>{user?.isDemo ? 'Exit demo' : 'Log out'}</span>
+                <span>Log out</span>
               </button>
             </div>
           </div>

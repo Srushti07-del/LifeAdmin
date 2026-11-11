@@ -2,12 +2,13 @@ import { Router, Request, Response } from 'express';
 import { body, query, validationResult } from 'express-validator';
 import mongoose from 'mongoose';
 import Task from '../models/Task';
-import { authenticate } from '../middleware/auth';
+import { authenticate, enforceOnboarding } from '../middleware/auth';
 
 const router = Router();
 
 // All task routes require authentication
 router.use(authenticate);
+router.use(enforceOnboarding);
 
 // GET /api/tasks — List tasks with filtering
 router.get('/', async (req: Request, res: Response): Promise<void> => {

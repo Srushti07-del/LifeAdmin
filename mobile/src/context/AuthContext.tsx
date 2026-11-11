@@ -199,19 +199,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             if (res.user.companion) {
               await companionService.saveCompanionState(res.user.id, res.user.companion, false);
             }
-            await applyUserTheme(
-              res.user.id,
-              Boolean(res.user.isDemo),
-              res.user.theme,
-              true
-            );
-
             // Check onboarding completion status for hydrated session
             const isGuestUser = Boolean(res.user.isDemo);
-            const isCompleted = await onboardingService.isOnboardingCompleted(res.user.id, isGuestUser);
+            const isCompleted =
+              res.user.onboardingCompleted === true ||
+              (await onboardingService.isOnboardingCompleted(res.user.id, isGuestUser));
             if (isMounted) {
               setIsOnboardingCompleted(isCompleted);
             }
+            await applyUserTheme(
+              res.user.id,
+              isGuestUser,
+              res.user.theme,
+              true
+            );
           }
         } catch (fetchErr: any) {
           // If token is invalid or expired (401), clear the session

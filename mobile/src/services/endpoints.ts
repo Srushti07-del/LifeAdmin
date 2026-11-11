@@ -24,6 +24,13 @@ export const Endpoints = {
     resetPassword: (token: string) => `/auth/reset-password/${encodeURIComponent(token)}`,
   },
 
+  // Onboarding (server/src/routes/onboarding.ts)
+  onboarding: {
+    status: '/onboarding/status',
+    progress: '/onboarding/progress',
+    complete: '/onboarding/complete',
+  },
+
   // Dashboard (server/src/routes/dashboard.ts)
   dashboard: {
     overview: '/dashboard',

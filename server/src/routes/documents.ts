@@ -8,12 +8,13 @@ import DocumentModel from '../models/Document';
 import Task from '../models/Task';
 import Bill from '../models/Bill';
 import Reminder from '../models/Reminder';
-import { authenticate } from '../middleware/auth';
+import { authenticate, enforceOnboarding } from '../middleware/auth';
 import config from '../config';
 import { processDocumentExtraction, classifyDocumentFallback } from '../services/documentExtraction';
 
 const router = Router();
 router.use(authenticate);
+router.use(enforceOnboarding);
 
 // Configure multer storage
 const uploadDirPath = path.join(process.cwd(), config.uploadDir);

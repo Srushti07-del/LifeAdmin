@@ -182,7 +182,6 @@ export function LifeBuddyWidget({ onPressSanctuary }: LifeBuddyWidgetProps) {
             &ldquo;{activeCompanion.quote}&rdquo;
           </ThemedText>
         </View>
-
         {/* Ask LifeBuddy AI Action Trigger */}
         <Pressable
           onPress={(e) => {

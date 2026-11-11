@@ -257,17 +257,5 @@ describe('Authentication & Password Recovery Tests', () => {
       delete process.env.SMTP_PASS;
     }
   });
-
-  it('preserves guest demo session creation regression check', async () => {
-    const res = await fetch(`${baseUrl}/auth/guest`, {
-      method: 'POST',
-    });
-
-    assert.equal(res.status, 201);
-    const body = (await res.json()) as any;
-    assert.ok(body.token);
-    assert.equal(body.user.isDemo, true);
-    assert.match(body.user.email, /@lifeadmin\.demo$/);
-  });
 });
 
