@@ -161,6 +161,7 @@ const styles = StyleSheet.create({
   },
   textInput: {
     flex: 1,
+    minWidth: 0,
     height: '100%',
     fontFamily: Typography.fontFamilies.sans,
     fontSize: Typography.fontSize.sm,

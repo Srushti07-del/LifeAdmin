@@ -233,3 +233,15 @@ export function filterAndSortTasks(
     return PRIORITY_RANK[a.priority] - PRIORITY_RANK[b.priority];
   });
 }
+
+const BOARD_STAGE_ORDER: TaskStatus[] = ['todo', 'in_progress', 'completed'];
+
+/** Selects the first board stage containing tasks, falling back to 'todo' when empty. */
+export function getDefaultBoardStage(tasks: Task[]): TaskStatus {
+  for (const status of BOARD_STAGE_ORDER) {
+    if (tasks.some((task) => task.status === status)) {
+      return status;
+    }
+  }
+  return 'todo';
+}

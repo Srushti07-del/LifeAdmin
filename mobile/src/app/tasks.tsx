@@ -132,6 +132,15 @@ export default function TasksScreen() {
     [summary]
   );
 
+  const activeTasks = useMemo(
+    () => filteredTasks.filter((t) => t.status !== 'completed'),
+    [filteredTasks]
+  );
+  const doneTasks = useMemo(
+    () => filteredTasks.filter((t) => t.status === 'completed'),
+    [filteredTasks]
+  );
+
   const handleToggleComplete = async (task: Task) => {
     const nextStatus = getToggledCompletionStatus(task.status);
     await handleChangeStatus(task, nextStatus);
@@ -274,11 +283,7 @@ export default function TasksScreen() {
           />
 
           {/* Summary Overview */}
-          <TaskSummaryCard
-            metrics={summary}
-            activeFilter={statusFilter}
-            onSelectFilter={(next) => setStatusFilter(next)}
-          />
+          <TaskSummaryCard metrics={summary} />
 
           {/* Search & Sort Controls */}
           <View style={styles.searchRow}>
@@ -315,16 +320,17 @@ export default function TasksScreen() {
 
           {/* Status Filter Bar (for List mode; Board displays all stages) */}
           {viewMode === 'list' ? (
-            <FilterBar
-              items={filterItems}
-              selected={statusFilter}
-              onSelect={setStatusFilter}
-              style={styles.filterBar}
-            />
+            <View style={styles.filterBar}>
+              <FilterBar
+                items={filterItems}
+                selected={statusFilter}
+                onSelect={setStatusFilter}
+              />
+            </View>
           ) : null}
 
-          {/* Dynamic Category Filter Pills */}
-          {categories.length > 0 ? (
+          {/* Dynamic Category Filter Pills (only useful with 2+ categories) */}
+          {categories.length > 1 ? (
             <ScrollView
               horizontal
               showsHorizontalScrollIndicator={false}
@@ -443,14 +449,20 @@ export default function TasksScreen() {
             />
           ) : (
             <View style={styles.listSection}>
-              {filteredTasks.map((task) => (
-                <TaskCard
-                  key={task._id}
-                  task={task}
-                  onPress={setSelectedTask}
-                  onToggleComplete={handleToggleComplete}
-                  isUpdating={updatingTaskId === task._id}
-                />
+              {[...activeTasks, ...doneTasks].map((task, idx) => (
+                <React.Fragment key={task._id}>
+                  {activeTasks.length > 0 && idx === activeTasks.length ? (
+                    <ThemedText style={[styles.completedLabel, { color: colors.textMuted }]}>
+                      Completed · {doneTasks.length}
+                    </ThemedText>
+                  ) : null}
+                  <TaskCard
+                    task={task}
+                    onPress={setSelectedTask}
+                    onToggleComplete={handleToggleComplete}
+                    isUpdating={updatingTaskId === task._id}
+                  />
+                </React.Fragment>
               ))}
             </View>
           )}
@@ -520,11 +532,13 @@ const styles = StyleSheet.create({
   searchRow: {
     flexDirection: 'row',
     alignItems: 'center',
+    width: '100%',
     gap: Spacing.two,
     marginBottom: Spacing.two,
   },
   searchInput: {
     flex: 1,
+    minWidth: 0,
   },
   sortButton: {
     flexDirection: 'row',
@@ -584,5 +598,14 @@ const styles = StyleSheet.create({
   },
   listSection: {
     marginTop: Spacing.one,
+  },
+  completedLabel: {
+    fontFamily: Typography.fontFamilies.sansBold,
+    fontSize: 11,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    marginTop: Spacing.three,
+    marginBottom: Spacing.two,
+    paddingHorizontal: Spacing.one,
   },
 });

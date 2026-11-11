@@ -8,10 +8,12 @@ import {
   calculateTaskSummary,
   extractTaskCategories,
   filterAndSortTasks,
+  getDefaultBoardStage,
   getTaskUrgencyMeta,
   getToggledCompletionStatus,
   isTaskOverdue,
 } from '../features/tasks/services/taskCalculations.ts';
+import { getHorizontalOverflowState } from '../components/ui/scrollOverflow.ts';
 import { Task } from '../types/entities.ts';
 
 function makeTask(overrides: Partial<Task> = {}): Task {
@@ -104,6 +106,57 @@ describe('Task Summary, Filtering, and Sorting', () => {
     assert.strictEqual(getToggledCompletionStatus('todo'), 'completed');
     assert.strictEqual(getToggledCompletionStatus('in_progress'), 'completed');
     assert.strictEqual(getToggledCompletionStatus('completed'), 'todo');
+  });
+
+  it('selects the first populated board stage and falls back to todo when empty', () => {
+    assert.strictEqual(
+      getDefaultBoardStage([
+        makeTask({ _id: 'p1', status: 'in_progress' }),
+        makeTask({ _id: 'p2', status: 'completed' }),
+      ]),
+      'in_progress'
+    );
+
+    assert.strictEqual(
+      getDefaultBoardStage([makeTask({ _id: 'c1', status: 'completed' })]),
+      'completed'
+    );
+
+    assert.strictEqual(
+      getDefaultBoardStage([
+        makeTask({ _id: 't1', status: 'todo' }),
+        makeTask({ _id: 'p1', status: 'in_progress' }),
+      ]),
+      'todo'
+    );
+
+    assert.strictEqual(getDefaultBoardStage([]), 'todo');
+  });
+
+  it('tracks horizontal filter overflow and end-of-scroll reachability accurately', () => {
+    // At 360px viewport (~328px inner width), 440px filter strip overflows right
+    assert.deepStrictEqual(
+      getHorizontalOverflowState({ containerWidth: 328, contentWidth: 440, scrollX: 0 }),
+      { hasOverflow: true, canScrollLeft: false, canScrollRight: true }
+    );
+
+    // Mid-scroll shows both edges scrollable
+    assert.deepStrictEqual(
+      getHorizontalOverflowState({ containerWidth: 328, contentWidth: 440, scrollX: 50 }),
+      { hasOverflow: true, canScrollLeft: true, canScrollRight: true }
+    );
+
+    // Scrolled all the way to the right clears right overflow cue
+    assert.deepStrictEqual(
+      getHorizontalOverflowState({ containerWidth: 328, contentWidth: 440, scrollX: 112 }),
+      { hasOverflow: true, canScrollLeft: true, canScrollRight: false }
+    );
+
+    // Fits cleanly with no overflow cue needed
+    assert.deepStrictEqual(
+      getHorizontalOverflowState({ containerWidth: 328, contentWidth: 280, scrollX: 0 }),
+      { hasOverflow: false, canScrollLeft: false, canScrollRight: false }
+    );
   });
 });
 

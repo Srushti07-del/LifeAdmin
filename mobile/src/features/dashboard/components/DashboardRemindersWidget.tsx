@@ -206,11 +206,14 @@ const styles = StyleSheet.create({
     fontVariant: ['tabular-nums'],
   },
   emptyBox: {
+    flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: Spacing.three,
+    justifyContent: 'space-between',
+    paddingVertical: Spacing.one,
     gap: Spacing.two,
   },
   emptyText: {
+    flex: 1,
     fontFamily: Typography.fontFamilies.sans,
     fontSize: Typography.fontSize.xs,
   },

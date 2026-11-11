@@ -3,7 +3,7 @@
  * Mobile-adaptive workflow board (stage-segmented on phones, 3-column grid on tablets).
  */
 
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Pressable,
   StyleSheet,
@@ -17,7 +17,7 @@ import { createShadow } from '@/constants/shadows';
 import { Radius, Spacing } from '@/constants/spacing';
 import { Typography } from '@/constants/typography';
 import { Task, TaskStatus } from '../types';
-import { getTaskUrgencyMeta } from '../services/taskCalculations';
+import { getDefaultBoardStage, getTaskUrgencyMeta } from '../services/taskCalculations';
 
 export interface TaskBoardViewProps {
   tasks: Task[];
@@ -53,7 +53,21 @@ export function TaskBoardView({
   const { colors, isDark } = useAppTheme();
   const { width } = useWindowDimensions();
   const isTablet = width >= 768;
-  const [activeStage, setActiveStage] = useState<TaskStatus>('todo');
+  const defaultStage = useMemo(() => getDefaultBoardStage(tasks), [tasks]);
+  const hasManualSelectionRef = useRef(false);
+  const prevTaskCountRef = useRef(tasks.length);
+  const [activeStage, setActiveStage] = useState<TaskStatus>(() => defaultStage);
+
+  useEffect(() => {
+    const wasEmpty = prevTaskCountRef.current === 0;
+    prevTaskCountRef.current = tasks.length;
+
+    // Auto-select the first populated stage on initial data arrival or before manual tab switches.
+    if (!hasManualSelectionRef.current || (wasEmpty && tasks.length > 0)) {
+      hasManualSelectionRef.current = false;
+      setActiveStage(defaultStage);
+    }
+  }, [defaultStage, tasks.length]);
 
   const grouped = useMemo(() => {
     const map: Record<TaskStatus, Task[]> = {
@@ -225,7 +239,10 @@ export function TaskBoardView({
           return (
             <Pressable
               key={col.status}
-              onPress={() => setActiveStage(col.status)}
+              onPress={() => {
+                hasManualSelectionRef.current = true;
+                setActiveStage(col.status);
+              }}
               style={[
                 styles.stageTab,
                 isActive && {

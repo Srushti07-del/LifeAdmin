@@ -29,7 +29,6 @@ import {
   SearchInput,
   FilterBar,
   FilterItem,
-  ModalSheet,
   Button,
   EmptyState,
   getButtonForegroundColor,
@@ -90,7 +89,6 @@ export default function BillsScreen() {
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [activeSort, setActiveSort] = useState<BillSortKey>('dueDate');
   const [showSortPicker, setShowSortPicker] = useState<boolean>(false);
-  const [isCategorySheetOpen, setIsCategorySheetOpen] = useState<boolean>(false);
 
   const numColumns = layoutMode === 'list' ? 1 : width >= 768 ? 3 : width >= 360 ? 2 : 1;
 
@@ -297,7 +295,7 @@ export default function BillsScreen() {
           {/* Summary Dashboard Card */}
           <BillSummaryCard totals={totals} preferredCurrency={preferredCurrency} />
 
-          {/* Search Bar, Category Filter, Layout Toggle & Sort Row */}
+          {/* Search Bar, Layout Toggle & Sort Row */}
           <View style={styles.searchSortRow}>
             <View style={styles.searchWrapper}>
               <SearchInput
@@ -306,34 +304,6 @@ export default function BillsScreen() {
                 placeholder="Search bills, providers..."
               />
             </View>
-
-            <Pressable
-              onPress={() => setIsCategorySheetOpen(true)}
-              style={[
-                styles.sortButton,
-                {
-                  backgroundColor:
-                    selectedCategory !== 'All' ? colors.primarySoft : colors.surface,
-                  borderColor:
-                    selectedCategory !== 'All' ? colors.primary : colors.border,
-                },
-              ]}
-              hitSlop={4}
-              accessibilityRole="button"
-              accessibilityLabel={`Filter by category: ${selectedCategory}`}
-            >
-              <SymbolView
-                name={{
-                  ios: 'line.3.horizontal.decrease.circle',
-                  android: 'filter_list',
-                  web: 'filter_list',
-                }}
-                size={16}
-                tintColor={
-                  selectedCategory !== 'All' ? colors.primary : colors.text
-                }
-              />
-            </Pressable>
 
             <Pressable
               onPress={() => setLayoutMode((m) => (m === 'grid' ? 'list' : 'grid'))}
@@ -383,32 +353,6 @@ export default function BillsScreen() {
               />
             </Pressable>
           </View>
-
-          {selectedCategory !== 'All' ? (
-            <View style={styles.activeCategoryRow}>
-              <Pressable
-                onPress={() => setSelectedCategory('All')}
-                style={[
-                  styles.activeCategoryChip,
-                  {
-                    backgroundColor: colors.primarySoft,
-                    borderColor: colors.primary,
-                  },
-                ]}
-                accessibilityRole="button"
-                accessibilityLabel={`Clear ${selectedCategory} category filter`}
-              >
-                <ThemedText style={[styles.activeCategoryText, { color: colors.primary }]}>
-                  Category: {selectedCategory}
-                </ThemedText>
-                <SymbolView
-                  name={{ ios: 'xmark', android: 'close', web: 'close' }}
-                  size={12}
-                  tintColor={colors.primary}
-                />
-              </Pressable>
-            </View>
-          ) : null}
 
           {/* Sort Options Tray (When opened) */}
           {showSortPicker && (
@@ -466,14 +410,64 @@ export default function BillsScreen() {
             </View>
           )}
 
-          {/* Status Tabs Filter */}
-          <View style={styles.filterSection}>
-            <FilterBar
-              items={filterItems}
-              selected={activeFilter}
-              onSelect={setActiveFilter}
-            />
-          </View>
+          {/* Status + category filters: only meaningful once bills exist */}
+          {bills.length > 0 ? (
+            <>
+              {/* Status Tabs Filter */}
+              <View style={styles.filterSection}>
+                <FilterBar
+                  items={filterItems}
+                  selected={activeFilter}
+                  onSelect={setActiveFilter}
+                />
+              </View>
+
+              {/* Category Chip Selector */}
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.categoryScroll}
+              >
+                {CATEGORIES.map((cat) => {
+                  const isSelected = selectedCategory === cat;
+                  return (
+                    <Pressable
+                      key={cat}
+                      onPress={() => setSelectedCategory(cat)}
+                      hitSlop={{ top: 6, bottom: 6, left: 2, right: 2 }}
+                      style={[
+                        styles.categoryChip,
+                        {
+                          backgroundColor: isSelected
+                            ? colors.primarySoft
+                            : isDark
+                            ? colors.surface
+                            : colors.surfaceSecondary,
+                          borderColor: isSelected ? colors.primary : colors.border,
+                        },
+                      ]}
+                      accessibilityRole="button"
+                      accessibilityState={{ selected: isSelected }}
+                    >
+                      <ThemedText
+                        style={[
+                          styles.categoryChipText,
+                          {
+                            color: isSelected ? colors.primary : colors.textSecondary,
+                            fontFamily: isSelected
+                              ? Typography.fontFamilies.sansSemiBold
+                              : Typography.fontFamilies.sans,
+                          },
+                        ]}
+                      >
+                        {cat}
+                      </ThemedText>
+                    </Pressable>
+                  );
+                })}
+              </ScrollView>
+            </>
+          ) : null}
 
           {/* Loading Skeleton / State */}
           {isLoading && !isRefreshing ? (
@@ -503,9 +497,8 @@ export default function BillsScreen() {
               onAction={() => loadData(false)}
             />
           ) : bills.length === 0 ? (
-            /* Empty State: Compact card when No Bills Added */
+            /* Empty State: No Bills Added */
             <EmptyState
-              compact
               icon={
                 <SymbolView
                   name={{
@@ -513,14 +506,16 @@ export default function BillsScreen() {
                     android: 'receipt_long',
                     web: 'receipt_long',
                   }}
-                  size={24}
+                  size={28}
                   tintColor={colors.primary}
                 />
               }
               title="No bills or obligations"
-              description="Track recurring utilities, subscriptions, credit cards, and rent in one calm place."
+              description="Keep track of recurring utilities, subscriptions, credit cards, and rent in one calm place."
               actionLabel="Add Your First Bill"
               onAction={handleOpenCreateModal}
+              style={{ paddingVertical: Spacing.four }}
+              descriptionStyle={{ marginBottom: Spacing.three }}
             />
           ) : filteredBills.length === 0 ? (
             /* Empty State: Filters Matched Nothing */
@@ -598,55 +593,6 @@ export default function BillsScreen() {
         rates={rates}
         isActionLoading={actionLoadingBillId === selectedBillForDetails?._id}
       />
-
-      <ModalSheet
-        isOpen={isCategorySheetOpen}
-        onClose={() => setIsCategorySheetOpen(false)}
-        title="Filter by Category"
-        description="Focus on a single bill category"
-      >
-        <View style={styles.categorySheetList}>
-          {CATEGORIES.map((cat) => {
-            const isSelected = selectedCategory === cat;
-            return (
-              <Pressable
-                key={cat}
-                onPress={() => {
-                  setSelectedCategory(cat);
-                  setIsCategorySheetOpen(false);
-                }}
-                style={[
-                  styles.categorySheetOption,
-                  {
-                    backgroundColor: isSelected
-                      ? colors.primarySoft
-                      : colors.surfaceSecondary,
-                    borderColor: isSelected ? colors.primary : colors.border,
-                  },
-                ]}
-                accessibilityRole="button"
-                accessibilityState={{ selected: isSelected }}
-              >
-                <ThemedText
-                  style={[
-                    styles.categorySheetText,
-                    { color: isSelected ? colors.primary : colors.text },
-                  ]}
-                >
-                  {cat === 'All' ? 'All Categories' : cat}
-                </ThemedText>
-                {isSelected ? (
-                  <SymbolView
-                    name={{ ios: 'checkmark', android: 'check', web: 'check' }}
-                    size={16}
-                    tintColor={colors.primary}
-                  />
-                ) : null}
-              </Pressable>
-            );
-          })}
-        </View>
-      </ModalSheet>
     </ThemedView>
   );
 }
@@ -693,10 +639,12 @@ const styles = StyleSheet.create({
   searchSortRow: {
     flexDirection: 'row',
     alignItems: 'center',
+    width: '100%',
     gap: Spacing.two,
   },
   searchWrapper: {
     flex: 1,
+    minWidth: 0,
   },
   sortButton: {
     width: 44,
@@ -735,39 +683,18 @@ const styles = StyleSheet.create({
   filterSection: {
     marginTop: -Spacing.one,
   },
-  activeCategoryRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
+  categoryScroll: {
+    gap: Spacing.two,
+    paddingVertical: Spacing.one,
   },
-  activeCategoryChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    minHeight: 34,
+  categoryChip: {
     paddingHorizontal: Spacing.three,
     paddingVertical: 6,
     borderRadius: Radius.full,
     borderWidth: 1,
   },
-  activeCategoryText: {
-    fontFamily: Typography.fontFamilies.sansSemiBold,
+  categoryChipText: {
     fontSize: Typography.fontSize.xs,
-  },
-  categorySheetList: {
-    gap: Spacing.two,
-  },
-  categorySheetOption: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    minHeight: 44,
-    paddingHorizontal: Spacing.four,
-    borderRadius: Radius.lg,
-    borderWidth: 1,
-  },
-  categorySheetText: {
-    fontFamily: Typography.fontFamilies.sansMedium,
-    fontSize: Typography.fontSize.sm,
   },
   billsList: {
     gap: Spacing.three,

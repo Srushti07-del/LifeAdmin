@@ -73,6 +73,13 @@ export function AIDailyBriefingWidget({
     }
   };
 
+  const isAllClear =
+    briefing.pendingResponsibilities.length === 0 &&
+    briefing.billsRequiringAttention.length === 0 &&
+    briefing.upcomingDeadlines.length === 0 &&
+    !overview?.stats?.overdueCount &&
+    !overview?.stats?.dueSoonCount;
+
   return (
     <View style={styles.wrapper}>
       <View
@@ -237,20 +244,23 @@ export function AIDailyBriefingWidget({
               </View>
             )}
 
-            {/* Contextual suggestion derived strictly from real counts/items */}
-            <View
-              style={[
-                styles.suggestionBox,
-                {
-                  backgroundColor: colors.surfaceSecondary,
-                  borderColor: colors.border,
-                },
-              ]}
-            >
-              <ThemedText style={[styles.suggestionText, { color: colors.text }]}>
-                {briefing.suggestion}
-              </ThemedText>
-            </View>
+            {/* Contextual suggestion derived strictly from real counts/items.
+                Hidden when everything is clear: the headline and Needs Attention already say so. */}
+            {!isAllClear && (
+              <View
+                style={[
+                  styles.suggestionBox,
+                  {
+                    backgroundColor: colors.surfaceSecondary,
+                    borderColor: colors.border,
+                  },
+                ]}
+              >
+                <ThemedText style={[styles.suggestionText, { color: colors.text }]}>
+                  {briefing.suggestion}
+                </ThemedText>
+              </View>
+            )}
 
             {/* Optional Live AI Summary section (via existing /api/ai/chat endpoint) */}
             {aiLoading && (

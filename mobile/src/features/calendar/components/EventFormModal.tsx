@@ -20,6 +20,7 @@ import { Typography } from '@/constants/typography';
 import { Spacing, Radius } from '@/constants/spacing';
 import { CalendarEventItem, EventFormData } from '../types';
 import { toLocalISODate } from '../services/calendarCalculations';
+import { EventDatePickerField } from './EventDatePickerField';
 
 const CATEGORIES = ['Personal', 'Work/Study', 'Health', 'Household', 'Finance'];
 
@@ -167,13 +168,12 @@ export function EventFormModal({
           error={errors.title}
         />
 
-        {/* Date Input with Quick Presets */}
+        {/* Date Picker with Quick Presets */}
         <View style={styles.fieldWrapper}>
-          <Input
-            label="Start Date (YYYY-MM-DD)"
-            placeholder="YYYY-MM-DD"
+          <EventDatePickerField
+            label="Start Date *"
             value={formData.startDate}
-            onChangeText={(val) => {
+            onChange={(val) => {
               setFormData((prev) => ({ ...prev, startDate: val }));
               if (errors.startDate) setErrors((prev) => ({ ...prev, startDate: undefined }));
             }}

@@ -449,7 +449,7 @@ export default function DashboardScreen() {
               </View>
             )}
 
-            {/* Quick Metrics Bar (2x2: Overdue, Due Soon, Upcoming, Active Alerts) */}
+            {/* Quick Metrics Strip (single row: Overdue, Due Soon, Upcoming, Alerts) */}
             {data?.stats && (
               <StatsOverview
                 stats={data.stats}
@@ -461,7 +461,39 @@ export default function DashboardScreen() {
               />
             )}
 
-            {/* Layout Preset & Customize Strip */}
+            {/* Dynamically Ordered & Toggled Dashboard Widgets */}
+            {visibleWidgets.length > 0 ? (
+              visibleWidgets.map(renderWidget)
+            ) : (
+              <View
+                style={[
+                  styles.emptyLayoutCard,
+                  { backgroundColor: colors.surface, borderColor: colors.border },
+                ]}
+              >
+                <ThemedText style={[styles.emptyLayoutTitle, { color: colors.text }]}>
+                  All dashboard widgets are hidden
+                </ThemedText>
+                <ThemedText style={[styles.emptyLayoutDesc, { color: colors.textSecondary }]}>
+                  Open Customize Layout to restore widgets or switch to a preset.
+                </ThemedText>
+                <Pressable
+                  onPress={() => setIsCustomizeVisible(true)}
+                  style={[styles.emptyLayoutBtn, { backgroundColor: colors.primary }]}
+                >
+                  <ThemedText
+                    style={[
+                      styles.emptyLayoutBtnText,
+                      { color: getButtonForegroundColor('primary', colors, isDark) },
+                    ]}
+                  >
+                    Customize Layout
+                  </ThemedText>
+                </Pressable>
+              </View>
+            )}
+
+            {/* Layout Preset & Customize Strip (quiet footer, below content) */}
             <Pressable
               onPress={() => setIsCustomizeVisible(true)}
               accessible
@@ -496,38 +528,6 @@ export default function DashboardScreen() {
                 </ThemedText>
               </View>
             </Pressable>
-
-            {/* Dynamically Ordered & Toggled Dashboard Widgets */}
-            {visibleWidgets.length > 0 ? (
-              visibleWidgets.map(renderWidget)
-            ) : (
-              <View
-                style={[
-                  styles.emptyLayoutCard,
-                  { backgroundColor: colors.surface, borderColor: colors.border },
-                ]}
-              >
-                <ThemedText style={[styles.emptyLayoutTitle, { color: colors.text }]}>
-                  All dashboard widgets are hidden
-                </ThemedText>
-                <ThemedText style={[styles.emptyLayoutDesc, { color: colors.textSecondary }]}>
-                  Open Customize Layout to restore widgets or switch to a preset.
-                </ThemedText>
-                <Pressable
-                  onPress={() => setIsCustomizeVisible(true)}
-                  style={[styles.emptyLayoutBtn, { backgroundColor: colors.primary }]}
-                >
-                  <ThemedText
-                    style={[
-                      styles.emptyLayoutBtnText,
-                      { color: getButtonForegroundColor('primary', colors, isDark) },
-                    ]}
-                  >
-                    Customize Layout
-                  </ThemedText>
-                </Pressable>
-              </View>
-            )}
 
             {/* Expanded Quick Actions & Module Navigation Grid (all 6 modules) */}
             <QuickActionsSection

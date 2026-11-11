@@ -54,7 +54,7 @@ const VIEW_OPTIONS: { value: CalendarViewType; label: string }[] = [
 ];
 
 const FILTER_TYPES: { key: string; label: string; type?: CalendarItemType }[] = [
-  { key: 'all', label: 'All Items' },
+  { key: 'all', label: 'All' },
   { key: 'event', label: 'Events', type: 'event' },
   { key: 'task', label: 'Tasks', type: 'task' },
   { key: 'bill', label: 'Bills', type: 'bill' },

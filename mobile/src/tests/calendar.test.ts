@@ -8,6 +8,9 @@ import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   toLocalISODate,
+  parseLocalISODate,
+  formatDisplayDate,
+  resolveDatePickerSelection,
   startOfCalendarDay,
   endOfDay,
   addDays,
@@ -313,5 +316,37 @@ describe('Date Ranges & Header Formatting', () => {
 
     const dayHeader = formatCalendarHeader('day', date);
     assert.ok(dayHeader.includes('Sunday') && dayHeader.includes('November 15, 2026'));
+  });
+});
+
+describe('Event Date Picker Parsing & Selection Safety', () => {
+  it('parses valid YYYY-MM-DD strictly and rejects invalid dates safely', () => {
+    const valid = parseLocalISODate('2026-11-15');
+    assert.ok(valid);
+    assert.strictEqual(valid.getFullYear(), 2026);
+    assert.strictEqual(valid.getMonth(), 10);
+    assert.strictEqual(valid.getDate(), 15);
+
+    assert.strictEqual(parseLocalISODate('2026-02-30'), null);
+    assert.strictEqual(parseLocalISODate('2026-13-01'), null);
+    assert.strictEqual(parseLocalISODate('15-11-2026'), null);
+    assert.strictEqual(parseLocalISODate(''), null);
+    assert.strictEqual(parseLocalISODate(null), null);
+  });
+
+  it('formats readable display dates and preserves YYYY-MM-DD selection safely', () => {
+    assert.strictEqual(formatDisplayDate('2026-11-15'), 'Sun, Nov 15, 2026');
+    assert.strictEqual(formatDisplayDate('bad-date', 'Choose date'), 'Choose date');
+
+    // Valid pick updates to backend YYYY-MM-DD format
+    assert.strictEqual(
+      resolveDatePickerSelection('2026-11-15', new Date(2026, 11, 2)),
+      '2026-12-02'
+    );
+
+    // Cancellation or null/invalid dates preserve existing selected date
+    assert.strictEqual(resolveDatePickerSelection('2026-11-15', new Date(2026, 11, 2), true), '2026-11-15');
+    assert.strictEqual(resolveDatePickerSelection('2026-11-15', null), '2026-11-15');
+    assert.strictEqual(resolveDatePickerSelection('2026-11-15', new Date('not-a-date')), '2026-11-15');
   });
 });

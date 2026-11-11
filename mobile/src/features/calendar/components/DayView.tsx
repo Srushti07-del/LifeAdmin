@@ -28,6 +28,8 @@ export function DayView({
   onAddEvent,
 }: DayViewProps) {
   const { colors, isDark } = useAppTheme();
+  // The calendar header already shows the full date, so the banner only adds context.
+  const isToday = currentDate.toDateString() === new Date().toDateString();
 
   const allDayItems = useMemo(
     () => items.filter((i) => i.allDay || (!i.startTime && !i.endTime)),
@@ -57,15 +59,12 @@ export function DayView({
         <View style={styles.bannerHeader}>
           <View>
             <ThemedText style={[styles.bannerTitle, { color: colors.text }]}>
-              {currentDate.toLocaleDateString(undefined, {
-                weekday: 'long',
-                month: 'long',
-                day: 'numeric',
-                year: 'numeric',
-              })}
+              {isToday
+                ? 'Today'
+                : currentDate.toLocaleDateString(undefined, { weekday: 'long' })}
             </ThemedText>
             <ThemedText style={[styles.bannerSubtitle, { color: colors.textSecondary }]}>
-              {items.length} {items.length === 1 ? 'item' : 'items'} scheduled for today
+              {items.length} {items.length === 1 ? 'item' : 'items'} scheduled
             </ThemedText>
           </View>
 

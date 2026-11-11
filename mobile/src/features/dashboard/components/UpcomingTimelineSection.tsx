@@ -235,7 +235,7 @@ const styles = StyleSheet.create({
     fontSize: Typography.fontSize.xs,
   },
   emptyCard: {
-    padding: Spacing.four,
+    padding: Spacing.three,
     borderRadius: Radius.lg,
     borderWidth: 1,
   },

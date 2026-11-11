@@ -75,9 +75,9 @@ export function TaskCard({
         {
           backgroundColor: colors.surface,
           borderColor,
-          opacity: isCompleted ? 0.78 : pressed ? 0.94 : 1,
+          opacity: isCompleted ? 0.62 : pressed ? 0.94 : 1,
         },
-        createShadow(isDark, 'card'),
+        !isCompleted && createShadow(isDark, 'card'),
       ]}
       accessibilityRole="button"
       accessibilityLabel={`Task ${task.title}, priority ${priorityMeta.label}, ${urgency.label}`}

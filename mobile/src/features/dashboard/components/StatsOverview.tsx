@@ -21,10 +21,14 @@ interface StatsOverviewProps {
 
 export function StatsOverview({ stats, onStatPress }: StatsOverviewProps) {
   const { colors, isDark } = useAppTheme();
+  const overdueOn = stats.overdueCount > 0;
+  const soonOn = stats.dueSoonCount > 0;
+  const overdueText = isDark ? Colors.urgency.critical.darkText : Colors.urgency.critical.lightText;
+  const soonText = isDark ? Colors.urgency.urgent.darkText : Colors.urgency.urgent.lightText;
 
   return (
     <View style={styles.container}>
-      {/* Overdue Card */}
+      {/* Overdue Card — neutral when nothing is overdue */}
       <Pressable
         onPress={() => onStatPress?.('overdue')}
         accessible
@@ -33,12 +37,16 @@ export function StatsOverview({ stats, onStatPress }: StatsOverviewProps) {
         style={({ pressed }) => [
           styles.statCard,
           {
-            backgroundColor: isDark
-              ? Colors.urgency.critical.darkBg
-              : Colors.urgency.critical.lightBg,
-            borderColor: isDark
-              ? 'rgba(248, 113, 113, 0.4)'
-              : Colors.urgency.critical.accent,
+            backgroundColor: overdueOn
+              ? isDark
+                ? Colors.urgency.critical.darkBg
+                : Colors.urgency.critical.lightBg
+              : colors.surface,
+            borderColor: overdueOn
+              ? isDark
+                ? 'rgba(248, 113, 113, 0.4)'
+                : Colors.urgency.critical.accent
+              : colors.border,
           },
           createShadow(isDark, 'xs'),
           pressed && styles.pressed,
@@ -47,37 +55,28 @@ export function StatsOverview({ stats, onStatPress }: StatsOverviewProps) {
         <View style={styles.statHeader}>
           <SymbolView
             name={{ ios: 'exclamationmark.circle.fill', android: 'error', web: 'error' }}
-            size={18}
-            tintColor={isDark ? Colors.urgency.critical.darkText : Colors.urgency.critical.accent}
-          />
-          <ThemedText
-            style={[
-              styles.statCount,
-              {
-                color: isDark
+            size={16}
+            tintColor={
+              overdueOn
+                ? isDark
                   ? Colors.urgency.critical.darkText
-                  : Colors.urgency.critical.lightText,
-              },
-            ]}
-          >
+                  : Colors.urgency.critical.accent
+                : colors.textMuted
+            }
+          />
+          <ThemedText style={[styles.statCount, { color: overdueOn ? overdueText : colors.text }]}>
             {stats.overdueCount}
           </ThemedText>
         </View>
         <ThemedText
-          style={[
-            styles.statLabel,
-            {
-              color: isDark
-                ? Colors.urgency.critical.darkText
-                : Colors.urgency.critical.lightText,
-            },
-          ]}
+          numberOfLines={1}
+          style={[styles.statLabel, { color: overdueOn ? overdueText : colors.textSecondary }]}
         >
           Overdue
         </ThemedText>
       </Pressable>
 
-      {/* Due Soon Card */}
+      {/* Due Soon Card — neutral when nothing is due soon */}
       <Pressable
         onPress={() => onStatPress?.('soon')}
         accessible
@@ -86,12 +85,16 @@ export function StatsOverview({ stats, onStatPress }: StatsOverviewProps) {
         style={({ pressed }) => [
           styles.statCard,
           {
-            backgroundColor: isDark
-              ? Colors.urgency.urgent.darkBg
-              : Colors.urgency.urgent.lightBg,
-            borderColor: isDark
-              ? 'rgba(251, 191, 36, 0.4)'
-              : Colors.urgency.urgent.accent,
+            backgroundColor: soonOn
+              ? isDark
+                ? Colors.urgency.urgent.darkBg
+                : Colors.urgency.urgent.lightBg
+              : colors.surface,
+            borderColor: soonOn
+              ? isDark
+                ? 'rgba(251, 191, 36, 0.4)'
+                : Colors.urgency.urgent.accent
+              : colors.border,
           },
           createShadow(isDark, 'xs'),
           pressed && styles.pressed,
@@ -100,31 +103,22 @@ export function StatsOverview({ stats, onStatPress }: StatsOverviewProps) {
         <View style={styles.statHeader}>
           <SymbolView
             name={{ ios: 'clock.fill', android: 'schedule', web: 'schedule' }}
-            size={18}
-            tintColor={isDark ? Colors.urgency.urgent.darkText : Colors.urgency.urgent.accent}
-          />
-          <ThemedText
-            style={[
-              styles.statCount,
-              {
-                color: isDark
+            size={16}
+            tintColor={
+              soonOn
+                ? isDark
                   ? Colors.urgency.urgent.darkText
-                  : Colors.urgency.urgent.lightText,
-              },
-            ]}
-          >
+                  : Colors.urgency.urgent.accent
+                : colors.textMuted
+            }
+          />
+          <ThemedText style={[styles.statCount, { color: soonOn ? soonText : colors.text }]}>
             {stats.dueSoonCount}
           </ThemedText>
         </View>
         <ThemedText
-          style={[
-            styles.statLabel,
-            {
-              color: isDark
-                ? Colors.urgency.urgent.darkText
-                : Colors.urgency.urgent.lightText,
-            },
-          ]}
+          numberOfLines={1}
+          style={[styles.statLabel, { color: soonOn ? soonText : colors.textSecondary }]}
         >
           Due Soon
         </ThemedText>
@@ -188,7 +182,7 @@ export function StatsOverview({ stats, onStatPress }: StatsOverviewProps) {
           </ThemedText>
         </View>
         <ThemedText style={[styles.statLabel, { color: colors.textSecondary }]}>
-          Active Alerts
+          Alerts
         </ThemedText>
       </Pressable>
     </View>
@@ -198,16 +192,15 @@ export function StatsOverview({ stats, onStatPress }: StatsOverviewProps) {
 const styles = StyleSheet.create({
   container: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
     gap: Spacing.two,
     paddingHorizontal: Spacing.four,
     marginBottom: Spacing.four,
   },
   statCard: {
     flex: 1,
-    minWidth: '47%',
+    minWidth: 0,
     paddingVertical: Spacing.two + 2,
-    paddingHorizontal: Spacing.three,
+    paddingHorizontal: Spacing.two + 2,
     borderRadius: Radius.lg,
     borderWidth: 1,
   },

@@ -301,8 +301,7 @@ const styles = StyleSheet.create({
     fontSize: Typography.fontSize.micro,
   },
   emptyBox: {
-    alignItems: 'center',
-    paddingVertical: Spacing.three,
+    paddingVertical: Spacing.one,
   },
   emptyText: {
     fontFamily: Typography.fontFamilies.sans,

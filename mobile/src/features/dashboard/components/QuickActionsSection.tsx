@@ -1,7 +1,8 @@
 /**
  * Quick Actions Section Component
- * 6 creation and navigation triggers across Tasks, Bills, Appointments,
+ * Compact 3x2 grid of 6 creation shortcuts across Tasks, Bills, Appointments,
  * Calendar Events, Reminders, and Documents.
+ * Tap creates; press and hold opens the matching module.
  */
 
 import React from 'react';
@@ -22,6 +23,7 @@ interface QuickActionsSectionProps {
 interface ActionConfig {
   type: QuickActionType;
   label: string;
+  shortLabel: string;
   sublabel: string;
   route: string;
   routeLabel: string;
@@ -39,6 +41,7 @@ export function QuickActionsSection({
     {
       type: 'task',
       label: 'Add Task',
+      shortLabel: 'Task',
       sublabel: 'To-do / deadline',
       route: '/tasks',
       routeLabel: 'Tasks',
@@ -48,6 +51,7 @@ export function QuickActionsSection({
     {
       type: 'bill',
       label: 'Add Bill',
+      shortLabel: 'Bill',
       sublabel: 'Payment / due',
       route: '/bills',
       routeLabel: 'Bills',
@@ -57,6 +61,7 @@ export function QuickActionsSection({
     {
       type: 'appointment',
       label: 'Appointment',
+      shortLabel: 'Visit',
       sublabel: 'Doctor / visit',
       route: '/appointments',
       routeLabel: 'Visits',
@@ -66,6 +71,7 @@ export function QuickActionsSection({
     {
       type: 'event',
       label: 'Calendar Event',
+      shortLabel: 'Event',
       sublabel: 'Date & schedule',
       route: '/calendar',
       routeLabel: 'Calendar',
@@ -75,6 +81,7 @@ export function QuickActionsSection({
     {
       type: 'reminder',
       label: 'Reminder',
+      shortLabel: 'Reminder',
       sublabel: 'Alert & nudge',
       route: '/reminders',
       routeLabel: 'Alerts',
@@ -84,6 +91,7 @@ export function QuickActionsSection({
     {
       type: 'document',
       label: 'Upload Doc',
+      shortLabel: 'Document',
       sublabel: 'Scan / vault',
       route: '/documents',
       routeLabel: 'Vault',
@@ -99,93 +107,46 @@ export function QuickActionsSection({
           Quick Actions
         </ThemedText>
         <ThemedText style={[styles.sectionHint, { color: colors.textSecondary }]}>
-          Create or jump directly to any module
+          Tap to create{onNavigatePress ? ' · hold to open the module' : ''}
         </ThemedText>
       </View>
 
       <View style={styles.grid}>
         {actions.map((action) => (
-          <View
+          <Pressable
             key={action.type}
-            style={[
-              styles.actionCard,
+            onPress={() => onActionPress(action.type)}
+            onLongPress={onNavigatePress ? () => onNavigatePress(action.route) : undefined}
+            delayLongPress={350}
+            accessible
+            accessibilityRole="button"
+            accessibilityLabel={`${action.label}, ${action.sublabel}`}
+            accessibilityHint={onNavigatePress ? `Hold to open ${action.routeLabel}` : undefined}
+            accessibilityActions={
+              onNavigatePress
+                ? [{ name: 'activate', label: `Open ${action.routeLabel}` }]
+                : undefined
+            }
+            onAccessibilityAction={(e) => {
+              if (e.nativeEvent.actionName === 'activate') onNavigatePress?.(action.route);
+            }}
+            style={({ pressed }) => [
+              styles.tile,
               {
                 backgroundColor: colors.surface,
                 borderColor: isDark ? colors.border : colors.borderSubtle,
               },
               createShadow(isDark, 'xs'),
+              pressed && styles.pressed,
             ]}
           >
-            <Pressable
-              onPress={() => onActionPress(action.type)}
-              accessible
-              accessibilityRole="button"
-              accessibilityLabel={`${action.label}, ${action.sublabel}`}
-              style={({ pressed }) => [
-                styles.createArea,
-                pressed && styles.pressed,
-              ]}
-            >
-              <View style={styles.topRow}>
-                <View
-                  style={[
-                    styles.iconContainer,
-                    { backgroundColor: colors.surfaceSecondary },
-                  ]}
-                >
-                  <SymbolView
-                    name={action.icon as any}
-                    size={21}
-                    tintColor={action.accentColor}
-                  />
-                </View>
-
-                <View
-                  style={[
-                    styles.plusPill,
-                    { backgroundColor: `${action.accentColor}16` },
-                  ]}
-                >
-                  <SymbolView
-                    name={{ ios: 'plus', android: 'add', web: 'add' }}
-                    size={13}
-                    tintColor={action.accentColor}
-                  />
-                </View>
-              </View>
-
-              <ThemedText numberOfLines={1} style={[styles.actionLabel, { color: colors.text }]}>
-                {action.label}
-              </ThemedText>
-
-              <ThemedText numberOfLines={1} style={[styles.actionSublabel, { color: colors.textMuted }]}>
-                {action.sublabel}
-              </ThemedText>
-            </Pressable>
-
-            {onNavigatePress && (
-              <Pressable
-                onPress={() => onNavigatePress(action.route)}
-                accessible
-                accessibilityRole="button"
-                accessibilityLabel={`Open ${action.routeLabel}`}
-                style={({ pressed }) => [
-                  styles.navFooter,
-                  { borderTopColor: isDark ? colors.border : colors.borderSubtle },
-                  pressed && { opacity: 0.7 },
-                ]}
-              >
-                <ThemedText style={[styles.navFooterText, { color: colors.primary }]}>
-                  Open {action.routeLabel}
-                </ThemedText>
-                <SymbolView
-                  name={{ ios: 'chevron.right', android: 'chevron_right', web: 'chevron_right' }}
-                  size={12}
-                  tintColor={colors.primary}
-                />
-              </Pressable>
-            )}
-          </View>
+            <View style={[styles.iconContainer, { backgroundColor: `${action.accentColor}16` }]}>
+              <SymbolView name={action.icon as any} size={20} tintColor={action.accentColor} />
+            </View>
+            <ThemedText numberOfLines={1} style={[styles.actionLabel, { color: colors.text }]}>
+              {action.shortLabel}
+            </ThemedText>
+          </Pressable>
         ))}
       </View>
     </View>
@@ -213,60 +174,33 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
     gap: Spacing.two,
   },
-  actionCard: {
-    flex: 1,
-    minWidth: '47%',
+  tile: {
+    flexGrow: 1,
+    flexBasis: '30%',
+    minHeight: 76,
     borderRadius: Radius.lg,
     borderWidth: 1,
-    overflow: 'hidden',
-  },
-  createArea: {
-    paddingHorizontal: Spacing.three,
-    paddingTop: Spacing.three,
-    paddingBottom: Spacing.two + 2,
-  },
-  topRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: Spacing.two,
-  },
-  iconContainer: {
-    width: 40,
-    height: 40,
-    borderRadius: Radius.md,
+    paddingVertical: Spacing.three,
+    paddingHorizontal: Spacing.two,
     alignItems: 'center',
     justifyContent: 'center',
+    gap: Spacing.two,
   },
-  plusPill: {
-    width: 24,
-    height: 24,
+  iconContainer: {
+    width: 38,
+    height: 38,
     borderRadius: Radius.full,
     alignItems: 'center',
     justifyContent: 'center',
   },
   actionLabel: {
-    fontSize: Typography.fontSize.sm,
+    fontSize: Typography.fontSize.xs,
     fontWeight: Typography.fontWeight.semibold,
-  },
-  actionSublabel: {
-    fontSize: 11,
-    marginTop: 2,
-  },
-  navFooter: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: Spacing.three + 2,
-    paddingVertical: 8,
-    borderTopWidth: StyleSheet.hairlineWidth,
-  },
-  navFooterText: {
-    fontSize: 11,
-    fontWeight: Typography.fontWeight.semibold,
+    textAlign: 'center',
   },
   pressed: {
     opacity: 0.8,
+    transform: [{ scale: 0.97 }],
   },
 });
 

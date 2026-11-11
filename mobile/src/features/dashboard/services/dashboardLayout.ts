@@ -24,20 +24,20 @@ import {
 
 export const DEFAULT_WIDGETS: WidgetConfig[] = [
   { id: 'needs_attention', label: 'Needs Attention (High Priority)', visible: true },
-  { id: 'lifebuddy', label: 'LifeBuddy Companion', visible: true },
   { id: 'ai_briefing', label: 'AI Daily Briefing', visible: true },
   { id: 'tasks', label: 'Upcoming Tasks', visible: true },
   { id: 'bills', label: 'Upcoming Bills & Expenses', visible: true },
   { id: 'schedule', label: 'Today & Upcoming Schedule', visible: true },
   { id: 'reminders', label: 'Active Reminders', visible: true },
+  { id: 'lifebuddy', label: 'LifeBuddy Companion', visible: true },
 ];
 
 export const DASHBOARD_PRESETS: Record<LayoutPresetKey, DashboardPresetDefinition> = {
   standard: {
     key: 'standard',
     label: 'Standard',
-    description: 'Balanced workspace highlighting priorities, LifeBuddy, and AI briefing',
-    order: ['needs_attention', 'lifebuddy', 'ai_briefing', 'tasks', 'bills', 'schedule', 'reminders'],
+    description: 'Balanced workspace highlighting priorities and AI briefing, with LifeBuddy last',
+    order: ['needs_attention', 'ai_briefing', 'tasks', 'bills', 'schedule', 'reminders', 'lifebuddy'],
   },
   focus: {
     key: 'focus',
