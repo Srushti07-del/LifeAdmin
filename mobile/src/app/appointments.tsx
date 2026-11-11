@@ -219,7 +219,7 @@ export default function AppointmentsScreen() {
           style={styles.scrollArea}
           contentContainerStyle={[
             styles.scrollContent,
-            { paddingBottom: BottomTabInset + Spacing.eight },
+            { paddingBottom: BottomTabInset + Spacing.six },
           ]}
           showsVerticalScrollIndicator={false}
           refreshControl={
@@ -278,7 +278,7 @@ export default function AppointmentsScreen() {
               style={[
                 styles.sortTray,
                 {
-                  backgroundColor: colors.surfaceSecondary,
+                  backgroundColor: isDark ? colors.surface : colors.surfaceSecondary,
                   borderColor: colors.border,
                 },
               ]}
@@ -301,7 +301,11 @@ export default function AppointmentsScreen() {
                       style={[
                         styles.sortOptionChip,
                         {
-                          backgroundColor: isSelected ? colors.primary : colors.surface,
+                          backgroundColor: isSelected
+                            ? colors.primary
+                            : isDark
+                            ? colors.surfaceElevated
+                            : colors.surface,
                           borderColor: isSelected ? colors.primary : colors.border,
                         },
                       ]}
@@ -353,6 +357,8 @@ export default function AppointmentsScreen() {
                     {
                       backgroundColor: isSelected
                         ? colors.primarySoft
+                        : isDark
+                        ? colors.surface
                         : colors.surfaceSecondary,
                       borderColor: isSelected ? colors.primary : colors.border,
                     },
@@ -507,7 +513,8 @@ const styles = StyleSheet.create({
     marginRight: Spacing.three,
   },
   title: {
-    fontSize: Typography.fontSize['2xl'],
+    fontSize: Typography.fontSize['3xl'],
+    lineHeight: 34,
     fontFamily: Typography.fontFamilies.editorial,
   },
   subtitle: {
@@ -519,7 +526,7 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     paddingHorizontal: Spacing.four,
-    gap: Spacing.four,
+    gap: Spacing.three,
   },
   searchSortRow: {
     flexDirection: 'row',

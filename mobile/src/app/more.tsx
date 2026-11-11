@@ -375,10 +375,11 @@ const styles = StyleSheet.create({
     paddingTop: Spacing.two,
   },
   header: {
-    marginBottom: Spacing.four,
+    marginBottom: Spacing.three,
   },
   title: {
     fontSize: Typography.fontSize['3xl'],
+    lineHeight: 34,
     fontFamily: Typography.fontFamilies.editorial,
   },
   subtitle: {
@@ -393,7 +394,7 @@ const styles = StyleSheet.create({
     padding: Spacing.four,
     borderRadius: Radius.xl,
     borderWidth: 1,
-    marginBottom: Spacing.five,
+    marginBottom: Spacing.four,
   },
   avatarCircle: {
     width: 46,

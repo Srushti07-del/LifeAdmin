@@ -293,7 +293,18 @@ export function AIDailyBriefingWidget({
                   accessibilityRole="button"
                   accessibilityLabel="Retry AI briefing"
                 >
-                  <ThemedText style={styles.retryPillText}>Retry</ThemedText>
+                  <ThemedText
+                    style={[
+                      styles.retryPillText,
+                      {
+                        color: isDark
+                          ? Colors.urgency.critical.darkText
+                          : Colors.urgency.critical.lightText,
+                      },
+                    ]}
+                  >
+                    Retry
+                  </ThemedText>
                 </Pressable>
               </View>
             )}
@@ -388,20 +399,20 @@ export function AIDailyBriefingWidget({
 const styles = StyleSheet.create({
   wrapper: {
     paddingHorizontal: Spacing.four,
-    marginBottom: Spacing.five,
+    marginBottom: Spacing.four,
   },
   card: {
     borderRadius: Radius['2xl'],
     borderWidth: 1,
-    padding: Spacing.four,
+    padding: Spacing.three + 2,
   },
   headerRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingBottom: Spacing.three,
+    paddingBottom: Spacing.two + 2,
     borderBottomWidth: StyleSheet.hairlineWidth,
-    marginBottom: Spacing.three,
+    marginBottom: Spacing.two + 2,
     gap: Spacing.two,
   },
   headerLeft: {
@@ -452,7 +463,7 @@ const styles = StyleSheet.create({
     fontSize: Typography.fontSize.xs,
   },
   body: {
-    gap: Spacing.three,
+    gap: Spacing.two + 2,
   },
   groupBlock: {
     gap: 6,
@@ -476,7 +487,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: Spacing.three,
-    paddingVertical: Spacing.two,
+    paddingVertical: Spacing.one + 2,
     borderRadius: Radius.md,
     borderWidth: StyleSheet.hairlineWidth,
     gap: Spacing.two,
@@ -494,7 +505,7 @@ const styles = StyleSheet.create({
   suggestionBox: {
     borderRadius: Radius.lg,
     borderWidth: 1,
-    padding: Spacing.three,
+    padding: Spacing.two + 2,
   },
   suggestionText: {
     fontFamily: Typography.fontFamilies.sans,
@@ -524,19 +535,17 @@ const styles = StyleSheet.create({
   aiErrorText: {
     fontFamily: Typography.fontFamilies.sans,
     fontSize: Typography.fontSize.xs,
-    color: '#EF4444',
     flex: 1,
   },
   retryPill: {
     paddingHorizontal: Spacing.three,
     paddingVertical: 4,
     borderRadius: Radius.md,
-    backgroundColor: 'rgba(239, 68, 68, 0.14)',
+    backgroundColor: 'rgba(239, 68, 68, 0.16)',
   },
   retryPillText: {
     fontFamily: Typography.fontFamilies.sansBold,
     fontSize: Typography.fontSize.xs,
-    color: '#EF4444',
   },
   aiReplyCard: {
     borderRadius: Radius.lg,

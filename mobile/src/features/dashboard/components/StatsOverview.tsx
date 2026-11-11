@@ -36,7 +36,9 @@ export function StatsOverview({ stats, onStatPress }: StatsOverviewProps) {
             backgroundColor: isDark
               ? Colors.urgency.critical.darkBg
               : Colors.urgency.critical.lightBg,
-            borderColor: Colors.urgency.critical.accent,
+            borderColor: isDark
+              ? 'rgba(248, 113, 113, 0.4)'
+              : Colors.urgency.critical.accent,
           },
           createShadow(isDark, 'xs'),
           pressed && styles.pressed,
@@ -46,7 +48,7 @@ export function StatsOverview({ stats, onStatPress }: StatsOverviewProps) {
           <SymbolView
             name={{ ios: 'exclamationmark.circle.fill', android: 'error', web: 'error' }}
             size={18}
-            tintColor={Colors.urgency.critical.accent}
+            tintColor={isDark ? Colors.urgency.critical.darkText : Colors.urgency.critical.accent}
           />
           <ThemedText
             style={[
@@ -87,7 +89,9 @@ export function StatsOverview({ stats, onStatPress }: StatsOverviewProps) {
             backgroundColor: isDark
               ? Colors.urgency.urgent.darkBg
               : Colors.urgency.urgent.lightBg,
-            borderColor: Colors.urgency.urgent.accent,
+            borderColor: isDark
+              ? 'rgba(251, 191, 36, 0.4)'
+              : Colors.urgency.urgent.accent,
           },
           createShadow(isDark, 'xs'),
           pressed && styles.pressed,
@@ -97,7 +101,7 @@ export function StatsOverview({ stats, onStatPress }: StatsOverviewProps) {
           <SymbolView
             name={{ ios: 'clock.fill', android: 'schedule', web: 'schedule' }}
             size={18}
-            tintColor={Colors.urgency.urgent.accent}
+            tintColor={isDark ? Colors.urgency.urgent.darkText : Colors.urgency.urgent.accent}
           />
           <ThemedText
             style={[
@@ -195,14 +199,14 @@ const styles = StyleSheet.create({
   container: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: Spacing.two + 2,
+    gap: Spacing.two,
     paddingHorizontal: Spacing.four,
-    marginBottom: Spacing.five,
+    marginBottom: Spacing.four,
   },
   statCard: {
     flex: 1,
     minWidth: '47%',
-    paddingVertical: Spacing.three,
+    paddingVertical: Spacing.two + 2,
     paddingHorizontal: Spacing.three,
     borderRadius: Radius.lg,
     borderWidth: 1,
@@ -211,10 +215,11 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: Spacing.one,
+    marginBottom: Spacing.half,
   },
   statCount: {
     fontSize: Typography.fontSize.xl,
+    lineHeight: 24,
     fontWeight: Typography.fontWeight.bold,
     fontVariant: ['tabular-nums'],
   },

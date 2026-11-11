@@ -141,20 +141,20 @@ export function DashboardRemindersWidget({
 const styles = StyleSheet.create({
   wrapper: {
     paddingHorizontal: Spacing.four,
-    marginBottom: Spacing.five,
+    marginBottom: Spacing.four,
   },
   card: {
     borderRadius: Radius['2xl'],
     borderWidth: 1,
-    padding: Spacing.four,
+    padding: Spacing.three + 2,
   },
   headerRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingBottom: Spacing.three,
+    paddingBottom: Spacing.two + 2,
     borderBottomWidth: StyleSheet.hairlineWidth,
-    marginBottom: Spacing.three,
+    marginBottom: Spacing.two + 2,
   },
   headerLeft: {
     flexDirection: 'row',
@@ -189,7 +189,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: Spacing.three,
-    paddingVertical: Spacing.two + 2,
+    paddingVertical: Spacing.two,
     borderRadius: Radius.lg,
     borderWidth: StyleSheet.hairlineWidth,
     gap: Spacing.two,

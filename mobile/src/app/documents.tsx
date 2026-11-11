@@ -226,13 +226,14 @@ export default function DocumentsScreen() {
   };
 
   return (
-    <SafeAreaView
-      edges={['top', 'left', 'right']}
-      style={[styles.screen, { backgroundColor: colors.background }]}
-    >
-      <ScrollView
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={[styles.scrollContent, { paddingBottom: BottomTabInset + Spacing.eight }]}
+    <ThemedView style={styles.screen}>
+      <SafeAreaView
+        edges={['top', 'left', 'right']}
+        style={styles.screen}
+      >
+        <ScrollView
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={[styles.scrollContent, { paddingBottom: BottomTabInset + Spacing.six }]}
         refreshControl={
           <RefreshControl
             refreshing={isRefreshing}
@@ -312,7 +313,7 @@ export default function DocumentsScreen() {
             style={[
               styles.sortTray,
               {
-                backgroundColor: colors.surfaceSecondary,
+                backgroundColor: isDark ? colors.surface : colors.surfaceSecondary,
                 borderColor: colors.border,
               },
             ]}
@@ -335,7 +336,11 @@ export default function DocumentsScreen() {
                     style={[
                       styles.sortChip,
                       {
-                        backgroundColor: isSelected ? colors.primary : colors.surface,
+                        backgroundColor: isSelected
+                          ? colors.primary
+                          : isDark
+                          ? colors.surfaceElevated
+                          : colors.surface,
                         borderColor: isSelected ? colors.primary : colors.border,
                       },
                     ]}
@@ -526,7 +531,8 @@ export default function DocumentsScreen() {
         onClose={() => setConversionDoc(null)}
         onConfirm={handleConfirmConversion}
       />
-    </SafeAreaView>
+      </SafeAreaView>
+    </ThemedView>
   );
 }
 
@@ -542,13 +548,14 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: Spacing.four,
+    marginBottom: Spacing.three,
   },
   headerTitles: {
     flex: 1,
   },
   title: {
-    fontSize: Typography.fontSize['2xl'],
+    fontSize: Typography.fontSize['3xl'],
+    lineHeight: 34,
     fontFamily: Typography.fontFamilies.editorial,
     letterSpacing: -0.3,
   },
@@ -592,10 +599,10 @@ const styles = StyleSheet.create({
   sortChips: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: Spacing.one,
+    gap: Spacing.two,
   },
   sortChip: {
-    paddingHorizontal: Spacing.four,
+    paddingHorizontal: Spacing.three,
     paddingVertical: 6,
     borderRadius: Radius.full,
     borderWidth: 1,
@@ -606,12 +613,12 @@ const styles = StyleSheet.create({
   },
   categoryPillsScroll: {
     flexDirection: 'row',
-    gap: Spacing.one,
+    gap: Spacing.two,
     paddingVertical: Spacing.one,
-    marginBottom: Spacing.four,
+    marginBottom: Spacing.three,
   },
   categoryPill: {
-    paddingHorizontal: Spacing.four,
+    paddingHorizontal: Spacing.three,
     paddingVertical: 6,
     borderRadius: Radius.full,
     borderWidth: 1,
@@ -633,7 +640,6 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: Typography.fontSize.xs,
     fontFamily: Typography.fontFamilies.sans,
-    color: '#B91C1C',
     marginRight: Spacing.two,
   },
   loadingContainer: {

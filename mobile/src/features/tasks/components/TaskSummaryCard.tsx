@@ -190,7 +190,7 @@ const styles = StyleSheet.create({
     borderRadius: Radius.xl,
     borderWidth: 1,
     padding: Spacing.four,
-    marginBottom: Spacing.four,
+    marginBottom: Spacing.three,
     gap: Spacing.three,
   },
   topRow: {

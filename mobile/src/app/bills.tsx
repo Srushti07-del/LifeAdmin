@@ -29,6 +29,7 @@ import {
   SearchInput,
   FilterBar,
   FilterItem,
+  ModalSheet,
   Button,
   EmptyState,
   getButtonForegroundColor,
@@ -89,6 +90,7 @@ export default function BillsScreen() {
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [activeSort, setActiveSort] = useState<BillSortKey>('dueDate');
   const [showSortPicker, setShowSortPicker] = useState<boolean>(false);
+  const [isCategorySheetOpen, setIsCategorySheetOpen] = useState<boolean>(false);
 
   const numColumns = layoutMode === 'list' ? 1 : width >= 768 ? 3 : width >= 360 ? 2 : 1;
 
@@ -280,7 +282,7 @@ export default function BillsScreen() {
           style={styles.scrollArea}
           contentContainerStyle={[
             styles.scrollContent,
-            { paddingBottom: BottomTabInset + Spacing.eight },
+            { paddingBottom: BottomTabInset + Spacing.six },
           ]}
           showsVerticalScrollIndicator={false}
           refreshControl={
@@ -295,7 +297,7 @@ export default function BillsScreen() {
           {/* Summary Dashboard Card */}
           <BillSummaryCard totals={totals} preferredCurrency={preferredCurrency} />
 
-          {/* Search Bar, Layout Toggle & Sort Row */}
+          {/* Search Bar, Category Filter, Layout Toggle & Sort Row */}
           <View style={styles.searchSortRow}>
             <View style={styles.searchWrapper}>
               <SearchInput
@@ -304,6 +306,34 @@ export default function BillsScreen() {
                 placeholder="Search bills, providers..."
               />
             </View>
+
+            <Pressable
+              onPress={() => setIsCategorySheetOpen(true)}
+              style={[
+                styles.sortButton,
+                {
+                  backgroundColor:
+                    selectedCategory !== 'All' ? colors.primarySoft : colors.surface,
+                  borderColor:
+                    selectedCategory !== 'All' ? colors.primary : colors.border,
+                },
+              ]}
+              hitSlop={4}
+              accessibilityRole="button"
+              accessibilityLabel={`Filter by category: ${selectedCategory}`}
+            >
+              <SymbolView
+                name={{
+                  ios: 'line.3.horizontal.decrease.circle',
+                  android: 'filter_list',
+                  web: 'filter_list',
+                }}
+                size={16}
+                tintColor={
+                  selectedCategory !== 'All' ? colors.primary : colors.text
+                }
+              />
+            </Pressable>
 
             <Pressable
               onPress={() => setLayoutMode((m) => (m === 'grid' ? 'list' : 'grid'))}
@@ -354,13 +384,39 @@ export default function BillsScreen() {
             </Pressable>
           </View>
 
+          {selectedCategory !== 'All' ? (
+            <View style={styles.activeCategoryRow}>
+              <Pressable
+                onPress={() => setSelectedCategory('All')}
+                style={[
+                  styles.activeCategoryChip,
+                  {
+                    backgroundColor: colors.primarySoft,
+                    borderColor: colors.primary,
+                  },
+                ]}
+                accessibilityRole="button"
+                accessibilityLabel={`Clear ${selectedCategory} category filter`}
+              >
+                <ThemedText style={[styles.activeCategoryText, { color: colors.primary }]}>
+                  Category: {selectedCategory}
+                </ThemedText>
+                <SymbolView
+                  name={{ ios: 'xmark', android: 'close', web: 'close' }}
+                  size={12}
+                  tintColor={colors.primary}
+                />
+              </Pressable>
+            </View>
+          ) : null}
+
           {/* Sort Options Tray (When opened) */}
           {showSortPicker && (
             <View
               style={[
                 styles.sortTray,
                 {
-                  backgroundColor: colors.surfaceSecondary,
+                  backgroundColor: isDark ? colors.surface : colors.surfaceSecondary,
                   borderColor: colors.border,
                 },
               ]}
@@ -381,7 +437,11 @@ export default function BillsScreen() {
                       style={[
                         styles.sortOptionChip,
                         {
-                          backgroundColor: isSelected ? colors.primary : colors.surface,
+                          backgroundColor: isSelected
+                            ? colors.primary
+                            : isDark
+                            ? colors.surfaceElevated
+                            : colors.surface,
                           borderColor: isSelected ? colors.primary : colors.border,
                         },
                       ]}
@@ -415,49 +475,6 @@ export default function BillsScreen() {
             />
           </View>
 
-          {/* Category Chip Selector */}
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.categoryScroll}
-          >
-            {CATEGORIES.map((cat) => {
-              const isSelected = selectedCategory === cat;
-              return (
-                <Pressable
-                  key={cat}
-                  onPress={() => setSelectedCategory(cat)}
-                  hitSlop={{ top: 6, bottom: 6, left: 2, right: 2 }}
-                  style={[
-                    styles.categoryChip,
-                    {
-                      backgroundColor: isSelected
-                        ? colors.primarySoft
-                        : colors.surfaceSecondary,
-                      borderColor: isSelected ? colors.primary : colors.borderSubtle,
-                    },
-                  ]}
-                  accessibilityRole="button"
-                  accessibilityState={{ selected: isSelected }}
-                >
-                  <ThemedText
-                    style={[
-                      styles.categoryChipText,
-                      {
-                        color: isSelected ? colors.primary : colors.textSecondary,
-                        fontFamily: isSelected
-                          ? Typography.fontFamilies.sansSemiBold
-                          : Typography.fontFamilies.sans,
-                      },
-                    ]}
-                  >
-                    {cat}
-                  </ThemedText>
-                </Pressable>
-              );
-            })}
-          </ScrollView>
-
           {/* Loading Skeleton / State */}
           {isLoading && !isRefreshing ? (
             <View style={styles.loadingContainer}>
@@ -486,8 +503,9 @@ export default function BillsScreen() {
               onAction={() => loadData(false)}
             />
           ) : bills.length === 0 ? (
-            /* Empty State: No Bills Added */
+            /* Empty State: Compact card when No Bills Added */
             <EmptyState
+              compact
               icon={
                 <SymbolView
                   name={{
@@ -495,12 +513,12 @@ export default function BillsScreen() {
                     android: 'receipt_long',
                     web: 'receipt_long',
                   }}
-                  size={40}
+                  size={24}
                   tintColor={colors.primary}
                 />
               }
               title="No bills or obligations"
-              description="Keep track of recurring utilities, subscriptions, credit cards, and rent in one calm place."
+              description="Track recurring utilities, subscriptions, credit cards, and rent in one calm place."
               actionLabel="Add Your First Bill"
               onAction={handleOpenCreateModal}
             />
@@ -580,6 +598,55 @@ export default function BillsScreen() {
         rates={rates}
         isActionLoading={actionLoadingBillId === selectedBillForDetails?._id}
       />
+
+      <ModalSheet
+        isOpen={isCategorySheetOpen}
+        onClose={() => setIsCategorySheetOpen(false)}
+        title="Filter by Category"
+        description="Focus on a single bill category"
+      >
+        <View style={styles.categorySheetList}>
+          {CATEGORIES.map((cat) => {
+            const isSelected = selectedCategory === cat;
+            return (
+              <Pressable
+                key={cat}
+                onPress={() => {
+                  setSelectedCategory(cat);
+                  setIsCategorySheetOpen(false);
+                }}
+                style={[
+                  styles.categorySheetOption,
+                  {
+                    backgroundColor: isSelected
+                      ? colors.primarySoft
+                      : colors.surfaceSecondary,
+                    borderColor: isSelected ? colors.primary : colors.border,
+                  },
+                ]}
+                accessibilityRole="button"
+                accessibilityState={{ selected: isSelected }}
+              >
+                <ThemedText
+                  style={[
+                    styles.categorySheetText,
+                    { color: isSelected ? colors.primary : colors.text },
+                  ]}
+                >
+                  {cat === 'All' ? 'All Categories' : cat}
+                </ThemedText>
+                {isSelected ? (
+                  <SymbolView
+                    name={{ ios: 'checkmark', android: 'check', web: 'check' }}
+                    size={16}
+                    tintColor={colors.primary}
+                  />
+                ) : null}
+              </Pressable>
+            );
+          })}
+        </View>
+      </ModalSheet>
     </ThemedView>
   );
 }
@@ -597,14 +664,15 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: Spacing.four,
     paddingTop: Spacing.two,
-    paddingBottom: Spacing.three,
+    paddingBottom: Spacing.two + 2,
   },
   headerTitleCol: {
     flex: 1,
     marginRight: Spacing.three,
   },
   title: {
-    fontSize: Typography.fontSize['2xl'],
+    fontSize: Typography.fontSize['3xl'],
+    lineHeight: 34,
     fontFamily: Typography.fontFamilies.editorial,
   },
   subtitle: {
@@ -620,7 +688,7 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     paddingHorizontal: Spacing.four,
-    gap: Spacing.four,
+    gap: Spacing.three,
   },
   searchSortRow: {
     flexDirection: 'row',
@@ -667,18 +735,39 @@ const styles = StyleSheet.create({
   filterSection: {
     marginTop: -Spacing.one,
   },
-  categoryScroll: {
-    gap: Spacing.two,
-    paddingVertical: Spacing.one,
+  activeCategoryRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
   },
-  categoryChip: {
+  activeCategoryChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    minHeight: 34,
     paddingHorizontal: Spacing.three,
     paddingVertical: 6,
     borderRadius: Radius.full,
     borderWidth: 1,
   },
-  categoryChipText: {
+  activeCategoryText: {
+    fontFamily: Typography.fontFamilies.sansSemiBold,
     fontSize: Typography.fontSize.xs,
+  },
+  categorySheetList: {
+    gap: Spacing.two,
+  },
+  categorySheetOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    minHeight: 44,
+    paddingHorizontal: Spacing.four,
+    borderRadius: Radius.lg,
+    borderWidth: 1,
+  },
+  categorySheetText: {
+    fontFamily: Typography.fontFamilies.sansMedium,
+    fontSize: Typography.fontSize.sm,
   },
   billsList: {
     gap: Spacing.three,

@@ -364,16 +364,17 @@ export default function RemindersScreen() {
   };
 
   return (
-    <SafeAreaView
-      edges={["top", "left", "right"]}
-      style={[styles.screen, { backgroundColor: colors.background }]}
-    >
-      <ScrollView
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={[
-          styles.scrollContent,
-          { paddingBottom: BottomTabInset + Spacing.eight },
-        ]}
+    <ThemedView style={styles.screen}>
+      <SafeAreaView
+        edges={["top", "left", "right"]}
+        style={styles.screen}
+      >
+        <ScrollView
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={[
+            styles.scrollContent,
+            { paddingBottom: BottomTabInset + Spacing.six },
+          ]}
         refreshControl={
           <RefreshControl
             refreshing={isRefreshing}
@@ -455,18 +456,30 @@ export default function RemindersScreen() {
               )
             }
             hitSlop={4}
+            accessibilityRole="button"
+            accessibilityLabel={
+              sortOrder === "dueDate"
+                ? "Sort order: Soonest first"
+                : "Sort order: Latest first"
+            }
             style={[
               styles.sortBtn,
               {
-                backgroundColor: colors.surface,
-                borderColor: colors.border,
+                backgroundColor:
+                  sortOrder === "-dueDate"
+                    ? colors.primarySoft
+                    : colors.surface,
+                borderColor:
+                  sortOrder === "-dueDate" ? colors.primary : colors.border,
               },
             ]}
           >
             <SymbolView
               name={{ ios: "arrow.up.arrow.down", android: "sort" }}
               size={18}
-              tintColor={colors.text}
+              tintColor={
+                sortOrder === "-dueDate" ? colors.primary : colors.text
+              }
             />
           </Pressable>
         </View>
@@ -801,7 +814,8 @@ export default function RemindersScreen() {
         onToggleComplete={handleToggleComplete}
         onDelete={handleDeleteReminder}
       />
-    </SafeAreaView>
+      </SafeAreaView>
+    </ThemedView>
   );
 }
 
@@ -817,13 +831,14 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    marginBottom: Spacing.four,
+    marginBottom: Spacing.three,
   },
   headerTitles: {
     flex: 1,
   },
   title: {
-    fontSize: Typography.fontSize["2xl"],
+    fontSize: Typography.fontSize["3xl"],
+    lineHeight: 34,
     fontFamily: Typography.fontFamilies.editorial,
     letterSpacing: -0.3,
   },
@@ -854,12 +869,12 @@ const styles = StyleSheet.create({
   },
   categoryPillsScroll: {
     flexDirection: "row",
-    gap: Spacing.one,
+    gap: Spacing.two,
     paddingVertical: Spacing.one,
-    marginBottom: Spacing.four,
+    marginBottom: Spacing.three,
   },
   categoryPill: {
-    paddingHorizontal: Spacing.four,
+    paddingHorizontal: Spacing.three,
     paddingVertical: 6,
     borderRadius: Radius.full,
     borderWidth: 1,
@@ -881,7 +896,6 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: Typography.fontSize.xs,
     fontFamily: Typography.fontFamilies.sans,
-    color: "#B91C1C",
     marginRight: Spacing.two,
   },
   loadingContainer: {

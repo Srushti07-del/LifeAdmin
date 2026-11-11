@@ -62,7 +62,11 @@ export function DashboardHeader({
             accessibilityRole="button"
             style={({ pressed }) => [
               styles.iconButton,
-              { backgroundColor: colors.surfaceSecondary },
+              {
+                backgroundColor: isDark ? colors.surface : colors.surfaceSecondary,
+                borderColor: colors.border,
+                borderWidth: isDark ? 1 : 0,
+              },
               pressed && styles.pressed,
             ]}
           >
@@ -82,7 +86,11 @@ export function DashboardHeader({
           accessibilityRole="button"
           style={({ pressed }) => [
             styles.iconButton,
-            { backgroundColor: isDark ? colors.surfaceSecondary : colors.surfaceSecondary },
+            {
+              backgroundColor: isDark ? colors.surface : colors.surfaceSecondary,
+              borderColor: colors.border,
+              borderWidth: isDark ? 1 : 0,
+            },
             pressed && styles.pressed,
           ]}
         >
@@ -133,8 +141,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: Spacing.four,
-    paddingTop: Spacing.three,
-    paddingBottom: Spacing.four,
+    paddingTop: Spacing.two,
+    paddingBottom: Spacing.three,
   },
   leftContent: {
     flex: 1,
@@ -152,6 +160,7 @@ const styles = StyleSheet.create({
   },
   nameText: {
     fontSize: Typography.fontSize['3xl'],
+    lineHeight: 34,
     fontFamily: Typography.fontFamilies.editorial,
     letterSpacing: -0.5,
   },

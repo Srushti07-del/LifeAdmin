@@ -70,7 +70,8 @@ export function SegmentedControl<T extends string = string>({
               isActive && [
                 styles.activeTab,
                 {
-                  backgroundColor: colors.surface,
+                  backgroundColor: isDark ? colors.surfaceElevated : colors.surface,
+                  borderColor: isDark ? colors.border : 'rgba(24, 59, 61, 0.08)',
                 },
                 activeShadow,
                 activeTabStyle,
@@ -130,7 +131,6 @@ const styles = StyleSheet.create({
   },
   activeTab: {
     borderWidth: StyleSheet.hairlineWidth,
-    borderColor: 'rgba(0, 0, 0, 0.05)',
   },
   pressed: {
     opacity: 0.7,

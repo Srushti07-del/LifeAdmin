@@ -120,7 +120,9 @@ export function NeedsAttentionSection({
                   backgroundColor: colors.surface,
                   borderColor:
                     item.severity === 'overdue'
-                      ? urgencyConfig.accent
+                      ? isDark
+                        ? 'rgba(248, 113, 113, 0.5)'
+                        : urgencyConfig.accent
                       : isDark
                       ? colors.border
                       : colors.borderSubtle,
@@ -143,7 +145,7 @@ export function NeedsAttentionSection({
                       <SymbolView
                         name={iconName as any}
                         size={18}
-                        tintColor={urgencyConfig.accent}
+                        tintColor={isDark ? urgencyConfig.darkText : urgencyConfig.accent}
                       />
                     </View>
                     <View style={styles.textColumn}>
@@ -194,17 +196,24 @@ export function NeedsAttentionSection({
                     accessibilityLabel={item.type === 'bill' ? 'Pay Bill' : 'Mark Done'}
                     style={({ pressed }) => [
                       styles.actionButton,
-                      { backgroundColor: colors.surfaceSecondary },
+                      {
+                        backgroundColor: isDark ? colors.surfaceElevated : colors.surfaceSecondary,
+                      },
                       pressed && styles.pressed,
                     ]}
                   >
-                    <ThemedText style={[styles.actionButtonText, { color: colors.primaryDeep }]}>
+                    <ThemedText
+                      style={[
+                        styles.actionButtonText,
+                        { color: isDark ? colors.primary : colors.primaryDeep },
+                      ]}
+                    >
                       {item.type === 'bill' ? 'Pay' : item.type === 'task' ? 'Done' : 'View'}
                     </ThemedText>
                     <SymbolView
                       name={{ ios: 'chevron.right', android: 'chevron_right', web: 'chevron_right' }}
                       size={14}
-                      tintColor={colors.primaryDeep}
+                      tintColor={isDark ? colors.primary : colors.primaryDeep}
                     />
                   </Pressable>
                 </View>
@@ -220,10 +229,10 @@ export function NeedsAttentionSection({
 const styles = StyleSheet.create({
   container: {
     paddingHorizontal: Spacing.four,
-    marginBottom: Spacing.six,
+    marginBottom: Spacing.four,
   },
   sectionHeader: {
-    marginBottom: Spacing.three,
+    marginBottom: Spacing.two + 2,
   },
   titleRow: {
     flexDirection: 'row',
@@ -268,7 +277,7 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   itemsList: {
-    gap: Spacing.three,
+    gap: Spacing.two,
   },
   itemCard: {
     borderRadius: Radius.xl,
@@ -276,7 +285,7 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   cardContent: {
-    padding: Spacing.four,
+    padding: Spacing.three + 2,
   },
   cardTopRow: {
     flexDirection: 'row',
@@ -329,7 +338,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginTop: Spacing.three,
+    marginTop: Spacing.two + 2,
     paddingTop: Spacing.two,
     borderTopWidth: StyleSheet.hairlineWidth,
   },

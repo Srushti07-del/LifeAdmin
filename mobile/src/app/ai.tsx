@@ -327,7 +327,11 @@ export default function AIAssistantScreen() {
               hitSlop={10}
               style={({ pressed }) => [
                 styles.iconButton,
-                { backgroundColor: colors.surfaceSecondary },
+                {
+                  backgroundColor: isDark ? colors.surface : colors.surfaceSecondary,
+                  borderColor: colors.border,
+                  borderWidth: isDark ? 1 : 0,
+                },
                 pressed && { opacity: 0.7 },
               ]}
               accessibilityRole="button"
@@ -372,7 +376,11 @@ export default function AIAssistantScreen() {
               hitSlop={8}
               style={({ pressed }) => [
                 styles.headerActionBtn,
-                { backgroundColor: colors.surfaceSecondary },
+                {
+                  backgroundColor: isDark ? colors.surface : colors.surfaceSecondary,
+                  borderColor: colors.border,
+                  borderWidth: isDark ? 1 : 0,
+                },
                 pressed && { opacity: 0.7 },
               ]}
               accessibilityRole="button"
@@ -390,7 +398,11 @@ export default function AIAssistantScreen() {
               hitSlop={8}
               style={({ pressed }) => [
                 styles.headerActionBtn,
-                { backgroundColor: colors.surfaceSecondary },
+                {
+                  backgroundColor: isDark ? colors.surface : colors.surfaceSecondary,
+                  borderColor: colors.border,
+                  borderWidth: isDark ? 1 : 0,
+                },
                 pressed && { opacity: 0.7 },
               ]}
               accessibilityRole="button"
@@ -817,7 +829,7 @@ const styles = StyleSheet.create({
   },
   welcomeHero: {
     alignItems: 'center',
-    paddingVertical: Spacing.six,
+    paddingVertical: Spacing.four,
   },
   heroIconBox: {
     width: 60,
@@ -840,7 +852,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     lineHeight: 20,
     maxWidth: 320,
-    marginBottom: Spacing.six,
+    marginBottom: Spacing.four,
   },
   suggestionsContainer: {
     width: '100%',

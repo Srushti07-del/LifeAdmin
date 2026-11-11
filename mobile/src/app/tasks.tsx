@@ -498,7 +498,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     gap: Spacing.three,
-    marginBottom: Spacing.four,
+    marginBottom: Spacing.three,
   },
   headerText: {
     flex: 1,
@@ -515,7 +515,7 @@ const styles = StyleSheet.create({
     lineHeight: 18,
   },
   viewSwitcher: {
-    marginBottom: Spacing.four,
+    marginBottom: Spacing.three,
   },
   searchRow: {
     flexDirection: 'row',

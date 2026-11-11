@@ -576,9 +576,13 @@ export default function SettingsScreen() {
                   {
                     color:
                       banner.tone === 'error'
-                        ? Colors.status.danger
+                        ? isDark
+                          ? Colors.urgency.critical.darkText
+                          : Colors.status.danger
                         : banner.tone === 'info'
                         ? colors.text
+                        : isDark
+                        ? '#6EE7B7'
                         : Colors.status.success,
                   },
                 ]}
@@ -771,8 +775,12 @@ export default function SettingsScreen() {
                       style={[
                         styles.domainChip,
                         {
-                          backgroundColor: active ? colors.primarySoft : colors.surfaceSecondary,
-                          borderColor: active ? colors.primary : colors.borderSubtle,
+                          backgroundColor: active
+                            ? colors.primarySoft
+                            : isDark
+                            ? colors.surfaceElevated
+                            : colors.surfaceSecondary,
+                          borderColor: active ? colors.primary : colors.border,
                         },
                       ]}
                     >
@@ -926,8 +934,8 @@ export default function SettingsScreen() {
               style={({ pressed }) => [
                 styles.actionRow,
                 {
-                  backgroundColor: colors.surfaceSecondary,
-                  borderColor: colors.borderSubtle,
+                  backgroundColor: isDark ? colors.surfaceElevated : colors.surfaceSecondary,
+                  borderColor: colors.border,
                 },
                 pressed && { opacity: 0.8 },
               ]}
@@ -988,8 +996,12 @@ export default function SettingsScreen() {
                     style={({ pressed }) => [
                       styles.themeCard,
                       {
-                        backgroundColor: selected ? colors.primarySoft : colors.surfaceSecondary,
-                        borderColor: selected ? colors.primary : colors.borderSubtle,
+                        backgroundColor: selected
+                          ? colors.primarySoft
+                          : isDark
+                          ? colors.surfaceElevated
+                          : colors.surfaceSecondary,
+                        borderColor: selected ? colors.primary : colors.border,
                       },
                       pressed && { opacity: 0.85 },
                     ]}
@@ -1076,8 +1088,12 @@ export default function SettingsScreen() {
                       style={[
                         styles.timingChip,
                         {
-                          backgroundColor: selected ? colors.primarySoft : colors.surfaceSecondary,
-                          borderColor: selected ? colors.primary : colors.borderSubtle,
+                          backgroundColor: selected
+                            ? colors.primarySoft
+                            : isDark
+                            ? colors.surfaceElevated
+                            : colors.surfaceSecondary,
+                          borderColor: selected ? colors.primary : colors.border,
                         },
                       ]}
                     >
@@ -1116,8 +1132,12 @@ export default function SettingsScreen() {
                       style={[
                         styles.timingChip,
                         {
-                          backgroundColor: selected ? colors.primarySoft : colors.surfaceSecondary,
-                          borderColor: selected ? colors.primary : colors.borderSubtle,
+                          backgroundColor: selected
+                            ? colors.primarySoft
+                            : isDark
+                            ? colors.surfaceElevated
+                            : colors.surfaceSecondary,
+                          borderColor: selected ? colors.primary : colors.border,
                         },
                       ]}
                     >
@@ -1302,7 +1322,7 @@ export default function SettingsScreen() {
             <View
               style={[
                 styles.securityInfoBox,
-                { backgroundColor: colors.surfaceSecondary, borderColor: colors.borderSubtle },
+                { backgroundColor: colors.surfaceSecondary, borderColor: colors.border },
               ]}
             >
               <SymbolView
@@ -1322,8 +1342,8 @@ export default function SettingsScreen() {
               style={({ pressed }) => [
                 styles.actionRow,
                 {
-                  backgroundColor: colors.surfaceSecondary,
-                  borderColor: colors.borderSubtle,
+                  backgroundColor: isDark ? colors.surfaceElevated : colors.surfaceSecondary,
+                  borderColor: colors.border,
                   opacity: accountMode.canRequestPasswordReset ? (pressed ? 0.8 : 1) : 0.5,
                 },
               ]}
@@ -1357,8 +1377,8 @@ export default function SettingsScreen() {
               style={({ pressed }) => [
                 styles.actionRow,
                 {
-                  backgroundColor: colors.surfaceSecondary,
-                  borderColor: colors.borderSubtle,
+                  backgroundColor: isDark ? colors.surfaceElevated : colors.surfaceSecondary,
+                  borderColor: colors.border,
                   opacity: accountMode.canExportData ? (pressed ? 0.8 : 1) : 0.5,
                 },
               ]}

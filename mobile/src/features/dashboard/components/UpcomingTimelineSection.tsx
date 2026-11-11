@@ -55,19 +55,19 @@ export function UpcomingTimelineSection({
         return {
           label: 'Bill',
           icon: { ios: 'creditcard.fill', android: 'receipt_long', web: 'receipt_long' },
-          accent: '#059669', // Emerald
+          accent: isDark ? '#34D399' : '#059669',
         };
       case 'appointment':
         return {
           label: 'Appointment',
           icon: { ios: 'calendar.badge.clock', android: 'event', web: 'event' },
-          accent: '#0284C7', // Sky
+          accent: isDark ? '#38BDF8' : '#0284C7',
         };
       case 'reminder':
         return {
           label: 'Reminder',
           icon: { ios: 'bell.fill', android: 'alarm', web: 'alarm' },
-          accent: '#D97706', // Amber
+          accent: isDark ? '#FBBF24' : '#D97706',
         };
       case 'event':
         return {
@@ -79,7 +79,7 @@ export function UpcomingTimelineSection({
         return {
           label: 'Document',
           icon: { ios: 'doc.text.fill', android: 'description', web: 'description' },
-          accent: '#0D9488', // Teal
+          accent: isDark ? '#2DD4BF' : '#0D9488',
         };
       case 'task':
       default:
@@ -217,10 +217,10 @@ export function UpcomingTimelineSection({
 const styles = StyleSheet.create({
   container: {
     paddingHorizontal: Spacing.four,
-    marginBottom: Spacing.eight,
+    marginBottom: Spacing.four,
   },
   sectionHeader: {
-    marginBottom: Spacing.four,
+    marginBottom: Spacing.three,
   },
   titleRow: {
     flexDirection: 'row',
@@ -249,7 +249,7 @@ const styles = StyleSheet.create({
   timelineRow: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    marginBottom: Spacing.three,
+    marginBottom: Spacing.two + 2,
   },
   dateColumn: {
     width: 48,
@@ -299,7 +299,7 @@ const styles = StyleSheet.create({
   },
   card: {
     flex: 1,
-    padding: Spacing.three + 2,
+    padding: Spacing.three,
     borderRadius: Radius.lg,
     borderWidth: 1,
     marginLeft: Spacing.two,

@@ -62,35 +62,35 @@ export function QuickActionModal({
           title: 'Add New Bill',
           placeholder: 'e.g. Electricity, WiFi, Rent',
           buttonLabel: 'Add Bill',
-          accent: '#059669',
+          accent: isDark ? '#34D399' : '#059669',
         };
       case 'appointment':
         return {
           title: 'Add Appointment',
           placeholder: 'e.g. Dr. Sharma Dental Checkup',
           buttonLabel: 'Schedule Appointment',
-          accent: '#0284C7',
+          accent: isDark ? '#38BDF8' : '#0284C7',
         };
       case 'reminder':
         return {
           title: 'Add Reminder',
           placeholder: 'e.g. Water plants, Buy groceries',
           buttonLabel: 'Set Reminder',
-          accent: '#D97706',
+          accent: isDark ? '#FBBF24' : '#D97706',
         };
       case 'event':
         return {
           title: 'Add Calendar Event',
           placeholder: 'e.g. Team planning session',
           buttonLabel: 'Save Event',
-          accent: '#7C3AED',
+          accent: isDark ? '#A78BFA' : '#7C3AED',
         };
       case 'document':
         return {
           title: 'Upload Document',
           placeholder: 'Document title',
           buttonLabel: 'Upload',
-          accent: '#0D9488',
+          accent: isDark ? '#2DD4BF' : '#0D9488',
         };
       case 'task':
       default:

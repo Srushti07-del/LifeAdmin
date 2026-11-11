@@ -299,7 +299,11 @@ export default function DashboardScreen() {
           />
         );
       case 'lifebuddy':
-        return <LifeBuddyWidget key="lifebuddy" />;
+        return (
+          <View key="lifebuddy" style={styles.lifebuddyWrapper}>
+            <LifeBuddyWidget />
+          </View>
+        );
       case 'ai_briefing':
         return (
           <AIDailyBriefingWidget
@@ -379,7 +383,7 @@ export default function DashboardScreen() {
             style={styles.scrollView}
             contentContainerStyle={[
               styles.scrollContent,
-              { paddingBottom: BottomTabInset + Spacing.eight },
+              { paddingBottom: BottomTabInset + Spacing.six },
             ]}
             showsVerticalScrollIndicator={false}
             refreshControl={
@@ -665,14 +669,17 @@ const styles = StyleSheet.create({
     alignSelf: 'center',
     width: '100%',
   },
+  lifebuddyWrapper: {
+    paddingHorizontal: Spacing.four,
+  },
   layoutBar: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     marginHorizontal: Spacing.four,
-    marginBottom: Spacing.five,
+    marginBottom: Spacing.four,
     paddingHorizontal: Spacing.three + 2,
-    paddingVertical: Spacing.two + 2,
+    paddingVertical: Spacing.two,
     borderRadius: Radius.lg,
     borderWidth: 1,
   },
@@ -787,7 +794,7 @@ const styles = StyleSheet.create({
     paddingVertical: Spacing.two,
     borderRadius: Radius.md,
     borderWidth: 1,
-    marginBottom: Spacing.four,
+    marginBottom: Spacing.three,
   },
   guestBannerLeft: {
     flexDirection: 'row',

@@ -151,7 +151,7 @@ const styles = StyleSheet.create({
   card: {
     borderRadius: Radius.xl,
     borderWidth: 1,
-    padding: Spacing.four,
+    padding: Spacing.three + 2,
     overflow: 'hidden',
     width: '100%',
   },
@@ -181,8 +181,8 @@ const styles = StyleSheet.create({
   },
   value: {
     fontFamily: Typography.fontFamilies.sansBold,
-    fontSize: Typography.fontSize['3xl'],
-    lineHeight: 34,
+    fontSize: Typography.fontSize['2xl'],
+    lineHeight: 28,
     letterSpacing: -0.5,
     fontVariant: ['tabular-nums'],
   },

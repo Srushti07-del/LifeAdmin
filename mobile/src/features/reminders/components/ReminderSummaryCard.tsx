@@ -230,7 +230,7 @@ const styles = StyleSheet.create({
     borderRadius: Radius.lg,
     borderWidth: 1,
     padding: Spacing.four,
-    marginBottom: Spacing.four,
+    marginBottom: Spacing.three,
   },
   header: {
     flexDirection: 'row',

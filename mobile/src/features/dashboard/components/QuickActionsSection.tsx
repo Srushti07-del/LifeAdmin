@@ -88,7 +88,7 @@ export function QuickActionsSection({
       route: '/documents',
       routeLabel: 'Vault',
       icon: { ios: 'doc.badge.plus', android: 'upload_file', web: 'upload_file' },
-      accentColor: colors.primaryDeep,
+      accentColor: isDark ? colors.primary : colors.primaryDeep,
     },
   ];
 
@@ -195,10 +195,10 @@ export function QuickActionsSection({
 const styles = StyleSheet.create({
   container: {
     paddingHorizontal: Spacing.four,
-    marginBottom: Spacing.six,
+    marginBottom: Spacing.four,
   },
   sectionHeader: {
-    marginBottom: Spacing.three,
+    marginBottom: Spacing.two + 2,
   },
   sectionTitle: {
     fontSize: Typography.fontSize.xl,
@@ -211,7 +211,7 @@ const styles = StyleSheet.create({
   grid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: Spacing.two + 2,
+    gap: Spacing.two,
   },
   actionCard: {
     flex: 1,
@@ -221,9 +221,9 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   createArea: {
-    paddingHorizontal: Spacing.three + 2,
-    paddingTop: Spacing.three + 2,
-    paddingBottom: Spacing.three,
+    paddingHorizontal: Spacing.three,
+    paddingTop: Spacing.three,
+    paddingBottom: Spacing.two + 2,
   },
   topRow: {
     flexDirection: 'row',

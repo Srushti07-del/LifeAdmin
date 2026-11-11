@@ -271,7 +271,11 @@ export default function CalendarScreen() {
                 hitSlop={6}
                 style={[
                   styles.arrowBtn,
-                  { backgroundColor: colors.surfaceSecondary },
+                  {
+                    backgroundColor: isDark ? colors.surfaceElevated : colors.surfaceSecondary,
+                    borderColor: colors.border,
+                    borderWidth: isDark ? 1 : 0,
+                  },
                 ]}
                 accessibilityRole="button"
                 accessibilityLabel="Previous Period"
@@ -292,7 +296,11 @@ export default function CalendarScreen() {
                 hitSlop={6}
                 style={[
                   styles.arrowBtn,
-                  { backgroundColor: colors.surfaceSecondary },
+                  {
+                    backgroundColor: isDark ? colors.surfaceElevated : colors.surfaceSecondary,
+                    borderColor: colors.border,
+                    borderWidth: isDark ? 1 : 0,
+                  },
                 ]}
                 accessibilityRole="button"
                 accessibilityLabel="Next Period"
@@ -333,8 +341,10 @@ export default function CalendarScreen() {
                     {
                       backgroundColor: isSelected
                         ? colors.primary
+                        : isDark
+                        ? colors.surface
                         : colors.surfaceSecondary,
-                      borderColor: isSelected ? colors.primary : colors.borderSubtle,
+                      borderColor: isSelected ? colors.primary : colors.border,
                     },
                   ]}
                   accessibilityRole="button"
@@ -479,7 +489,8 @@ const styles = StyleSheet.create({
     marginRight: Spacing.three,
   },
   title: {
-    fontSize: Typography.fontSize['2xl'],
+    fontSize: Typography.fontSize['3xl'],
+    lineHeight: 34,
     fontFamily: Typography.fontFamilies.editorial,
   },
   subtitle: {

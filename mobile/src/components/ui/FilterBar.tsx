@@ -64,6 +64,8 @@ export function FilterBar<T extends string = string>({
               {
                 backgroundColor: isActive
                   ? colors.primary
+                  : isDark
+                  ? colors.surface
                   : colors.surfaceSecondary,
                 borderColor: isActive ? colors.primary : colors.border,
               },
@@ -103,7 +105,7 @@ export function FilterBar<T extends string = string>({
                   {
                     backgroundColor: isActive
                       ? isDark ? 'rgba(20, 52, 64, 0.25)' : 'rgba(255, 255, 255, 0.25)'
-                      : colors.surface,
+                      : isDark ? colors.surfaceElevated : colors.surface,
                   },
                 ]}
               >
@@ -113,7 +115,7 @@ export function FilterBar<T extends string = string>({
                     {
                       color: isActive
                         ? isDark ? colors.surfaceSecondary : '#FFFFFF'
-                        : colors.textMuted,
+                        : colors.textSecondary,
                     },
                   ]}
                 >

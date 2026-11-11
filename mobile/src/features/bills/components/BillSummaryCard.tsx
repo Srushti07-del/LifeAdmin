@@ -222,7 +222,6 @@ const styles = StyleSheet.create({
     borderRadius: Radius['2xl'],
     borderWidth: 1,
     padding: Spacing.four,
-    marginBottom: Spacing.four,
   },
   headerRow: {
     flexDirection: 'row',
@@ -258,7 +257,7 @@ const styles = StyleSheet.create({
   },
   progressSection: {
     marginTop: Spacing.three,
-    marginBottom: Spacing.four,
+    marginBottom: Spacing.three,
   },
   progressBarTrack: {
     height: 6,

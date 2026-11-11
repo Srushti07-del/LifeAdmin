@@ -136,7 +136,13 @@ export function DashboardTasksWidget({
                   <SymbolView
                     name={{ ios: 'circle', android: 'radio_button_unchecked', web: 'radio_button_unchecked' }}
                     size={18}
-                    tintColor={task.isUrgent ? Colors.urgency.critical.accent : colors.primary}
+                    tintColor={
+                      task.isUrgent
+                        ? isDark
+                          ? Colors.urgency.critical.darkText
+                          : Colors.urgency.critical.accent
+                        : colors.primary
+                    }
                   />
                 </Pressable>
 
@@ -152,7 +158,9 @@ export function DashboardTasksWidget({
                       styles.rowMeta,
                       {
                         color: task.isUrgent
-                          ? Colors.urgency.critical.accent
+                          ? isDark
+                            ? Colors.urgency.critical.darkText
+                            : Colors.urgency.critical.lightText
                           : colors.textSecondary,
                       },
                     ]}
@@ -189,20 +197,20 @@ export function DashboardTasksWidget({
 const styles = StyleSheet.create({
   wrapper: {
     paddingHorizontal: Spacing.four,
-    marginBottom: Spacing.five,
+    marginBottom: Spacing.four,
   },
   card: {
     borderRadius: Radius['2xl'],
     borderWidth: 1,
-    padding: Spacing.four,
+    padding: Spacing.three + 2,
   },
   headerRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingBottom: Spacing.three,
+    paddingBottom: Spacing.two + 2,
     borderBottomWidth: StyleSheet.hairlineWidth,
-    marginBottom: Spacing.three,
+    marginBottom: Spacing.two + 2,
   },
   headerLeft: {
     flexDirection: 'row',
@@ -236,7 +244,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: Spacing.three,
-    paddingVertical: Spacing.two + 2,
+    paddingVertical: Spacing.two,
     borderRadius: Radius.lg,
     borderWidth: StyleSheet.hairlineWidth,
     gap: Spacing.two,
