@@ -53,6 +53,7 @@ router.post(
           email,
           password,
           authProvider: 'local',
+          onboardingCompleted: false,
         });
       } catch (createErr: any) {
         // Handle duplicate-key race condition gracefully

@@ -29,6 +29,7 @@ interface User {
   };
   emailReminderIntervals: number[];
   timezone: string;
+}
 
 interface AuthContextType {
   user: User | null;
@@ -159,7 +160,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     applyTheme('light');
   }, []);
 
-<<<<<<< HEAD
+  const register = useCallback(async (name: string, email: string, password: string) => {
+    const res = await api.post('/auth/register', { name, email, password });
+    const { token: newToken, user: userData } = res.data;
+    localStorage.setItem('lifeadmin_token', newToken);
     if (userData.companion) {
       saveCompanionStorage(userData.companion, false);
     }
