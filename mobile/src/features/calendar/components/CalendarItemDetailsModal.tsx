@@ -14,6 +14,7 @@ import {
 import { useRouter } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
 import { useAppTheme } from '@/context/ThemeContext';
+import { useSnackbar } from '@/context/SnackbarContext';
 import { ThemedText } from '@/components/themed-text';
 import { ModalSheet, Button, getButtonForegroundColor } from '@/components/ui';
 import { Typography } from '@/constants/typography';
@@ -38,6 +39,7 @@ export function CalendarItemDetailsModal({
   onDelete,
 }: CalendarItemDetailsModalProps) {
   const { colors, isDark } = useAppTheme();
+  const { showSnackbar } = useSnackbar();
   const router = useRouter();
   const [deleting, setDeleting] = useState(false);
 
@@ -61,7 +63,11 @@ export function CalendarItemDetailsModal({
               await onDelete(item);
               onClose();
             } catch {
-              Alert.alert('Error', 'Failed to delete event. Please try again.');
+              showSnackbar({
+                variant: 'error',
+                title: 'Delete Failed',
+                message: 'Failed to delete event. Please try again.',
+              });
             } finally {
               setDeleting(false);
             }
@@ -375,7 +381,7 @@ const styles = StyleSheet.create({
   },
   typeText: {
     fontSize: Typography.fontSize.xs,
-    fontWeight: Typography.fontWeight.semibold,
+    fontFamily: Typography.fontFamilies.sansSemiBold,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
   },
@@ -386,7 +392,7 @@ const styles = StyleSheet.create({
   },
   categoryText: {
     fontSize: Typography.fontSize.xs,
-    fontWeight: Typography.fontWeight.medium,
+    fontFamily: Typography.fontFamilies.sansMedium,
   },
   title: {
     fontSize: Typography.fontSize.xl,
@@ -414,7 +420,7 @@ const styles = StyleSheet.create({
   },
   detailValue: {
     fontSize: Typography.fontSize.sm,
-    fontWeight: Typography.fontWeight.semibold,
+    fontFamily: Typography.fontFamilies.sansSemiBold,
     maxWidth: '65%',
     textAlign: 'right',
   },
@@ -429,7 +435,7 @@ const styles = StyleSheet.create({
   },
   notesLabel: {
     fontSize: Typography.fontSize.xs,
-    fontWeight: Typography.fontWeight.medium,
+    fontFamily: Typography.fontFamilies.sansMedium,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
     marginBottom: 4,

@@ -156,7 +156,7 @@ const styles = StyleSheet.create({
   },
   greetingText: {
     fontSize: Typography.fontSize.sm,
-    fontWeight: Typography.fontWeight.medium,
+    fontFamily: Typography.fontFamilies.sansMedium,
   },
   nameText: {
     fontSize: Typography.fontSize['3xl'],
@@ -192,7 +192,7 @@ const styles = StyleSheet.create({
   badgeText: {
     color: '#FFFFFF',
     fontSize: 10,
-    fontWeight: Typography.fontWeight.bold,
+    fontFamily: Typography.fontFamilies.sansBold,
     fontVariant: ['tabular-nums'],
   },
   avatarButton: {
@@ -205,7 +205,7 @@ const styles = StyleSheet.create({
   },
   avatarText: {
     fontSize: Typography.fontSize.base,
-    fontWeight: Typography.fontWeight.bold,
+    fontFamily: Typography.fontFamilies.sansBold,
   },
   pressed: {
     opacity: 0.75,

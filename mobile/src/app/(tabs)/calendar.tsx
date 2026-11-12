@@ -12,22 +12,22 @@ import {
   RefreshControl,
   ActivityIndicator,
   Pressable,
-  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { SymbolView } from 'expo-symbols';
 import { useAppTheme } from '@/context/ThemeContext';
+import { useSnackbar } from '@/context/SnackbarContext';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import {
-  Button,
   SegmentedControl,
   EmptyState,
+  FloatingActionButton,
   getButtonForegroundColor,
 } from '@/components/ui';
 import { Typography } from '@/constants/typography';
 import { Spacing, Radius } from '@/constants/spacing';
-import { BottomTabInset } from '@/constants/theme';
+import { useFabBottomPadding } from '@/hooks/use-safe-bottom-padding';
 import {
   CalendarEventItem,
   CalendarViewType,
@@ -64,6 +64,8 @@ const FILTER_TYPES: { key: string; label: string; type?: CalendarItemType }[] = 
 
 export default function CalendarScreen() {
   const { colors, isDark } = useAppTheme();
+  const { showSnackbar } = useSnackbar();
+  const bottomPadding = useFabBottomPadding(Spacing.nine, true);
 
   // Navigation & View state
   const [view, setView] = useState<CalendarViewType>('month');
@@ -168,9 +170,19 @@ export default function CalendarScreen() {
       if (selectedDetailItem?.id === editingItem.id) {
         setSelectedDetailItem((prev) => (prev ? { ...prev, ...res.event } : null));
       }
+      showSnackbar({
+        variant: 'success',
+        title: 'Event Updated',
+        message: `"${res.event?.title || formData.title || 'Event'}" saved.`,
+      });
     } else {
       await calendarService.createEvent(formData);
       await loadEvents(true);
+      showSnackbar({
+        variant: 'success',
+        title: 'Event Scheduled',
+        message: `"${formData.title || 'New event'}" added to calendar.`,
+      });
     }
   };
 
@@ -181,6 +193,11 @@ export default function CalendarScreen() {
     if (selectedDetailItem?.id === item.id) {
       setSelectedDetailItem(null);
     }
+    showSnackbar({
+      variant: 'info',
+      title: 'Event Deleted',
+      message: `"${item.title}" removed from calendar.`,
+    });
   };
 
   const headerTitle = formatCalendarHeader(view, currentDate);
@@ -198,21 +215,6 @@ export default function CalendarScreen() {
               Unified schedule of all dated responsibilities
             </ThemedText>
           </View>
-
-          <Button
-            variant="primary"
-            size="sm"
-            onPress={() => handleOpenCreateModal()}
-            icon={
-              <SymbolView
-                name={{ ios: 'plus', android: 'add', web: 'add' }}
-                size={16}
-                tintColor={getButtonForegroundColor('primary', colors, isDark)}
-              />
-            }
-          >
-            Add Event
-          </Button>
         </View>
 
         {/* View Switcher & Navigation Controls Card */}
@@ -385,7 +387,7 @@ export default function CalendarScreen() {
           style={styles.scrollArea}
           contentContainerStyle={[
             styles.scrollContent,
-            { paddingBottom: BottomTabInset + Spacing.eight },
+            { paddingBottom: bottomPadding },
           ]}
           showsVerticalScrollIndicator={false}
           refreshControl={
@@ -443,6 +445,13 @@ export default function CalendarScreen() {
             />
           )}
         </ScrollView>
+
+        <FloatingActionButton
+          label="Add Event"
+          accessibilityLabel="Add calendar event"
+          onPress={() => handleOpenCreateModal()}
+          isTabScreen
+        />
       </SafeAreaView>
 
       {/* Create & Edit Event Modal Sheet */}
@@ -514,6 +523,8 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   todayBtn: {
+    minHeight: 38,
+    justifyContent: 'center',
     paddingHorizontal: Spacing.three,
     paddingVertical: 7,
     borderRadius: Radius.md,
@@ -521,7 +532,7 @@ const styles = StyleSheet.create({
   },
   todayBtnText: {
     fontSize: Typography.fontSize.xs,
-    fontWeight: Typography.fontWeight.semibold,
+    fontFamily: Typography.fontFamilies.sansSemiBold,
   },
   navRow: {
     flexDirection: 'row',
@@ -543,8 +554,8 @@ const styles = StyleSheet.create({
     gap: Spacing.two,
   },
   arrowBtn: {
-    width: 38,
-    height: 38,
+    width: 40,
+    height: 40,
     borderRadius: Radius.md,
     justifyContent: 'center',
     alignItems: 'center',
@@ -559,6 +570,8 @@ const styles = StyleSheet.create({
   filterChip: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: 36,
     gap: 5,
     paddingHorizontal: Spacing.three,
     paddingVertical: 6,

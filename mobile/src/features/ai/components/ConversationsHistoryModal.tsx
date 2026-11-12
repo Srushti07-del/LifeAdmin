@@ -17,7 +17,6 @@ import { ThemedText } from '@/components/themed-text';
 import { ModalSheet, Button } from '@/components/ui';
 import { Typography } from '@/constants/typography';
 import { Spacing, Radius } from '@/constants/spacing';
-import { createShadow } from '@/constants/shadows';
 import { ConversationSummary } from '../types';
 
 interface ConversationsHistoryModalProps {
@@ -37,7 +36,7 @@ export function ConversationsHistoryModal({
   onSelectConversation,
   onStartNewChat,
 }: ConversationsHistoryModalProps) {
-  const { colors, isDark } = useAppTheme();
+  const { colors } = useAppTheme();
 
   return (
     <ModalSheet
@@ -87,7 +86,6 @@ export function ConversationsHistoryModal({
                 }}
                 style={({ pressed }) => [
                   styles.itemCard,
-                  createShadow(isDark, 'xs'),
                   {
                     backgroundColor: colors.surface,
                     borderColor: colors.border,

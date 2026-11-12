@@ -4,13 +4,15 @@
  */
 
 import React, { useEffect, useState } from 'react';
-import { Alert, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { useAppTheme } from '@/context/ThemeContext';
+import { useSnackbar } from '@/context/SnackbarContext';
 import { ThemedText } from '@/components/themed-text';
-import { Button, Input, ModalSheet } from '@/components/ui';
+import { Button, DatePickerField, Input, ModalSheet, TimePickerField } from '@/components/ui';
 import { Colors } from '@/constants/colors';
 import { Radius, Spacing } from '@/constants/spacing';
 import { Typography } from '@/constants/typography';
+import { isValidHHMMTime, isValidLocalISODate, toLocalISODate } from '@/utils/dateTimeValidation';
 import { Priority, Task, TaskFormData, TaskStatus } from '../types';
 
 export interface TaskFormModalProps {
@@ -38,10 +40,7 @@ const STATUSES: { value: TaskStatus; label: string }[] = [
 function formatYMD(daysOffset: number): string {
   const d = new Date();
   d.setDate(d.getDate() + daysOffset);
-  const year = d.getFullYear();
-  const month = String(d.getMonth() + 1).padStart(2, '0');
-  const day = String(d.getDate()).padStart(2, '0');
-  return `${year}-${month}-${day}`;
+  return toLocalISODate(d);
 }
 
 export function TaskFormModal({
@@ -51,6 +50,7 @@ export function TaskFormModal({
   task,
 }: TaskFormModalProps) {
   const { colors, isDark } = useAppTheme();
+  const { showSnackbar } = useSnackbar();
 
   const [formData, setFormData] = useState<TaskFormData>({
     title: '',
@@ -63,12 +63,14 @@ export function TaskFormModal({
   });
   const [titleError, setTitleError] = useState('');
   const [dateError, setDateError] = useState('');
+  const [timeError, setTimeError] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
     if (!isOpen) return;
     setTitleError('');
     setDateError('');
+    setTimeError('');
     if (task) {
       setFormData({
         title: task.title || '',
@@ -100,8 +102,14 @@ export function TaskFormModal({
     }
 
     const trimmedDate = formData.dueDate.trim();
-    if (trimmedDate && !/^\d{4}-\d{2}-\d{2}$/.test(trimmedDate)) {
-      setDateError('Use YYYY-MM-DD format or choose a preset');
+    if (trimmedDate && !isValidLocalISODate(trimmedDate)) {
+      setDateError('Please select a valid calendar date');
+      return;
+    }
+
+    const trimmedTime = formData.dueTime.trim();
+    if (trimmedTime && !isValidHHMMTime(trimmedTime)) {
+      setTimeError('Please select a valid time');
       return;
     }
 
@@ -114,15 +122,16 @@ export function TaskFormModal({
         status: formData.status,
         category: formData.category.trim() || 'Personal',
         dueDate: trimmedDate || undefined,
-        dueTime: formData.dueTime.trim() || undefined,
+        dueTime: trimmedTime || undefined,
       };
       await onSubmit(payload);
       onClose();
     } catch (err: any) {
-      Alert.alert(
-        'Could not save task',
-        err?.message || 'Please check your connection and try again.'
-      );
+      showSnackbar({
+        variant: 'error',
+        title: 'Could not save task',
+        message: err?.message || 'Please check your connection and try again.',
+      });
     } finally {
       setSubmitting(false);
     }
@@ -338,26 +347,30 @@ export function TaskFormModal({
             })}
           </ScrollView>
 
-          <View style={styles.twoCol}>
-            <View style={styles.col}>
-              <Input
-                placeholder="YYYY-MM-DD"
-                value={formData.dueDate}
-                onChangeText={(text) => {
-                  setFormData((prev) => ({ ...prev, dueDate: text }));
-                  if (dateError) setDateError('');
-                }}
-                error={dateError}
-              />
-            </View>
-            <View style={styles.col}>
-              <Input
-                placeholder="Time (e.g. 14:30)"
-                value={formData.dueTime}
-                onChangeText={(text) => setFormData((prev) => ({ ...prev, dueTime: text }))}
-              />
-            </View>
-          </View>
+          <DatePickerField
+            value={formData.dueDate}
+            onChange={(nextIso) => {
+              setFormData((prev) => ({ ...prev, dueDate: nextIso }));
+              if (dateError) setDateError('');
+            }}
+            placeholder="Optional due date"
+            allowClear
+            error={dateError}
+            accessibilityLabelPrefix="Due date"
+          />
+
+          <TimePickerField
+            label="Due Time (Optional)"
+            value={formData.dueTime}
+            onChange={(nextTime) => {
+              setFormData((prev) => ({ ...prev, dueTime: nextTime }));
+              if (timeError) setTimeError('');
+            }}
+            placeholder="Optional time"
+            allowClear
+            error={timeError}
+            accessibilityLabelPrefix="Due time"
+          />
         </View>
 
         {/* Category Presets */}
@@ -440,19 +453,12 @@ const styles = StyleSheet.create({
     paddingVertical: Spacing.two,
     borderRadius: Radius.lg,
     borderWidth: 1,
-    minHeight: 36,
+    minHeight: 40,
     justifyContent: 'center',
   },
   choiceText: {
     fontFamily: Typography.fontFamilies.sansSemiBold,
     fontSize: Typography.fontSize.xs,
-  },
-  twoCol: {
-    flexDirection: 'row',
-    gap: Spacing.two,
-  },
-  col: {
-    flex: 1,
   },
   footerRow: {
     flexDirection: 'row',

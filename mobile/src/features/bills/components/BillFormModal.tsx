@@ -14,15 +14,25 @@ import {
   ScrollView,
   Pressable,
   ActivityIndicator,
-  Alert,
 } from 'react-native';
 import { SymbolView } from 'expo-symbols';
 import { useAppTheme } from '@/context/ThemeContext';
+import { useSnackbar } from '@/context/SnackbarContext';
 import { ThemedText } from '@/components/themed-text';
-import { ModalSheet, Input, Button, getButtonForegroundColor } from '@/components/ui';
+import { ModalSheet, Input, Button, DatePickerField, getButtonForegroundColor } from '@/components/ui';
 import { Typography } from '@/constants/typography';
 import { Spacing, Radius } from '@/constants/spacing';
-import { CURRENCIES, CurrencyCode, DEFAULT_CURRENCY } from '@/utils/currency';
+import {
+  CURRENCIES,
+  CurrencyCode,
+  DEFAULT_CURRENCY,
+  normalizeCurrencyCode,
+} from '@/utils/currency';
+import {
+  toLocalISODate,
+  isValidLocalISODate,
+  toUtcMidnightIsoFromLocalDate,
+} from '@/utils/dateTimeValidation';
 import { Bill, BillFormData } from '../types';
 
 export interface BillFormModalProps {
@@ -50,14 +60,15 @@ export function BillFormModal({
   defaultCurrency = DEFAULT_CURRENCY,
 }: BillFormModalProps) {
   const { colors, isDark } = useAppTheme();
+  const { showSnackbar } = useSnackbar();
 
   const [formData, setFormData] = useState<BillFormData>({
     name: '',
     description: '',
     provider: '',
     amount: '',
-    currency: defaultCurrency,
-    dueDate: new Date().toISOString().split('T')[0],
+    currency: normalizeCurrencyCode(defaultCurrency),
+    dueDate: toLocalISODate(new Date()),
     category: 'Finance',
     recurrenceType: 'none',
     notes: '',
@@ -73,8 +84,8 @@ export function BillFormModal({
         description: bill.description || '',
         provider: bill.provider || '',
         amount: bill.amount ? String(bill.amount) : '',
-        currency: bill.currency || defaultCurrency,
-        dueDate: bill.dueDate ? bill.dueDate.split('T')[0] : new Date().toISOString().split('T')[0],
+        currency: normalizeCurrencyCode(bill.currency || defaultCurrency),
+        dueDate: bill.dueDate ? bill.dueDate.split('T')[0] : toLocalISODate(new Date()),
         category: bill.category || 'Finance',
         recurrenceType: bill.recurrence?.type || 'none',
         notes: bill.notes || '',
@@ -85,8 +96,8 @@ export function BillFormModal({
         description: '',
         provider: '',
         amount: '',
-        currency: defaultCurrency,
-        dueDate: new Date().toISOString().split('T')[0],
+        currency: normalizeCurrencyCode(defaultCurrency),
+        dueDate: toLocalISODate(new Date()),
         category: 'Finance',
         recurrenceType: 'none',
         notes: '',
@@ -109,8 +120,8 @@ export function BillFormModal({
 
     if (!formData.dueDate.trim()) {
       errs.dueDate = 'Due date is required';
-    } else if (isNaN(new Date(formData.dueDate).getTime())) {
-      errs.dueDate = 'Please enter a valid date (YYYY-MM-DD)';
+    } else if (!isValidLocalISODate(formData.dueDate)) {
+      errs.dueDate = 'Please select a valid date (YYYY-MM-DD)';
     }
 
     setErrors(errs);
@@ -128,8 +139,8 @@ export function BillFormModal({
         provider: formData.provider.trim() || undefined,
         description: formData.description.trim() || undefined,
         amount: parseFloat(formData.amount),
-        currency: formData.currency || defaultCurrency,
-        dueDate: new Date(formData.dueDate).toISOString(),
+        currency: normalizeCurrencyCode(formData.currency || defaultCurrency),
+        dueDate: toUtcMidnightIsoFromLocalDate(formData.dueDate.trim()) ?? undefined,
         category: formData.category,
         recurrence: { type: formData.recurrenceType as any },
         notes: formData.notes.trim() || undefined,
@@ -138,7 +149,11 @@ export function BillFormModal({
       await onSubmit(payload);
       onClose();
     } catch (err: any) {
-      Alert.alert('Error', err?.message || 'Failed to save bill');
+      showSnackbar({
+        variant: 'error',
+        title: 'Save Failed',
+        message: err?.message || 'Failed to save bill.',
+      });
     } finally {
       setSubmitting(false);
     }
@@ -147,7 +162,12 @@ export function BillFormModal({
   const setDateOffset = (days: number) => {
     const target = new Date();
     target.setDate(target.getDate() + days);
-    setFormData((prev) => ({ ...prev, dueDate: target.toISOString().split('T')[0] }));
+    setFormData((prev) => ({ ...prev, dueDate: toLocalISODate(target) }));
+    setErrors((prev) => {
+      if (!prev.dueDate) return prev;
+      const { dueDate: _, ...rest } = prev;
+      return rest;
+    });
   };
 
   return (
@@ -235,19 +255,19 @@ export function BillFormModal({
 
         {/* Due Date & Quick Presets */}
         <View style={styles.section}>
-          <Input
-            label="Due Date (YYYY-MM-DD) *"
-            placeholder="YYYY-MM-DD"
+          <DatePickerField
+            label="Due Date *"
             value={formData.dueDate}
-            onChangeText={(val) => setFormData((prev) => ({ ...prev, dueDate: val }))}
+            onChange={(val) => {
+              setFormData((prev) => ({ ...prev, dueDate: val }));
+              if (errors.dueDate) {
+                setErrors((prev) => {
+                  const { dueDate: _, ...rest } = prev;
+                  return rest;
+                });
+              }
+            }}
             error={errors.dueDate}
-            leftIcon={
-              <SymbolView
-                name={{ ios: 'calendar', android: 'calendar_today', web: 'calendar_today' }}
-                size={18}
-                tintColor={colors.textSecondary}
-              />
-            }
           />
 
           <View style={styles.quickDateRow}>
@@ -427,6 +447,8 @@ const styles = StyleSheet.create({
     paddingVertical: 2,
   },
   currencyChip: {
+    minHeight: 38,
+    justifyContent: 'center',
     paddingHorizontal: Spacing.three,
     paddingVertical: 7,
     borderRadius: Radius.lg,
@@ -445,6 +467,8 @@ const styles = StyleSheet.create({
     marginTop: -Spacing.two,
   },
   quickDateBtn: {
+    minHeight: 36,
+    justifyContent: 'center',
     paddingHorizontal: Spacing.three,
     paddingVertical: 5,
     borderRadius: Radius.full,
@@ -459,6 +483,8 @@ const styles = StyleSheet.create({
     paddingVertical: 2,
   },
   chip: {
+    minHeight: 38,
+    justifyContent: 'center',
     paddingHorizontal: Spacing.three,
     paddingVertical: 7,
     borderRadius: Radius.lg,

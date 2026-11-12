@@ -15,10 +15,22 @@ import {
 import { SymbolView } from 'expo-symbols';
 import { useAppTheme } from '@/context/ThemeContext';
 import { ThemedText } from '@/components/themed-text';
-import { ModalSheet, Button, Input, getButtonForegroundColor } from '@/components/ui';
+import {
+  ModalSheet,
+  Button,
+  Input,
+  DatePickerField,
+  TimePickerField,
+  getButtonForegroundColor,
+} from '@/components/ui';
 import { Colors } from '@/constants/colors';
 import { Typography } from '@/constants/typography';
 import { Spacing, Radius } from '@/constants/spacing';
+import {
+  toLocalISODate,
+  isValidLocalISODate,
+  isValidHHMMTime,
+} from '@/utils/dateTimeValidation';
 import {
   Reminder,
   ReminderFormData,
@@ -103,11 +115,7 @@ export function ReminderFormModal({
       setRecurrenceType(reminder.recurrence?.type || 'none');
       setRecurrenceInterval(reminder.recurrence?.interval || 1);
     } else {
-      const today = new Date();
-      const y = today.getFullYear();
-      const m = String(today.getMonth() + 1).padStart(2, '0');
-      const d = String(today.getDate()).padStart(2, '0');
-      const todayIso = `${y}-${m}-${d}`;
+      const todayIso = toLocalISODate(new Date());
 
       setTitle('');
       setDescription('');
@@ -125,10 +133,8 @@ export function ReminderFormModal({
   const setDatePreset = (daysFromNow: number) => {
     const target = new Date();
     target.setDate(target.getDate() + daysFromNow);
-    const y = target.getFullYear();
-    const m = String(target.getMonth() + 1).padStart(2, '0');
-    const d = String(target.getDate()).padStart(2, '0');
-    setDueDate(`${y}-${m}-${d}`);
+    setDueDate(toLocalISODate(target));
+    if (error) setError(null);
   };
 
   const toggleOffset = (offset: number) => {
@@ -144,8 +150,12 @@ export function ReminderFormModal({
       setError('Please provide a title for the reminder.');
       return;
     }
-    if (!dueDate.trim()) {
-      setError('Please provide a valid due date (YYYY-MM-DD).');
+    if (!isValidLocalISODate(dueDate)) {
+      setError('Please select a valid due date (YYYY-MM-DD).');
+      return;
+    }
+    if (dueTime.trim() && !isValidHHMMTime(dueTime)) {
+      setError('Please select a valid due time in HH:mm format.');
       return;
     }
 
@@ -241,13 +251,13 @@ export function ReminderFormModal({
 
         {/* Due Date & Quick Presets */}
         <View style={styles.formGroup}>
-          <ThemedText style={[styles.inputLabel, { color: colors.text }]}>
-            Due Date * (YYYY-MM-DD)
-          </ThemedText>
-          <Input
+          <DatePickerField
+            label="Due Date *"
             value={dueDate}
-            onChangeText={setDueDate}
-            placeholder="YYYY-MM-DD"
+            onChange={(val) => {
+              setDueDate(val);
+              if (error) setError(null);
+            }}
           />
           <View style={styles.presetsRow}>
             <Pressable
@@ -293,13 +303,14 @@ export function ReminderFormModal({
 
         {/* Due Time & Time Presets */}
         <View style={styles.formGroup}>
-          <ThemedText style={[styles.inputLabel, { color: colors.text }]}>
-            Due Time (HH:mm 24-hour)
-          </ThemedText>
-          <Input
+          <TimePickerField
+            label="Due Time (Optional)"
             value={dueTime}
-            onChangeText={setDueTime}
-            placeholder="09:00"
+            onChange={(val) => {
+              setDueTime(val);
+              if (error) setError(null);
+            }}
+            allowClear
           />
           <View style={styles.presetsRow}>
             {TIME_PRESETS.map((t) => {

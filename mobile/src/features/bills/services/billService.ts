@@ -56,8 +56,8 @@ export const billService = {
   /**
    * Marks a bill as paid (triggers backend recurrence generation if recurring)
    */
-  async markBillPaid(id: string): Promise<{ message: string; bill: Bill }> {
-    return apiClient.patch<{ message: string; bill: Bill }>(Endpoints.bills.pay(id));
+  async markBillPaid(id: string): Promise<{ message: string; bill: Bill; nextOccurrence?: Bill | null }> {
+    return apiClient.patch<{ message: string; bill: Bill; nextOccurrence?: Bill | null }>(Endpoints.bills.pay(id));
   },
 
   /**

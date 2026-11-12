@@ -177,6 +177,7 @@ export function TaskDetailsModal({
                   key={stage.value}
                   disabled={isUpdating || selected}
                   onPress={() => onChangeStatus(task, stage.value)}
+                  hitSlop={{ top: 4, bottom: 4, left: 2, right: 2 }}
                   style={[
                     styles.stageChip,
                     {
@@ -295,7 +296,7 @@ const styles = StyleSheet.create({
   },
   stageChip: {
     flex: 1,
-    minHeight: 38,
+    minHeight: 42,
     borderRadius: Radius.lg,
     borderWidth: 1,
     alignItems: 'center',

@@ -203,6 +203,8 @@ const styles = StyleSheet.create({
   chip: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: 36,
     flexShrink: 0,
     paddingHorizontal: Spacing.three,
     paddingVertical: 7,

@@ -5,6 +5,8 @@
  */
 
 import { Colors } from '@/constants/colors';
+import { tryNormalizeCurrencyCode } from '../../../utils/currency';
+import { isValidLocalISODate, toLocalISODate } from '../../../utils/dateTimeValidation';
 import {
   DocumentItem,
   DocumentSortKey,
@@ -260,7 +262,11 @@ export function prepareEntityFromExtraction(
 ): CreateEntityFromDocParams {
   const provider = doc.aiExtracted?.provider || '';
   const firstDate = doc.aiExtracted?.importantDates?.[0]?.date;
-  const firstAmount = doc.aiExtracted?.amounts?.[0]?.amount;
+  const firstAmountObj = doc.aiExtracted?.amounts?.[0];
+  const firstAmount = firstAmountObj?.amount;
+  const extractedCurrency = firstAmountObj?.currency
+    ? (tryNormalizeCurrencyCode(firstAmountObj.currency) ?? undefined)
+    : undefined;
 
   let title = '';
   let amount: number | undefined = undefined;
@@ -276,12 +282,14 @@ export function prepareEntityFromExtraction(
 
   let formattedDueDate = '';
   if (firstDate) {
-    const d = new Date(firstDate);
-    if (!isNaN(d.getTime())) {
-      const y = d.getFullYear();
-      const m = String(d.getMonth() + 1).padStart(2, '0');
-      const day = String(d.getDate()).padStart(2, '0');
-      formattedDueDate = `${y}-${m}-${day}`;
+    const isoPrefix = typeof firstDate === 'string' ? firstDate.slice(0, 10) : '';
+    if (isValidLocalISODate(isoPrefix)) {
+      formattedDueDate = isoPrefix;
+    } else {
+      const d = new Date(firstDate);
+      if (!isNaN(d.getTime())) {
+        formattedDueDate = toLocalISODate(d);
+      }
     }
   }
 
@@ -290,6 +298,7 @@ export function prepareEntityFromExtraction(
     title,
     dueDate: formattedDueDate || undefined,
     amount,
+    currency: entityType === 'bill' ? extractedCurrency : undefined,
     priority: 'medium',
     description: doc.aiExtracted?.summary
       ? `Summary: ${doc.aiExtracted.summary}`

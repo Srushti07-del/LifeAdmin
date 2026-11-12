@@ -86,11 +86,14 @@ export interface DocumentTotals {
   totalSizeBytes: number;
 }
 
+import type { CurrencyCode } from '../../utils/currency';
+
 export interface CreateEntityFromDocParams {
   type: 'task' | 'bill' | 'reminder';
   title: string;
   dueDate?: string;
   amount?: number;
+  currency?: CurrencyCode;
   priority?: 'low' | 'medium' | 'high' | 'urgent';
   description?: string;
 }

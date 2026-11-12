@@ -12,7 +12,6 @@ import { ThemedView } from '@/components/themed-view';
 import { Colors } from '@/constants/colors';
 import { Typography } from '@/constants/typography';
 import { Spacing, Radius } from '@/constants/spacing';
-import { createShadow } from '@/constants/shadows';
 import { DocumentTotals } from '../types';
 
 interface DocumentSummaryCardProps {
@@ -30,7 +29,6 @@ export function DocumentSummaryCard({ totals }: DocumentSummaryCardProps) {
           backgroundColor: colors.surface,
           borderColor: colors.border,
         },
-        createShadow(isDark, 'card'),
       ]}
     >
       <View style={styles.header}>

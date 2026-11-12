@@ -34,7 +34,7 @@ export function Card({
   const colors = useTheme();
   const isDark = useIsDark();
 
-  const shadowStyle = createShadow(isDark, elevated ? 'elevated' : 'card');
+  const shadowStyle = elevated ? createShadow(isDark, 'elevated') : undefined;
 
   const cardStyle: ViewStyle = {
     backgroundColor: colors.surface,

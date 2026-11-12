@@ -10,7 +10,6 @@ import { ThemedText } from '@/components/themed-text';
 import { Colors } from '@/constants/colors';
 import { Typography } from '@/constants/typography';
 import { Spacing, Radius } from '@/constants/spacing';
-import { createShadow } from '@/constants/shadows';
 
 export interface SettingsSectionCardProps {
   title: string;
@@ -55,7 +54,6 @@ export function SettingsSectionCard({
     <View
       style={[
         styles.card,
-        createShadow(isDark, 'card'),
         {
           backgroundColor: colors.surface,
           borderColor: accentTone === 'danger' ? (isDark ? 'rgba(239, 68, 68, 0.35)' : '#FECACA') : colors.border,

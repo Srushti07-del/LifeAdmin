@@ -177,7 +177,7 @@ export function ForgotPasswordScreen({
                 </ThemedText>
 
                 <ThemedText style={[styles.successDescription, { color: colors.textSecondary }]}>
-                  If an account is associated with <ThemedText style={{ fontWeight: '600', color: colors.text }}>{email}</ThemedText>, a password reset link has been dispatched. The link expires in 30 minutes.
+                  If an account is associated with <ThemedText style={{ fontFamily: Typography.fontFamilies.sansSemiBold, color: colors.text }}>{email}</ThemedText>, a password reset link has been dispatched. The link expires in 30 minutes.
                 </ThemedText>
 
                 {/* Direct token entry CTA */}
@@ -394,7 +394,7 @@ const styles = StyleSheet.create({
   },
   subtitle: {
     fontSize: Typography.fontSize.sm,
-    fontWeight: Typography.fontWeight.normal,
+    fontFamily: Typography.fontFamilies.sans,
     textAlign: 'center',
     maxWidth: 290,
     lineHeight: 20,
@@ -403,10 +403,6 @@ const styles = StyleSheet.create({
     borderRadius: Radius.xl,
     padding: Spacing.five,
     borderWidth: 1,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.08,
-    shadowRadius: 16,
-    elevation: 3,
   },
   errorBanner: {
     flexDirection: 'row',
@@ -422,7 +418,7 @@ const styles = StyleSheet.create({
   },
   errorText: {
     fontSize: Typography.fontSize.xs,
-    fontWeight: Typography.fontWeight.medium,
+    fontFamily: Typography.fontFamilies.sansMedium,
     lineHeight: 18,
   },
   errorHelpText: {
@@ -435,7 +431,7 @@ const styles = StyleSheet.create({
   },
   inputLabel: {
     fontSize: Typography.fontSize.xs,
-    fontWeight: Typography.fontWeight.semibold,
+    fontFamily: Typography.fontFamilies.sansSemiBold,
     marginBottom: Spacing.one + 2,
     letterSpacing: 0.2,
   },
@@ -482,7 +478,7 @@ const styles = StyleSheet.create({
   },
   dividerText: {
     fontSize: 10,
-    fontWeight: Typography.fontWeight.bold,
+    fontFamily: Typography.fontFamilies.sansBold,
     letterSpacing: 0.8,
   },
   secondaryBtn: {
@@ -495,7 +491,7 @@ const styles = StyleSheet.create({
   },
   secondaryBtnText: {
     fontSize: Typography.fontSize.xs,
-    fontWeight: Typography.fontWeight.medium,
+    fontFamily: Typography.fontFamilies.sansMedium,
   },
   successContainer: {
     alignItems: 'center',
@@ -532,7 +528,7 @@ const styles = StyleSheet.create({
   },
   footerLink: {
     fontSize: Typography.fontSize.xs,
-    fontWeight: Typography.fontWeight.bold,
+    fontFamily: Typography.fontFamilies.sansBold,
   },
   assuranceRow: {
     flexDirection: 'row',

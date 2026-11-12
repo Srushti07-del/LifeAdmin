@@ -20,17 +20,20 @@ import { useRouter } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
 import { useAppTheme } from '@/context/ThemeContext';
 import { useAuth } from '@/context/AuthContext';
+import { useSnackbar } from '@/context/SnackbarContext';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { getButtonForegroundColor } from '@/components/ui/Button';
 import { Typography } from '@/constants/typography';
 import { Spacing, Radius } from '@/constants/spacing';
 import { createShadow } from '@/constants/shadows';
-import { BottomTabInset, MaxContentWidth } from '@/constants/theme';
+import { MaxContentWidth } from '@/constants/theme';
+import { useSafeBottomPadding } from '@/hooks/use-safe-bottom-padding';
 import { DEFAULT_CURRENCY, normalizeCurrencyCode } from '@/utils/currency';
 import {
   DashboardHeader,
   StatsOverview,
+  UrgencyTriageModal,
   NeedsAttentionSection,
   QuickActionsSection,
   UpcomingTimelineSection,
@@ -47,16 +50,21 @@ import {
   AttentionItem,
   UpcomingItem,
   QuickActionType,
+  TriageMode,
   WidgetConfig,
   DEFAULT_WIDGETS,
   DASHBOARD_PRESETS,
   detectActivePreset,
   dashboardPreferencesService,
   fetchDashboardOverview,
+  deriveStatsFromOverview,
+  getTriageItems,
   markTaskCompleted,
   markBillPaid,
 } from '@/features/dashboard';
 import { billService, Bill, BillFormModal } from '@/features/bills';
+import { taskService } from '@/features/tasks';
+import { canUndoPaidBillFromDashboard } from '@/utils/undoActions';
 import {
   appointmentService,
   AppointmentFormData,
@@ -79,7 +87,9 @@ import { ApiError } from '@/types/api';
 export default function DashboardScreen() {
   const { colors, isDark } = useAppTheme();
   const { user, isGuest, exitGuest, refreshUser } = useAuth();
+  const { showSnackbar } = useSnackbar();
   const router = useRouter();
+  const bottomPadding = useSafeBottomPadding(Spacing.six, true);
 
   const [data, setData] = useState<DashboardOverview | null>(null);
   const [exchangeRates, setExchangeRates] = useState<Record<string, number>>({});
@@ -102,8 +112,15 @@ export default function DashboardScreen() {
   const [isReminderModalVisible, setIsReminderModalVisible] = useState(false);
   const [isDocumentModalVisible, setIsDocumentModalVisible] = useState(false);
 
-  // Notifications summary sheet state
+  // Notifications summary & Urgency Triage sheet state
   const [isNotifSheetVisible, setIsNotifSheetVisible] = useState(false);
+  const [triageMode, setTriageMode] = useState<TriageMode | null>(null);
+
+  const derivedStats = useMemo(() => deriveStatsFromOverview(data), [data]);
+  const triageItems = useMemo(
+    () => (triageMode ? getTriageItems(data?.needsAttention, triageMode) : []),
+    [data?.needsAttention, triageMode]
+  );
 
   const preferredCurrency = useMemo(
     () => normalizeCurrencyCode(user?.preferredCurrency || DEFAULT_CURRENCY),
@@ -192,20 +209,88 @@ export default function DashboardScreen() {
   const handleCompleteTask = async (id: string, title: string) => {
     try {
       await markTaskCompleted(id);
-      Alert.alert('Task Completed', `"${title}" marked as complete.`);
-      loadDashboard(true);
+      await loadDashboard(true);
+      showSnackbar({
+        variant: 'success',
+        title: 'Task Completed',
+        message: `"${title}" marked as complete.`,
+        action: {
+          label: 'Undo',
+          accessibilityLabel: `Undo completing ${title}`,
+          onPress: () => {
+            void (async () => {
+              try {
+                await taskService.updateTaskStatus(id, 'todo');
+                await loadDashboard(true);
+                showSnackbar({
+                  variant: 'info',
+                  title: 'Action Undone',
+                  message: `"${title}" moved back to To Do.`,
+                  duration: 2800,
+                });
+              } catch (undoErr: any) {
+                showSnackbar({
+                  variant: 'error',
+                  title: 'Undo Failed',
+                  message: undoErr?.message || 'Could not revert task status.',
+                });
+              }
+            })();
+          },
+        },
+      });
     } catch (err: any) {
-      Alert.alert('Action Failed', err?.message || 'Could not complete task.');
+      showSnackbar({
+        variant: 'error',
+        title: 'Action Failed',
+        message: err?.message || 'Could not complete task.',
+      });
     }
   };
 
   const handlePayBill = async (id: string, title: string) => {
     try {
-      await markBillPaid(id);
-      Alert.alert('Bill Paid', `Payment for "${title}" recorded.`);
-      loadDashboard(true);
+      const res = await markBillPaid(id);
+      await loadDashboard(true);
+      showSnackbar({
+        variant: 'success',
+        title: res?.nextOccurrence ? 'Bill Paid & Next Scheduled' : 'Bill Paid',
+        message: res?.nextOccurrence
+          ? `Payment for "${title}" recorded and next cycle scheduled.`
+          : `Payment for "${title}" recorded.`,
+        action: canUndoPaidBillFromDashboard(res?.nextOccurrence)
+          ? {
+              label: 'Undo',
+              accessibilityLabel: `Undo payment for ${title}`,
+              onPress: () => {
+                void (async () => {
+                  try {
+                    await billService.markBillUnpaid(id);
+                    await loadDashboard(true);
+                    showSnackbar({
+                      variant: 'info',
+                      title: 'Action Undone',
+                      message: `"${title}" restored to unpaid.`,
+                      duration: 2800,
+                    });
+                  } catch (undoErr: any) {
+                    showSnackbar({
+                      variant: 'error',
+                      title: 'Undo Failed',
+                      message: undoErr?.message || 'Could not revert bill payment.',
+                    });
+                  }
+                })();
+              },
+            }
+          : undefined,
+      });
     } catch (err: any) {
-      Alert.alert('Action Failed', err?.message || 'Could not record payment.');
+      showSnackbar({
+        variant: 'error',
+        title: 'Action Failed',
+        message: err?.message || 'Could not record payment.',
+      });
     }
   };
 
@@ -255,19 +340,31 @@ export default function DashboardScreen() {
 
   const handleCreateBill = async (formData: Partial<Bill>) => {
     await billService.createBill(formData);
-    Alert.alert('Bill Created', 'Your bill has been added.');
+    showSnackbar({
+      variant: 'success',
+      title: 'Bill Created',
+      message: 'Your bill has been added.',
+    });
     await loadDashboard(true);
   };
 
   const handleCreateAppointment = async (formData: Partial<AppointmentFormData>) => {
     await appointmentService.createAppointment(formData);
-    Alert.alert('Appointment Scheduled', 'Your appointment has been added.');
+    showSnackbar({
+      variant: 'success',
+      title: 'Appointment Scheduled',
+      message: 'Your appointment has been added.',
+    });
     await loadDashboard(true);
   };
 
   const handleCreateEvent = async (formData: Partial<EventFormData>) => {
     await calendarService.createEvent(formData);
-    Alert.alert('Event Added', 'Your calendar event has been scheduled.');
+    showSnackbar({
+      variant: 'success',
+      title: 'Event Added',
+      message: 'Your calendar event has been scheduled.',
+    });
     await loadDashboard(true);
   };
 
@@ -275,13 +372,21 @@ export default function DashboardScreen() {
     const created = await reminderService.createReminder(formData);
     const notificationUserId = user?.id || 'default_user';
     await notificationService.scheduleReminderNotification(created, notificationUserId);
-    Alert.alert('Reminder Created', 'Your alert has been scheduled.');
+    showSnackbar({
+      variant: 'success',
+      title: 'Reminder Created',
+      message: 'Your alert has been scheduled.',
+    });
     await loadDashboard(true);
   };
 
   const handleUploadDocument = async (params: UploadDocumentParams) => {
     await documentService.uploadDocument(params);
-    Alert.alert('Document Uploaded', 'Your document has been stored in the vault.');
+    showSnackbar({
+      variant: 'success',
+      title: 'Document Uploaded',
+      message: 'Your document has been stored in the vault.',
+    });
     await loadDashboard(true);
   };
 
@@ -383,7 +488,7 @@ export default function DashboardScreen() {
             style={styles.scrollView}
             contentContainerStyle={[
               styles.scrollContent,
-              { paddingBottom: BottomTabInset + Spacing.six },
+              { paddingBottom: bottomPadding },
             ]}
             showsVerticalScrollIndicator={false}
             refreshControl={
@@ -441,6 +546,8 @@ export default function DashboardScreen() {
                     );
                   }}
                   hitSlop={8}
+                  accessibilityRole="button"
+                  accessibilityLabel="Exit guest demo session"
                 >
                   <ThemedText style={[styles.exitDemoBtn, { color: colors.notification }]}>
                     Exit
@@ -449,14 +556,15 @@ export default function DashboardScreen() {
               </View>
             )}
 
-            {/* Quick Metrics Strip (single row: Overdue, Due Soon, Upcoming, Alerts) */}
-            {data?.stats && (
+            {/* Quick Metrics Grid (2x2: Overdue, Due Soon, Upcoming, Alerts) */}
+            {derivedStats && (
               <StatsOverview
-                stats={data.stats}
+                stats={derivedStats}
                 onStatPress={(filter) => {
-                  if (filter === 'upcoming') router.push('/calendar' as any);
+                  if (filter === 'overdue') setTriageMode('overdue');
+                  else if (filter === 'soon') setTriageMode('soon');
+                  else if (filter === 'upcoming') router.push('/calendar' as any);
                   else if (filter === 'reminders') router.push('/reminders' as any);
-                  else router.push('/tasks' as any);
                 }}
               />
             )}
@@ -577,6 +685,17 @@ export default function DashboardScreen() {
           onUpload={handleUploadDocument}
         />
 
+        {/* Cross-Module Overdue / Due Soon Triage Sheet */}
+        <UrgencyTriageModal
+          mode={triageMode}
+          items={triageItems}
+          preferredCurrency={preferredCurrency}
+          exchangeRates={exchangeRates}
+          onClose={() => setTriageMode(null)}
+          onActionPress={handleItemAction}
+          onOpenRoute={(route) => router.push(route as any)}
+        />
+
         {/* Dashboard Customization Bottom Sheet */}
         <DashboardCustomizeModal
           isOpen={isCustomizeVisible}
@@ -592,7 +711,13 @@ export default function DashboardScreen() {
           animationType="fade"
           onRequestClose={() => setIsNotifSheetVisible(false)}
         >
-          <Pressable style={styles.modalOverlay} onPress={() => setIsNotifSheetVisible(false)}>
+          <View style={styles.modalOverlay}>
+            <Pressable
+              style={StyleSheet.absoluteFill}
+              onPress={() => setIsNotifSheetVisible(false)}
+              accessibilityRole="button"
+              accessibilityLabel="Dismiss action alerts"
+            />
             <View
               style={[
                 styles.notifSheet,
@@ -606,6 +731,9 @@ export default function DashboardScreen() {
                 </ThemedText>
                 <Pressable
                   onPress={() => setIsNotifSheetVisible(false)}
+                  hitSlop={8}
+                  accessibilityRole="button"
+                  accessibilityLabel="Close action alerts"
                   style={({ pressed }) => [styles.closeIcon, pressed && { opacity: 0.7 }]}
                 >
                   <SymbolView
@@ -625,6 +753,9 @@ export default function DashboardScreen() {
                         setIsNotifSheetVisible(false);
                         navigateToEntityRoute(item.type);
                       }}
+                      accessibilityRole="button"
+                      accessibilityLabel={`${item.title}. ${item.reason}`}
+                      accessibilityHint={`Opens ${item.type} section`}
                       style={[
                         styles.notifItem,
                         { borderBottomColor: colors.borderSubtle },
@@ -647,7 +778,7 @@ export default function DashboardScreen() {
                 )}
               </ScrollView>
             </View>
-          </Pressable>
+          </View>
         </Modal>
       </SafeAreaView>
     </ThemedView>
@@ -696,7 +827,7 @@ const styles = StyleSheet.create({
   },
   layoutBarLabel: {
     fontSize: Typography.fontSize.xs,
-    fontWeight: Typography.fontWeight.semibold,
+    fontFamily: Typography.fontFamilies.sansSemiBold,
   },
   layoutBarMeta: {
     fontSize: Typography.fontSize.xs,
@@ -709,7 +840,7 @@ const styles = StyleSheet.create({
   },
   layoutActionText: {
     fontSize: Typography.fontSize.xs,
-    fontWeight: Typography.fontWeight.bold,
+    fontFamily: Typography.fontFamilies.sansBold,
   },
   emptyLayoutCard: {
     marginHorizontal: Spacing.four,
@@ -722,7 +853,7 @@ const styles = StyleSheet.create({
   },
   emptyLayoutTitle: {
     fontSize: Typography.fontSize.base,
-    fontWeight: Typography.fontWeight.bold,
+    fontFamily: Typography.fontFamilies.sansBold,
   },
   emptyLayoutDesc: {
     fontSize: Typography.fontSize.xs,
@@ -764,6 +895,10 @@ const styles = StyleSheet.create({
     fontFamily: Typography.fontFamilies.editorial,
   },
   closeIcon: {
+    minWidth: 40,
+    minHeight: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
     padding: Spacing.one,
   },
   notifList: {
@@ -775,7 +910,7 @@ const styles = StyleSheet.create({
   },
   notifItemTitle: {
     fontSize: Typography.fontSize.sm,
-    fontWeight: Typography.fontWeight.semibold,
+    fontFamily: Typography.fontFamilies.sansSemiBold,
   },
   notifItemDesc: {
     fontSize: Typography.fontSize.xs,
@@ -804,11 +939,11 @@ const styles = StyleSheet.create({
   },
   guestBannerText: {
     fontSize: Typography.fontSize.xs,
-    fontWeight: Typography.fontWeight.semibold,
+    fontFamily: Typography.fontFamilies.sansSemiBold,
   },
   exitDemoBtn: {
     fontSize: Typography.fontSize.xs,
-    fontWeight: Typography.fontWeight.bold,
+    fontFamily: Typography.fontFamilies.sansBold,
     paddingHorizontal: Spacing.two,
   },
 });

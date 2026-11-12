@@ -7,3 +7,4 @@ export * from './api';
 export * from './components';
 export * from './services/dashboardLayout';
 export * from './services/dashboardPreferencesService';
+export * from './services/urgencyTriage';

@@ -11,18 +11,19 @@ import {
   ScrollView,
   Pressable,
   ActivityIndicator,
-  Alert,
   Platform,
 } from 'react-native';
 import { requireOptionalNativeModule } from 'expo';
 import type * as DocumentPickerTypes from 'expo-document-picker';
 import { SymbolView } from 'expo-symbols';
 import { useAppTheme } from '@/context/ThemeContext';
+import { useSnackbar } from '@/context/SnackbarContext';
 import { ThemedText } from '@/components/themed-text';
-import { ModalSheet, Button, Input, getButtonForegroundColor } from '@/components/ui';
+import { ModalSheet, Button, Input, DatePickerField, getButtonForegroundColor } from '@/components/ui';
 import { Colors } from '@/constants/colors';
 import { Typography } from '@/constants/typography';
 import { Spacing, Radius } from '@/constants/spacing';
+import { isValidLocalISODate } from '@/utils/dateTimeValidation';
 import {
   formatFileSize,
   validateUploadFile,
@@ -51,6 +52,7 @@ export function DocumentUploadModal({
   onUpload,
 }: DocumentUploadModalProps) {
   const { colors, isDark } = useAppTheme();
+  const { showSnackbar } = useSnackbar();
 
   const [selectedFile, setSelectedFile] = useState<{
     uri: string;
@@ -91,7 +93,12 @@ export function DocumentUploadModal({
         const message =
           'Document picking is unavailable because the native ExpoDocumentPicker module is not included in this build. Please rebuild and install an updated development APK.';
         setUploadError(message);
-        Alert.alert('Document Picker Unavailable', message);
+        showSnackbar({
+          variant: 'error',
+          title: 'Document Picker Unavailable',
+          message,
+          duration: 5000,
+        });
         return;
       }
 
@@ -103,7 +110,12 @@ export function DocumentUploadModal({
         const message =
           'Failed to initialize the native document picker module. Please rebuild and reinstall the development APK.';
         setUploadError(message);
-        Alert.alert('Document Picker Unavailable', message);
+        showSnackbar({
+          variant: 'error',
+          title: 'Document Picker Unavailable',
+          message,
+          duration: 5000,
+        });
         return;
       }
 
@@ -125,7 +137,13 @@ export function DocumentUploadModal({
       });
 
       if (!validation.valid) {
-        Alert.alert('Unsupported File', validation.error);
+        const errMessage = validation.error || 'This file format or size is not supported.';
+        setUploadError(errMessage);
+        showSnackbar({
+          variant: 'warning',
+          title: 'Unsupported File',
+          message: errMessage,
+        });
         return;
       }
 
@@ -158,13 +176,25 @@ export function DocumentUploadModal({
       }
     } catch (err: any) {
       console.warn('Error selecting document:', err);
-      Alert.alert('Selection Error', 'Failed to pick file from device.');
+      const errMessage = 'Failed to pick file from device.';
+      setUploadError(errMessage);
+      showSnackbar({
+        variant: 'error',
+        title: 'Selection Error',
+        message: errMessage,
+      });
     }
   };
 
   const handleSubmit = async () => {
     if (!selectedFile) {
       setUploadError('Please select a file to upload.');
+      return;
+    }
+
+    const trimmedExpiry = expiryDate.trim();
+    if (trimmedExpiry && !isValidLocalISODate(trimmedExpiry)) {
+      setUploadError('Please select a valid expiry / renewal date (YYYY-MM-DD).');
       return;
     }
 
@@ -177,7 +207,7 @@ export function DocumentUploadModal({
         documentType: documentType.trim() || undefined,
         category,
         notes: notes.trim() || undefined,
-        expiryDate: expiryDate.trim() || undefined,
+        expiryDate: trimmedExpiry || undefined,
       });
 
       resetState();
@@ -249,6 +279,9 @@ export function DocumentUploadModal({
               {/* Option 1: PDF */}
               <Pressable
                 onPress={() => pickFile('application/pdf')}
+                accessibilityRole="button"
+                accessibilityLabel="Choose PDF document"
+                accessibilityHint="Selects a PDF contract, bill, or receipt from your device"
                 style={({ pressed }) => [
                   styles.pickerButton,
                   {
@@ -289,6 +322,9 @@ export function DocumentUploadModal({
               {/* Option 2: Image */}
               <Pressable
                 onPress={() => pickFile('image/*')}
+                accessibilityRole="button"
+                accessibilityLabel="Choose image document"
+                accessibilityHint="Selects a photo, scan, or ID image from your device"
                 style={({ pressed }) => [
                   styles.pickerButton,
                   {
@@ -332,6 +368,8 @@ export function DocumentUploadModal({
                   'text/plain',
                 ])
               }
+              accessibilityRole="button"
+              accessibilityLabel="Browse all supported documents up to 10 MB"
               style={({ pressed }) => [
                 styles.browseAllButton,
                 {
@@ -386,6 +424,8 @@ export function DocumentUploadModal({
             <Pressable
               onPress={() => setSelectedFile(null)}
               hitSlop={8}
+              accessibilityRole="button"
+              accessibilityLabel="Change selected file"
               style={[styles.changeFileBtn, { backgroundColor: colors.surface }]}
             >
               <ThemedText style={[styles.changeFileText, { color: colors.text }]}>
@@ -413,6 +453,9 @@ export function DocumentUploadModal({
                   key={cat}
                   onPress={() => setCategory(cat)}
                   hitSlop={6}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Category ${cat}`}
+                  accessibilityState={{ selected: isSelected }}
                   style={[
                     styles.categoryPill,
                     {
@@ -448,13 +491,15 @@ export function DocumentUploadModal({
         </View>
 
         <View style={styles.formGroup}>
-          <ThemedText style={[styles.inputLabel, { color: colors.text }]}>
-            Expiry / Renewal Date (Optional)
-          </ThemedText>
-          <Input
+          <DatePickerField
+            label="Expiry / Renewal Date (Optional)"
+            placeholder="Select expiry or renewal date"
             value={expiryDate}
-            onChangeText={setExpiryDate}
-            placeholder="YYYY-MM-DD"
+            onChange={(val) => {
+              setExpiryDate(val);
+              if (uploadError) setUploadError(null);
+            }}
+            allowClear
           />
         </View>
 
@@ -611,7 +656,9 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   changeFileBtn: {
-    paddingHorizontal: Spacing.two,
+    minHeight: 36,
+    justifyContent: 'center',
+    paddingHorizontal: Spacing.three,
     paddingVertical: 6,
     borderRadius: Radius.sm,
     marginLeft: Spacing.two,
@@ -634,6 +681,8 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
   },
   categoryPill: {
+    minHeight: 36,
+    justifyContent: 'center',
     paddingHorizontal: Spacing.four,
     paddingVertical: 6,
     borderRadius: Radius.full,

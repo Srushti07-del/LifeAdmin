@@ -12,6 +12,7 @@ import { ThemedText } from '@/components/themed-text';
 import { Button, getButtonForegroundColor } from '@/components/ui';
 import { CompanionAvatar, getCompanionById } from '@/features/companions';
 import { OnboardingPreferences } from '../types';
+import { Colors } from '@/constants/colors';
 import { Typography } from '@/constants/typography';
 import { Spacing, Radius } from '@/constants/spacing';
 
@@ -90,7 +91,7 @@ export function ReadyStep({
             <SymbolView
               name={{ ios: 'folder.fill', android: 'category', web: 'category' } as any}
               size={16}
-              tintColor="#0284C7"
+              tintColor={Colors.status.info}
             />
             <ThemedText style={[styles.rowLabel, { color: colors.textSecondary }]}>
               Active Domains
@@ -107,7 +108,7 @@ export function ReadyStep({
             <SymbolView
               name={{ ios: 'bell.fill', android: 'notifications', web: 'notifications' } as any}
               size={16}
-              tintColor="#10B981"
+              tintColor={Colors.urgency.completed.accent}
             />
             <ThemedText style={[styles.rowLabel, { color: colors.textSecondary }]}>
               Alerts Cadence
@@ -124,7 +125,7 @@ export function ReadyStep({
             <SymbolView
               name={{ ios: 'creditcard.fill', android: 'receipt', web: 'receipt' } as any}
               size={16}
-              tintColor="#8B5CF6"
+              tintColor={colors.primary}
             />
             <ThemedText style={[styles.rowLabel, { color: colors.textSecondary }]}>
               Base Currency

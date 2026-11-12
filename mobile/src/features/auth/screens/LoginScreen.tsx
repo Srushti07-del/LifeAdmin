@@ -175,7 +175,7 @@ export function LoginScreen({
                       <ThemedText
                         style={{
                           fontSize: Typography.fontSize.xs,
-                          fontWeight: '600',
+                          fontFamily: Typography.fontFamilies.sansSemiBold,
                           color: isDark ? '#93C5FD' : '#1D4ED8',
                           textDecorationLine: 'underline',
                         }}
@@ -457,7 +457,7 @@ const styles = StyleSheet.create({
   },
   subtitle: {
     fontSize: Typography.fontSize.sm,
-    fontWeight: Typography.fontWeight.normal,
+    fontFamily: Typography.fontFamilies.sans,
     textAlign: 'center',
     maxWidth: 280,
     lineHeight: 20,
@@ -466,11 +466,6 @@ const styles = StyleSheet.create({
     borderRadius: Radius.xl,
     padding: Spacing.five,
     borderWidth: 1,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.08,
-    shadowRadius: 12,
-    elevation: 2,
     marginBottom: Spacing.six,
   },
   errorBanner: {
@@ -485,7 +480,7 @@ const styles = StyleSheet.create({
   errorText: {
     flex: 1,
     fontSize: Typography.fontSize.xs,
-    fontWeight: Typography.fontWeight.semibold,
+    fontFamily: Typography.fontFamilies.sansSemiBold,
     lineHeight: 18,
   },
   inputGroup: {
@@ -493,7 +488,7 @@ const styles = StyleSheet.create({
   },
   inputLabel: {
     fontSize: Typography.fontSize.sm,
-    fontWeight: Typography.fontWeight.semibold,
+    fontFamily: Typography.fontFamilies.sansSemiBold,
     marginBottom: Spacing.two,
   },
   passwordLabelRow: {
@@ -504,7 +499,7 @@ const styles = StyleSheet.create({
   },
   forgotText: {
     fontSize: Typography.fontSize.xs,
-    fontWeight: Typography.fontWeight.semibold,
+    fontFamily: Typography.fontFamilies.sansSemiBold,
   },
   inputWrapper: {
     flexDirection: 'row',
@@ -518,6 +513,7 @@ const styles = StyleSheet.create({
   input: {
     flex: 1,
     fontSize: Typography.fontSize.base,
+    fontFamily: Typography.fontFamilies.sans,
     height: '100%',
     paddingVertical: 0,
   },
@@ -551,7 +547,7 @@ const styles = StyleSheet.create({
   },
   dividerText: {
     fontSize: 10,
-    fontWeight: '700',
+    fontFamily: Typography.fontFamilies.sansBold,
     letterSpacing: 0.8,
     marginHorizontal: Spacing.three,
   },
@@ -581,7 +577,7 @@ const styles = StyleSheet.create({
   },
   guestTitle: {
     fontSize: Typography.fontSize.sm,
-    fontWeight: Typography.fontWeight.bold,
+    fontFamily: Typography.fontFamilies.sansBold,
     marginBottom: 2,
   },
   guestDesc: {
@@ -598,7 +594,7 @@ const styles = StyleSheet.create({
   },
   footerLink: {
     fontSize: Typography.fontSize.sm,
-    fontWeight: Typography.fontWeight.bold,
+    fontFamily: Typography.fontFamilies.sansBold,
   },
 });
 export default LoginScreen;

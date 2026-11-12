@@ -95,7 +95,7 @@ export const SearchInput = React.forwardRef<React.ComponentRef<typeof TextInput>
         {value.length > 0 ? (
           <Pressable
             onPress={handleClear}
-            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            hitSlop={12}
             style={({ pressed }) => [
               styles.clearButton,
               { backgroundColor: colors.surfaceSecondary },

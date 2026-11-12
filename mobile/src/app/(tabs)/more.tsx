@@ -6,7 +6,7 @@ import React, { useState } from 'react';
 import { View, StyleSheet, Pressable, Alert, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import { SymbolView } from 'expo-symbols';
+import { SymbolView, type AndroidSymbol, type SFSymbol } from 'expo-symbols';
 import { useAppTheme } from '@/context/ThemeContext';
 import { useAuth } from '@/context/AuthContext';
 import { ThemedText } from '@/components/themed-text';
@@ -16,14 +16,14 @@ import { SegmentedControl } from '@/components/ui/SegmentedControl';
 import { Colors } from '@/constants/colors';
 import { Typography } from '@/constants/typography';
 import { Spacing, Radius } from '@/constants/spacing';
-import { createShadow } from '@/constants/shadows';
-import { BottomTabInset } from '@/constants/theme';
+import { useSafeBottomPadding } from '@/hooks/use-safe-bottom-padding';
 import { CompanionSanctuaryModal } from '@/features/companions';
 import { settingsService } from '@/features/settings';
 
 interface MenuItem {
   label: string;
-  icon: string;
+  iosIcon: SFSymbol;
+  icon: AndroidSymbol;
   desc: string;
   action?: () => void;
   destructive?: boolean;
@@ -38,6 +38,7 @@ interface MenuSection {
 
 export default function MoreScreen() {
   const { colors, isDark, themePreference, setThemePreference } = useAppTheme();
+  const bottomPadding = useSafeBottomPadding(Spacing.eight, true);
   const { user, isGuest, logout, exitGuest, restartOnboarding, updateUser } = useAuth();
   const router = useRouter();
   const [isSanctuaryVisible, setIsSanctuaryVisible] = useState(false);
@@ -97,12 +98,14 @@ export default function MoreScreen() {
       items: [
         {
           label: 'LifeBuddy Companions',
+          iosIcon: 'heart.fill',
           icon: 'favorite',
           desc: 'Virtual positive reinforcement companions',
           action: () => setIsSanctuaryVisible(true),
         },
         {
           label: 'AI Assistant',
+          iosIcon: 'sparkles',
           icon: 'smart_toy',
           desc: 'Planning and intelligent summaries',
           action: () => router.push('/ai' as any),
@@ -114,18 +117,21 @@ export default function MoreScreen() {
       items: [
         {
           label: 'Appointments',
-          icon: 'calendar_month',
+          iosIcon: 'calendar.badge.clock',
+          icon: 'event_available',
           desc: 'Consultations, doctor visits & meetings',
           action: () => router.push('/appointments' as any),
         },
         {
           label: 'Documents Vault',
+          iosIcon: 'folder.fill',
           icon: 'folder',
           desc: 'Secure storage & expiry dates',
           action: () => router.push('/documents' as any),
         },
         {
           label: 'Reminders Timeline',
+          iosIcon: 'bell.fill',
           icon: 'notifications',
           desc: 'Time-sensitive nudges & native alerts',
           action: () => router.push('/reminders' as any),
@@ -137,12 +143,14 @@ export default function MoreScreen() {
       items: [
         {
           label: 'Settings & Profile',
-          icon: 'tune',
+          iosIcon: 'gearshape.fill',
+          icon: 'settings',
           desc: 'Profile, currency, categories, notifications & security',
           action: () => router.push('/settings' as any),
         },
         {
           label: 'Appearance',
+          iosIcon: isDark ? 'moon.fill' : 'sun.max.fill',
           icon: isDark ? 'dark_mode' : 'light_mode',
           desc: '',
           control: (
@@ -159,13 +167,15 @@ export default function MoreScreen() {
         },
         {
           label: 'Setup & Onboarding',
+          iosIcon: 'slider.horizontal.3',
           icon: 'auto_awesome',
           desc: 'Revisit domains, alert pacing & companion selection',
           action: restartOnboarding,
         },
         {
           label: 'Privacy, Export & Security',
-          icon: 'shield',
+          iosIcon: 'checkmark.shield.fill',
+          icon: 'verified_user',
           desc: 'Password recovery, JSON backup & account controls',
           action: () => router.push('/settings' as any),
         },
@@ -179,7 +189,7 @@ export default function MoreScreen() {
         <ScrollView
           contentContainerStyle={[
             styles.scrollContent,
-            { paddingBottom: BottomTabInset + Spacing.eight },
+            { paddingBottom: bottomPadding },
           ]}
           showsVerticalScrollIndicator={false}
         >
@@ -197,7 +207,6 @@ export default function MoreScreen() {
             accessibilityLabel="Open Settings and Profile"
             style={({ pressed }) => [
               styles.userCard,
-              createShadow(isDark, 'card'),
               {
                 backgroundColor: colors.surface,
                 borderColor: colors.border,
@@ -273,7 +282,6 @@ export default function MoreScreen() {
               <View
                 style={[
                   styles.menuList,
-                  createShadow(isDark, 'card'),
                   { backgroundColor: colors.surface, borderColor: colors.border },
                 ]}
               >
@@ -314,7 +322,7 @@ export default function MoreScreen() {
                         ]}
                       >
                         <SymbolView
-                          name={{ ios: 'circle.fill', android: item.icon, web: item.icon } as any}
+                          name={{ ios: item.iosIcon, android: item.icon, web: item.icon }}
                           size={18}
                           tintColor={
                             item.destructive

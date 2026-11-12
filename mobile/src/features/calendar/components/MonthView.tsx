@@ -26,7 +26,7 @@ export interface MonthViewProps {
   events: CalendarEventItem[];
   onSelectDate: (date: Date) => void;
   onSelectItem: (item: CalendarEventItem) => void;
-  onAddEvent: (date: Date) => void;
+  onAddEvent?: (date: Date) => void;
 }
 
 export function MonthView({
@@ -35,7 +35,6 @@ export function MonthView({
   events,
   onSelectDate,
   onSelectItem,
-  onAddEvent,
 }: MonthViewProps) {
   const { colors, isDark } = useAppTheme();
 
@@ -182,24 +181,6 @@ export function MonthView({
                 {selectedDayItems.length === 1 ? 'item' : 'items'} scheduled
               </ThemedText>
             </View>
-
-            <Pressable
-              onPress={() => onAddEvent(selectedDate)}
-              hitSlop={8}
-              style={[
-                styles.addDayEventBtn,
-                {
-                  backgroundColor: colors.primarySoft,
-                  borderColor: colors.primary,
-                },
-              ]}
-              accessibilityRole="button"
-              accessibilityLabel="Add event on selected date"
-            >
-              <ThemedText style={[styles.addDayEventText, { color: colors.primary }]}>
-                + Add Event
-              </ThemedText>
-            </Pressable>
           </View>
 
           {/* Agenda items list */}
@@ -255,7 +236,7 @@ const styles = StyleSheet.create({
   },
   weekdayText: {
     fontSize: 11,
-    fontWeight: Typography.fontWeight.semibold,
+    fontFamily: Typography.fontFamilies.sansSemiBold,
     letterSpacing: 0.5,
   },
   gridMatrix: {
@@ -329,21 +310,11 @@ const styles = StyleSheet.create({
   },
   agendaTitle: {
     fontSize: Typography.fontSize.lg,
-    fontWeight: Typography.fontWeight.bold,
+    fontFamily: Typography.fontFamilies.sansBold,
   },
   agendaSubtitle: {
     fontSize: Typography.fontSize.xs,
     marginTop: 1,
-  },
-  addDayEventBtn: {
-    paddingHorizontal: Spacing.three,
-    paddingVertical: 6,
-    borderRadius: Radius.full,
-    borderWidth: 1,
-  },
-  addDayEventText: {
-    fontSize: Typography.fontSize.xs,
-    fontWeight: Typography.fontWeight.semibold,
   },
   emptyDayBox: {
     padding: Spacing.six,

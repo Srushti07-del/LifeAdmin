@@ -14,11 +14,12 @@ import {
 import { SymbolView } from 'expo-symbols';
 import { useAppTheme } from '@/context/ThemeContext';
 import { ThemedText } from '@/components/themed-text';
-import { Button, Input, getButtonForegroundColor } from '@/components/ui';
+import { Button, Input, DatePickerField, getButtonForegroundColor } from '@/components/ui';
 import { Typography } from '@/constants/typography';
 import { Spacing, Radius } from '@/constants/spacing';
-import { createShadow } from '@/constants/shadows';
 import { BottomTabInset } from '@/constants/theme';
+import { CurrencyCode, DEFAULT_CURRENCY } from '@/utils/currency';
+import { toLocalISODate, isValidLocalISODate } from '@/utils/dateTimeValidation';
 import { PlanResponse, ProposedAction } from '../types';
 import {
   GOAL_TEMPLATES,
@@ -33,6 +34,7 @@ interface GoalPlannerViewProps {
   onReviewTask: (task: ProposedAction) => void;
   onAcceptAllTasks: (tasks: ProposedAction[]) => Promise<void>;
   isActionBusy: boolean;
+  preferredCurrency?: CurrencyCode;
 }
 
 export function GoalPlannerView({
@@ -42,11 +44,13 @@ export function GoalPlannerView({
   onReviewTask,
   onAcceptAllTasks,
   isActionBusy,
+  preferredCurrency = DEFAULT_CURRENCY,
 }: GoalPlannerViewProps) {
   const { colors, isDark } = useAppTheme();
 
   const [goal, setGoal] = useState('');
   const [targetDate, setTargetDate] = useState('');
+  const [dateError, setDateError] = useState<string | null>(null);
 
   const handleApplyTemplate = (tmpl: string) => {
     setGoal(tmpl);
@@ -55,12 +59,19 @@ export function GoalPlannerView({
   const handleSetQuickDate = (daysAhead: number) => {
     const d = new Date();
     d.setDate(d.getDate() + daysAhead);
-    setTargetDate(d.toISOString().split('T')[0]);
+    setTargetDate(toLocalISODate(d));
+    if (dateError) setDateError(null);
   };
 
   const handleSubmit = async () => {
     if (!goal.trim() || isLoading) return;
-    await onGeneratePlan(goal.trim(), targetDate.trim() || undefined);
+    const trimmedDate = targetDate.trim();
+    if (trimmedDate && !isValidLocalISODate(trimmedDate)) {
+      setDateError('Please select a valid target date (YYYY-MM-DD).');
+      return;
+    }
+    setDateError(null);
+    await onGeneratePlan(goal.trim(), trimmedDate || undefined);
   };
 
   return (
@@ -76,7 +87,6 @@ export function GoalPlannerView({
       <View
         style={[
           styles.card,
-          createShadow(isDark, 'card'),
           {
             backgroundColor: colors.surface,
             borderColor: colors.border,
@@ -144,13 +154,16 @@ export function GoalPlannerView({
 
         {/* Target Date */}
         <View style={styles.inputGroup}>
-          <ThemedText style={[styles.inputLabel, { color: colors.text }]}>
-            Target completion date (optional)
-          </ThemedText>
-          <Input
+          <DatePickerField
+            label="Target completion date (optional)"
+            placeholder="Select target date"
             value={targetDate}
-            onChangeText={setTargetDate}
-            placeholder="YYYY-MM-DD"
+            onChange={(val) => {
+              setTargetDate(val);
+              if (dateError) setDateError(null);
+            }}
+            allowClear
+            error={dateError || undefined}
           />
 
           <View style={styles.quickDateRow}>
@@ -222,7 +235,6 @@ export function GoalPlannerView({
       <View
         style={[
           styles.card,
-          createShadow(isDark, 'card'),
           {
             backgroundColor: colors.surface,
             borderColor: colors.border,
@@ -276,7 +288,7 @@ export function GoalPlannerView({
             <View style={styles.tasksList}>
               {planResult.tasks.map((task, idx) => {
                 const badge = getActionTypeBadge(task.type, isDark);
-                const subtitle = formatActionSubtitle(task);
+                const subtitle = formatActionSubtitle(task, preferredCurrency);
 
                 return (
                   <View

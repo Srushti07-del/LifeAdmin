@@ -14,6 +14,7 @@ import {
 } from 'react-native';
 import { SymbolView } from 'expo-symbols';
 import { useAppTheme } from '@/context/ThemeContext';
+import { useSnackbar } from '@/context/SnackbarContext';
 import { ThemedText } from '@/components/themed-text';
 import { ModalSheet, Button, UrgencyTag, UrgencyType, getButtonForegroundColor } from '@/components/ui';
 import { Colors } from '@/constants/colors';
@@ -53,6 +54,7 @@ export function BillDetailsModal({
   isActionLoading = false,
 }: BillDetailsModalProps) {
   const { colors, isDark } = useAppTheme();
+  const { showSnackbar } = useSnackbar();
   const [isDeleting, setIsDeleting] = useState(false);
 
   if (!bill) return null;
@@ -106,7 +108,11 @@ export function BillDetailsModal({
               await onDelete(bill._id);
               onClose();
             } catch {
-              Alert.alert('Error', 'Failed to delete bill. Please try again.');
+              showSnackbar({
+                variant: 'error',
+                title: 'Delete Failed',
+                message: 'Failed to delete bill. Please try again.',
+              });
             } finally {
               setIsDeleting(false);
             }
@@ -417,7 +423,7 @@ const styles = StyleSheet.create({
   },
   detailValue: {
     fontSize: Typography.fontSize.sm,
-    fontWeight: Typography.fontWeight.semibold,
+    fontFamily: Typography.fontFamilies.sansSemiBold,
   },
   divider: {
     height: 1,
@@ -430,7 +436,7 @@ const styles = StyleSheet.create({
   },
   notesLabel: {
     fontSize: Typography.fontSize.xs,
-    fontWeight: Typography.fontWeight.medium,
+    fontFamily: Typography.fontFamilies.sansMedium,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
     marginBottom: 4,

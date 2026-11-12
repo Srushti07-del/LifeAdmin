@@ -21,9 +21,10 @@ import { useRouter } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
 import { useAppTheme } from '@/context/ThemeContext';
 import { useAuth } from '@/context/AuthContext';
+import { useSnackbar } from '@/context/SnackbarContext';
 import { ThemedView } from '@/components/themed-view';
 import { ThemedText } from '@/components/themed-text';
-import { Button, Input } from '@/components/ui';
+import { Button, HeaderBackButton, Input } from '@/components/ui';
 import { Colors } from '@/constants/colors';
 import { Typography } from '@/constants/typography';
 import { Spacing, Radius } from '@/constants/spacing';
@@ -103,6 +104,7 @@ export default function SettingsScreen() {
   });
 
   const accountMode = useMemo(() => getAccountModeInfo(user, isGuest), [user, isGuest]);
+  const { showSnackbar } = useSnackbar();
 
   const showBanner = useCallback((tone: 'success' | 'error' | 'info', text: string) => {
     setBanner({ tone, text });
@@ -427,10 +429,16 @@ export default function SettingsScreen() {
           showBanner('info', `Prepared export of ${summary.total} records (${summaryLine}).`);
         }
       } catch {
-        Alert.alert(
-          'Export Ready',
-          `Prepared ${summary.total} records.\n${summaryLine}\n\nDevice share sheet could not be opened.`
+        showBanner(
+          'info',
+          `Prepared export of ${summary.total} records (${summaryLine}). Device share sheet unavailable.`
         );
+        showSnackbar({
+          variant: 'info',
+          title: 'Export Ready',
+          message: `Prepared ${summary.total} records (${summaryLine}). Device share sheet could not be opened.`,
+          duration: 5500,
+        });
       }
     } catch (err: any) {
       showBanner('error', err?.message || 'Failed to export account data.');
@@ -496,23 +504,10 @@ export default function SettingsScreen() {
       <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right', 'bottom']}>
         {/* Top App Bar */}
         <View style={[styles.header, { borderBottomColor: colors.borderSubtle }]}>
-          <Pressable
+          <HeaderBackButton
             onPress={handleBack}
-            hitSlop={10}
-            accessibilityRole="button"
             accessibilityLabel="Back to More"
-            style={({ pressed }) => [
-              styles.backBtn,
-              { backgroundColor: colors.surfaceSecondary },
-              pressed && { opacity: 0.75 },
-            ]}
-          >
-            <SymbolView
-              name={{ ios: 'chevron.backward', android: 'arrow_back', web: 'arrow_back' } as any}
-              size={18}
-              tintColor={colors.text}
-            />
-          </Pressable>
+          />
 
           <View style={styles.headerTextCol}>
             <ThemedText style={[styles.headerTitle, { color: colors.text }]}>
@@ -589,7 +584,13 @@ export default function SettingsScreen() {
               >
                 {banner.text}
               </ThemedText>
-              <Pressable onPress={() => setBanner(null)} hitSlop={8}>
+              <Pressable
+                onPress={() => setBanner(null)}
+                hitSlop={8}
+                accessibilityRole="button"
+                accessibilityLabel="Dismiss notification banner"
+                style={styles.feedbackCloseBtn}
+              >
                 <SymbolView
                   name={{ ios: 'xmark', android: 'close', web: 'close' } as any}
                   size={15}
@@ -1491,13 +1492,6 @@ const styles = StyleSheet.create({
     paddingVertical: Spacing.three,
     borderBottomWidth: 1,
   },
-  backBtn: {
-    width: 38,
-    height: 38,
-    borderRadius: Radius.full,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
   headerTextCol: {
     flex: 1,
   },
@@ -1539,6 +1533,12 @@ const styles = StyleSheet.create({
     fontFamily: Typography.fontFamilies.sansMedium,
     fontSize: Typography.fontSize.xs,
     lineHeight: 18,
+  },
+  feedbackCloseBtn: {
+    minWidth: 36,
+    minHeight: 36,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   guestBanner: {
     borderWidth: 1,

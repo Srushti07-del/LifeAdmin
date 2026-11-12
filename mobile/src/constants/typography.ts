@@ -4,19 +4,17 @@
  */
 
 import { Platform } from 'react-native';
+import {
+  BASE_FONT_FAMILIES,
+  resolveInterTypographyOverride,
+  resolveSansFontFamilyForWeight,
+} from './typographyHelpers';
+
+export { resolveInterTypographyOverride, resolveSansFontFamilyForWeight };
 
 export const Typography = {
   fontFamilies: {
-    // Editorial headings (DM Serif Display 400 Regular / Italic)
-    editorial: 'DMSerifDisplay_400Regular',
-    editorialItalic: 'DMSerifDisplay_400Regular_Italic',
-
-    // Inter UI & body text variants
-    sansLight: 'Inter_300Light',
-    sans: 'Inter_400Regular',
-    sansMedium: 'Inter_500Medium',
-    sansSemiBold: 'Inter_600SemiBold',
-    sansBold: 'Inter_700Bold',
+    ...BASE_FONT_FAMILIES,
 
     // Monospace for tabular currency & IDs
     mono: Platform.select({

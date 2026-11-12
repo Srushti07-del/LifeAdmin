@@ -10,6 +10,7 @@ import { View, StyleSheet, ViewStyle } from 'react-native';
 import { SymbolView } from 'expo-symbols';
 import { getCompanionById } from '../catalog';
 import { Radius } from '@/constants/spacing';
+import { Typography } from '@/constants/typography';
 import { ThemedText } from '@/components/themed-text';
 
 export interface CompanionAvatarProps {
@@ -176,7 +177,7 @@ const styles = StyleSheet.create({
   badgeText: {
     color: '#FFFFFF',
     fontSize: 9,
-    fontWeight: '700',
+    fontFamily: Typography.fontFamilies.sansBold,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
   },

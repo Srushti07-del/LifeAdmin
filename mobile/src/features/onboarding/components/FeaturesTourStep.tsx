@@ -10,6 +10,7 @@ import { SymbolView } from 'expo-symbols';
 import { useAppTheme } from '@/context/ThemeContext';
 import { ThemedText } from '@/components/themed-text';
 import { Button, getButtonForegroundColor } from '@/components/ui';
+import { Colors } from '@/constants/colors';
 import { Typography } from '@/constants/typography';
 import { Spacing, Radius } from '@/constants/spacing';
 
@@ -25,9 +26,9 @@ const MODULES = [
     desc: 'Structured to-dos with urgency badges, domain tagging, and flexible deadlines.',
     icon: 'checklist',
     iosIcon: 'checklist',
-    tint: '#168F91',
-    bgLight: '#DDF1EF',
-    bgDark: 'rgba(22, 143, 145, 0.2)',
+    tint: Colors.light.primary,
+    bgLight: Colors.light.primarySoft,
+    bgDark: Colors.dark.primarySoft,
   },
   {
     id: 'bills',
@@ -35,9 +36,9 @@ const MODULES = [
     desc: 'Keep track of subscriptions, utilities, and due dates with currency-aware totals.',
     icon: 'receipt_long',
     iosIcon: 'creditcard.fill',
-    tint: '#0284C7',
-    bgLight: '#E0F2FE',
-    bgDark: 'rgba(2, 132, 199, 0.2)',
+    tint: Colors.status.info,
+    bgLight: Colors.urgency.upcoming.lightBg,
+    bgDark: Colors.urgency.upcoming.darkBg,
   },
   {
     id: 'calendar',
@@ -45,9 +46,9 @@ const MODULES = [
     desc: 'Aggregates all dated events, bills, and task deadlines into a single visual schedule.',
     icon: 'calendar_month',
     iosIcon: 'calendar',
-    tint: '#8B5CF6',
-    bgLight: '#EDE9FE',
-    bgDark: 'rgba(139, 92, 246, 0.2)',
+    tint: Colors.light.primaryDeep,
+    bgLight: Colors.light.primarySoft,
+    bgDark: Colors.dark.primarySoft,
   },
   {
     id: 'appointments',
@@ -55,9 +56,9 @@ const MODULES = [
     desc: 'Specific medical, personal, and professional appointments kept neatly organized.',
     icon: 'event',
     iosIcon: 'calendar.badge.clock',
-    tint: '#F59E0B',
-    bgLight: '#FEF3C7',
-    bgDark: 'rgba(245, 158, 11, 0.2)',
+    tint: Colors.urgency.dueSoon.accent,
+    bgLight: Colors.urgency.dueSoon.lightBg,
+    bgDark: Colors.urgency.dueSoon.darkBg,
   },
   {
     id: 'documents',
@@ -65,9 +66,9 @@ const MODULES = [
     desc: 'Secure repository for insurance policies, warranties, and identity documents.',
     icon: 'description',
     iosIcon: 'doc.text.fill',
-    tint: '#10B981',
-    bgLight: '#D1FAE5',
-    bgDark: 'rgba(16, 185, 129, 0.2)',
+    tint: Colors.urgency.completed.accent,
+    bgLight: Colors.urgency.completed.lightBg,
+    bgDark: Colors.urgency.completed.darkBg,
   },
   {
     id: 'reminders',
@@ -75,9 +76,9 @@ const MODULES = [
     desc: 'Timely reminders before due dates so you never experience late fees or missed deadlines.',
     icon: 'alarm',
     iosIcon: 'bell.fill',
-    tint: '#EC4899',
-    bgLight: '#FCE7F3',
-    bgDark: 'rgba(236, 72, 153, 0.2)',
+    tint: Colors.urgency.urgent.accent,
+    bgLight: Colors.urgency.urgent.lightBg,
+    bgDark: Colors.urgency.urgent.darkBg,
   },
 ];
 

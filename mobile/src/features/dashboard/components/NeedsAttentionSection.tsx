@@ -12,7 +12,6 @@ import { ThemedText } from '@/components/themed-text';
 import { Colors } from '@/constants/colors';
 import { Typography } from '@/constants/typography';
 import { Spacing, Radius } from '@/constants/spacing';
-import { createShadow } from '@/constants/shadows';
 import { CurrencyCode, convertAmountTo, formatCurrency } from '@/utils/currency';
 import { formatShortDate } from '@/utils/date';
 import { AttentionItem } from '../types';
@@ -107,14 +106,18 @@ export function NeedsAttentionSection({
               ? { ios: 'doc.text.fill', android: 'description', web: 'description' }
               : { ios: 'checkmark.square.fill', android: 'checklist', web: 'checklist' };
 
+          const actionLabel =
+            item.type === 'bill'
+              ? `Pay bill ${item.title}`
+              : item.type === 'task'
+              ? `Mark task ${item.title} done`
+              : `View ${item.title}`;
+          const actionTextColor = isDark ? colors.text : colors.primaryDeep;
+
           return (
-            <Pressable
+            <View
               key={`${item.type}-${item.id}`}
-              onPress={() => onItemPress?.(item)}
-              accessible
-              accessibilityRole="button"
-              accessibilityLabel={`${item.title}, ${item.urgencyLabel || item.reason}`}
-              style={({ pressed }) => [
+              style={[
                 styles.itemCard,
                 {
                   backgroundColor: colors.surface,
@@ -127,50 +130,56 @@ export function NeedsAttentionSection({
                       ? colors.border
                       : colors.borderSubtle,
                 },
-                createShadow(isDark, 'card'),
-                pressed && styles.pressed,
               ]}
             >
               {/* Card Body */}
               <View style={styles.cardContent}>
-                <View style={styles.cardTopRow}>
-                  {/* Type Icon & Title */}
-                  <View style={styles.titleContainer}>
-                    <View
-                      style={[
-                        styles.iconCircle,
-                        { backgroundColor: badgeBg },
-                      ]}
-                    >
-                      <SymbolView
-                        name={iconName as any}
-                        size={18}
-                        tintColor={isDark ? urgencyConfig.darkText : urgencyConfig.accent}
-                      />
+                <Pressable
+                  onPress={() => onItemPress?.(item)}
+                  accessibilityRole="button"
+                  accessibilityLabel={`${item.title}, ${item.urgencyLabel || item.reason}`}
+                  accessibilityHint={`Opens ${item.type} details`}
+                  style={({ pressed }) => [pressed && { opacity: 0.85 }]}
+                >
+                  <View style={styles.cardTopRow}>
+                    {/* Type Icon & Title */}
+                    <View style={styles.titleContainer}>
+                      <View
+                        style={[
+                          styles.iconCircle,
+                          { backgroundColor: badgeBg },
+                        ]}
+                      >
+                        <SymbolView
+                          name={iconName as any}
+                          size={18}
+                          tintColor={isDark ? urgencyConfig.darkText : urgencyConfig.accent}
+                        />
+                      </View>
+                      <View style={styles.textColumn}>
+                        <ThemedText numberOfLines={1} style={[styles.itemTitle, { color: colors.text }]}>
+                          {item.title}
+                        </ThemedText>
+                        <ThemedText numberOfLines={1} style={[styles.itemSubtitle, { color: colors.textSecondary }]}>
+                          {item.subtitle || item.reason}
+                        </ThemedText>
+                      </View>
                     </View>
-                    <View style={styles.textColumn}>
-                      <ThemedText numberOfLines={1} style={[styles.itemTitle, { color: colors.text }]}>
-                        {item.title}
-                      </ThemedText>
-                      <ThemedText numberOfLines={1} style={[styles.itemSubtitle, { color: colors.textSecondary }]}>
-                        {item.subtitle || item.reason}
-                      </ThemedText>
-                    </View>
-                  </View>
 
-                  {/* Urgency Badge */}
-                  <View style={[styles.urgencyBadge, { backgroundColor: badgeBg }]}>
-                    <View
-                      style={[
-                        styles.urgencyDot,
-                        { backgroundColor: urgencyConfig.accent },
-                      ]}
-                    />
-                    <ThemedText style={[styles.urgencyBadgeText, { color: badgeText }]}>
-                      {item.urgencyLabel || formatShortDate(item.dueDate)}
-                    </ThemedText>
+                    {/* Urgency Badge */}
+                    <View style={[styles.urgencyBadge, { backgroundColor: badgeBg }]}>
+                      <View
+                        style={[
+                          styles.urgencyDot,
+                          { backgroundColor: urgencyConfig.accent },
+                        ]}
+                      />
+                      <ThemedText style={[styles.urgencyBadgeText, { color: badgeText }]}>
+                        {item.urgencyLabel || formatShortDate(item.dueDate)}
+                      </ThemedText>
+                    </View>
                   </View>
-                </View>
+                </Pressable>
 
                 {/* Footer with Amount (if bill) or Action Button */}
                 <View style={[styles.cardFooter, { borderTopColor: colors.borderSubtle }]}>
@@ -191,9 +200,10 @@ export function NeedsAttentionSection({
 
                   <Pressable
                     onPress={() => onActionPress?.(item)}
+                    hitSlop={6}
                     accessible
                     accessibilityRole="button"
-                    accessibilityLabel={item.type === 'bill' ? 'Pay Bill' : 'Mark Done'}
+                    accessibilityLabel={actionLabel}
                     style={({ pressed }) => [
                       styles.actionButton,
                       {
@@ -205,7 +215,7 @@ export function NeedsAttentionSection({
                     <ThemedText
                       style={[
                         styles.actionButtonText,
-                        { color: isDark ? colors.primary : colors.primaryDeep },
+                        { color: actionTextColor },
                       ]}
                     >
                       {item.type === 'bill' ? 'Pay' : item.type === 'task' ? 'Done' : 'View'}
@@ -213,12 +223,12 @@ export function NeedsAttentionSection({
                     <SymbolView
                       name={{ ios: 'chevron.right', android: 'chevron_right', web: 'chevron_right' }}
                       size={14}
-                      tintColor={isDark ? colors.primary : colors.primaryDeep}
+                      tintColor={actionTextColor}
                     />
                   </Pressable>
                 </View>
               </View>
-            </Pressable>
+            </View>
           );
         })}
       </View>
@@ -254,7 +264,7 @@ const styles = StyleSheet.create({
   },
   countBadgeText: {
     fontSize: Typography.fontSize.xs,
-    fontWeight: Typography.fontWeight.bold,
+    fontFamily: Typography.fontFamilies.sansBold,
     fontVariant: ['tabular-nums'],
   },
   emptyCard: {
@@ -270,7 +280,7 @@ const styles = StyleSheet.create({
   },
   emptyTitle: {
     fontSize: Typography.fontSize.base,
-    fontWeight: Typography.fontWeight.semibold,
+    fontFamily: Typography.fontFamilies.sansSemiBold,
   },
   emptySubtitle: {
     fontSize: Typography.fontSize.xs,
@@ -311,7 +321,7 @@ const styles = StyleSheet.create({
   },
   itemTitle: {
     fontSize: Typography.fontSize.base,
-    fontWeight: Typography.fontWeight.semibold,
+    fontFamily: Typography.fontFamilies.sansSemiBold,
   },
   itemSubtitle: {
     fontSize: Typography.fontSize.xs,
@@ -332,7 +342,7 @@ const styles = StyleSheet.create({
   },
   urgencyBadgeText: {
     fontSize: 11,
-    fontWeight: Typography.fontWeight.bold,
+    fontFamily: Typography.fontFamilies.sansBold,
   },
   cardFooter: {
     flexDirection: 'row',
@@ -344,7 +354,7 @@ const styles = StyleSheet.create({
   },
   amountText: {
     fontSize: Typography.fontSize.base,
-    fontWeight: Typography.fontWeight.bold,
+    fontFamily: Typography.fontFamilies.sansBold,
     fontVariant: ['tabular-nums'],
   },
   dueDateText: {
@@ -357,11 +367,11 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
     borderRadius: Radius.md,
     gap: 4,
-    minHeight: 32,
+    minHeight: 38,
   },
   actionButtonText: {
     fontSize: Typography.fontSize.xs,
-    fontWeight: Typography.fontWeight.semibold,
+    fontFamily: Typography.fontFamilies.sansSemiBold,
   },
   pressed: {
     opacity: 0.85,

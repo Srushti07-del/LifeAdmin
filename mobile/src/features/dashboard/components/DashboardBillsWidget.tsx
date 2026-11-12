@@ -11,7 +11,6 @@ import { ThemedText } from '@/components/themed-text';
 import { Colors } from '@/constants/colors';
 import { Typography } from '@/constants/typography';
 import { Spacing, Radius } from '@/constants/spacing';
-import { createShadow } from '@/constants/shadows';
 import {
   CurrencyCode,
   convertAmountTo,
@@ -92,7 +91,6 @@ export function DashboardBillsWidget({
             backgroundColor: colors.surface,
             borderColor: colors.border,
           },
-          createShadow(isDark, 'card'),
         ]}
       >
         <View style={[styles.headerRow, { borderBottomColor: colors.borderSubtle }]}>
@@ -123,7 +121,12 @@ export function DashboardBillsWidget({
             </View>
           </View>
 
-          <Pressable onPress={onManageBills} hitSlop={8}>
+          <Pressable
+            onPress={onManageBills}
+            hitSlop={12}
+            accessibilityRole="button"
+            accessibilityLabel="Manage bills"
+          >
             <ThemedText style={[styles.viewAllText, { color: colors.primary }]}>
               Manage
             </ThemedText>
@@ -140,63 +143,87 @@ export function DashboardBillsWidget({
                 exchangeRates
               );
               return (
-                <Pressable
+                <View
                   key={bill.id}
-                  onPress={onManageBills}
-                  style={({ pressed }) => [
+                  style={[
                     styles.row,
                     {
                       backgroundColor: colors.surfaceSecondary,
                       borderColor: colors.borderSubtle,
                     },
-                    pressed && { opacity: 0.85 },
                   ]}
                 >
-                  <View style={styles.rowInfo}>
-                    <ThemedText
-                      numberOfLines={1}
-                      style={[styles.rowTitle, { color: colors.text }]}
-                    >
-                      {bill.title}
-                    </ThemedText>
-                    <ThemedText
-                      style={[
-                        styles.rowMeta,
-                        {
-                          color: bill.isUrgent
-                            ? isDark
-                              ? Colors.urgency.critical.darkText
-                              : Colors.urgency.critical.lightText
-                            : colors.textSecondary,
-                        },
-                      ]}
-                    >
-                      {bill.dueLabel}
-                    </ThemedText>
-                  </View>
+                  <Pressable
+                    onPress={onManageBills}
+                    style={({ pressed }) => [
+                      {
+                        flex: 1,
+                        minWidth: 0,
+                        flexDirection: 'row',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        gap: Spacing.two,
+                      },
+                      pressed && { opacity: 0.85 },
+                    ]}
+                    accessibilityRole="button"
+                    accessibilityLabel={`${bill.title}, ${bill.dueLabel}, ${formatCurrency(convertedAmount, preferredCurrency)}`}
+                    accessibilityHint="Opens bills overview"
+                  >
+                    <View style={styles.rowInfo}>
+                      <ThemedText
+                        numberOfLines={1}
+                        style={[styles.rowTitle, { color: colors.text }]}
+                      >
+                        {bill.title}
+                      </ThemedText>
+                      <ThemedText
+                        style={[
+                          styles.rowMeta,
+                          {
+                            color: bill.isUrgent
+                              ? isDark
+                                ? Colors.urgency.critical.darkText
+                                : Colors.urgency.critical.lightText
+                              : colors.textSecondary,
+                          },
+                        ]}
+                      >
+                        {bill.dueLabel}
+                      </ThemedText>
+                    </View>
 
-                  <View style={styles.rowRight}>
                     <ThemedText style={[styles.amountText, { color: colors.primary }]}>
                       {formatCurrency(convertedAmount, preferredCurrency)}
                     </ThemedText>
-                    {onPayBill && (
-                      <Pressable
-                        onPress={() => onPayBill(bill.id, bill.title)}
-                        hitSlop={6}
+                  </Pressable>
+
+                  {onPayBill && (
+                    <Pressable
+                      onPress={() => onPayBill(bill.id, bill.title)}
+                      hitSlop={8}
+                      style={[
+                        styles.payPill,
+                        { backgroundColor: colors.primarySoft },
+                      ]}
+                      accessibilityRole="button"
+                      accessibilityLabel={`Mark bill ${bill.title} paid`}
+                    >
+                      <ThemedText
                         style={[
-                          styles.payPill,
-                          { backgroundColor: colors.primarySoft },
+                          styles.payPillText,
+                          {
+                            color: isDark
+                              ? Colors.urgency.upcoming.darkText
+                              : colors.primaryDeep,
+                          },
                         ]}
-                        accessibilityRole="button"
-                        accessibilityLabel={`Mark bill ${bill.title} paid`}
                       >
-                        <ThemedText style={[styles.payPillText, { color: colors.primary }]}>
-                          Pay
-                        </ThemedText>
-                      </Pressable>
-                    )}
-                  </View>
-                </Pressable>
+                        Pay
+                      </ThemedText>
+                    </Pressable>
+                  )}
+                </View>
               );
             })}
           </View>
@@ -292,6 +319,10 @@ const styles = StyleSheet.create({
     fontVariant: ['tabular-nums'],
   },
   payPill: {
+    minHeight: 34,
+    minWidth: 52,
+    alignItems: 'center',
+    justifyContent: 'center',
     paddingHorizontal: Spacing.two + 2,
     paddingVertical: 4,
     borderRadius: Radius.md,

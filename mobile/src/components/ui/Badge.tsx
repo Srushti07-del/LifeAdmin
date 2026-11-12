@@ -12,6 +12,7 @@ import {
 import { Radius } from '@/constants/spacing';
 import { Typography } from '@/constants/typography';
 import { useIsDark, useTheme } from '@/hooks/use-theme';
+import { renderTextSafeChildren } from '@/utils/textChildren';
 
 export type BadgeVariant = 'primary' | 'secondary' | 'success' | 'warning' | 'danger' | 'neutral';
 export type BadgeSize = 'sm' | 'md';
@@ -97,16 +98,17 @@ export function Badge({
       ]}
       {...props}
     >
-      {dot && (
+      {dot ? (
         <View
           style={[
             styles.dot,
             { backgroundColor: vStyles.dotColor },
           ]}
         />
-      )}
-      {typeof children === 'string' ? (
+      ) : null}
+      {renderTextSafeChildren(children, (content, key) => (
         <Text
+          key={key}
           style={[
             styles.text,
             {
@@ -117,11 +119,9 @@ export function Badge({
             textStyle,
           ]}
         >
-          {children}
+          {content}
         </Text>
-      ) : (
-        children
-      )}
+      ))}
     </View>
   );
 }
@@ -142,7 +142,6 @@ const styles = StyleSheet.create({
   },
   text: {
     fontFamily: Typography.fontFamilies.sansMedium,
-    fontWeight: '500',
   },
 });
 

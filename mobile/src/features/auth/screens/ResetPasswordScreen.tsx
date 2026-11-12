@@ -507,7 +507,7 @@ const styles = StyleSheet.create({
   },
   subtitle: {
     fontSize: Typography.fontSize.sm,
-    fontWeight: Typography.fontWeight.normal,
+    fontFamily: Typography.fontFamilies.sans,
     textAlign: 'center',
     maxWidth: 290,
     lineHeight: 20,
@@ -516,10 +516,6 @@ const styles = StyleSheet.create({
     borderRadius: Radius.xl,
     padding: Spacing.five,
     borderWidth: 1,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.08,
-    shadowRadius: 16,
-    elevation: 3,
   },
   errorBanner: {
     flexDirection: 'row',
@@ -535,19 +531,19 @@ const styles = StyleSheet.create({
   },
   errorText: {
     fontSize: Typography.fontSize.xs,
-    fontWeight: Typography.fontWeight.medium,
+    fontFamily: Typography.fontFamilies.sansMedium,
     lineHeight: 18,
   },
   requestNewTokenLink: {
     fontSize: Typography.fontSize.xs,
-    fontWeight: Typography.fontWeight.semibold,
+    fontFamily: Typography.fontFamilies.sansSemiBold,
   },
   inputGroup: {
     marginBottom: Spacing.four,
   },
   inputLabel: {
     fontSize: Typography.fontSize.xs,
-    fontWeight: Typography.fontWeight.semibold,
+    fontFamily: Typography.fontFamilies.sansSemiBold,
     marginBottom: Spacing.one + 2,
     letterSpacing: 0.2,
   },
@@ -628,7 +624,7 @@ const styles = StyleSheet.create({
   },
   footerLink: {
     fontSize: Typography.fontSize.xs,
-    fontWeight: Typography.fontWeight.bold,
+    fontFamily: Typography.fontFamilies.sansBold,
   },
   assuranceRow: {
     flexDirection: 'row',

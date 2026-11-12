@@ -11,7 +11,6 @@ import { ThemedText } from '@/components/themed-text';
 import { Colors } from '@/constants/colors';
 import { Typography } from '@/constants/typography';
 import { Spacing, Radius } from '@/constants/spacing';
-import { createShadow } from '@/constants/shadows';
 import { formatShortDate } from '@/utils/date';
 import { AttentionItem, UpcomingItem } from '../types';
 
@@ -73,7 +72,6 @@ export function DashboardTasksWidget({
       <View
         style={[
           styles.card,
-          createShadow(isDark, 'card'),
           {
             backgroundColor: colors.surface,
             borderColor: colors.border,
@@ -106,7 +104,12 @@ export function DashboardTasksWidget({
             </View>
           </View>
 
-          <Pressable onPress={onViewAll} hitSlop={8}>
+          <Pressable
+            onPress={onViewAll}
+            hitSlop={12}
+            accessibilityRole="button"
+            accessibilityLabel="View all tasks"
+          >
             <ThemedText style={[styles.viewAllText, { color: colors.primary }]}>
               View all
             </ThemedText>
@@ -250,7 +253,11 @@ const styles = StyleSheet.create({
     gap: Spacing.two,
   },
   checkBtn: {
-    padding: 2,
+    minWidth: 34,
+    minHeight: 34,
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 4,
   },
   rowBody: {
     flex: 1,
@@ -282,6 +289,8 @@ const styles = StyleSheet.create({
     fontSize: Typography.fontSize.xs,
   },
   emptyBtn: {
+    minHeight: 38,
+    justifyContent: 'center',
     paddingHorizontal: Spacing.three,
     paddingVertical: 6,
     borderRadius: Radius.full,

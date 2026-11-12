@@ -15,7 +15,6 @@ import { useAuth } from '@/context/AuthContext';
 import { ThemedText } from '@/components/themed-text';
 import { Typography } from '@/constants/typography';
 import { Spacing, Radius } from '@/constants/spacing';
-import { createShadow } from '@/constants/shadows';
 import { COMPANIONS, getCompanionById, getGrowthStage } from '../catalog';
 import { CompanionState } from '../types';
 import { CompanionAvatar } from './CompanionAvatar';
@@ -74,127 +73,134 @@ export function LifeBuddyWidget({ onPressSanctuary }: LifeBuddyWidgetProps) {
     }
   };
 
+  const companionDisplayName = companionState.customName || activeCompanion.name;
+  const badgeTextColor = isDark ? colors.text : colors.primaryDeep;
+
   return (
     <>
-      <Pressable
-        onPress={handleOpenSanctuary}
-        style={({ pressed }) => [
+      <View
+        style={[
           styles.container,
-          createShadow(isDark, 'card'),
           {
             backgroundColor: colors.surface,
             borderColor: colors.border,
           },
-          pressed && { opacity: 0.95 },
         ]}
-        accessibilityRole="button"
-        accessibilityLabel={`LifeBuddy Companion ${companionState.customName || activeCompanion.name}, level ${companionState.level}. Tap to open Sanctuary.`}
       >
-        {/* Header Row */}
-        <View style={[styles.headerRow, { borderBottomColor: colors.border }]}>
-          <View style={styles.headerTitleGroup}>
-            <SymbolView
-              name={{ ios: 'sparkles', android: 'auto_awesome', web: 'auto_awesome' }}
-              size={15}
-              tintColor={colors.primary}
-            />
-            <ThemedText style={[styles.headerTitle, { color: colors.textSecondary }]}>
-              LIFEBUDDY COMPANION
-            </ThemedText>
-          </View>
-          <View style={styles.sanctuaryAction}>
-            <ThemedText style={[styles.sanctuaryText, { color: colors.primary }]}>
-              Sanctuary
-            </ThemedText>
-            <SymbolView
-              name={{ ios: 'chevron.right', android: 'chevron_right', web: 'chevron_right' }}
-              size={12}
-              tintColor={colors.primary}
-            />
-          </View>
-        </View>
-
-        {/* Content Row */}
-        <View style={styles.contentRow}>
-          <CompanionAvatar id={activeCompanion.id} size="lg" />
-
-          <View style={styles.infoCol}>
-            <View style={styles.nameRow}>
-              <ThemedText
-                style={[styles.companionName, { color: colors.text }]}
-                numberOfLines={1}
-              >
-                {companionState.customName || activeCompanion.name}
+        <Pressable
+          onPress={handleOpenSanctuary}
+          style={({ pressed }) => [pressed && { opacity: 0.9 }]}
+          accessibilityRole="button"
+          accessibilityLabel={`LifeBuddy Companion ${companionDisplayName}, level ${companionState.level}`}
+          accessibilityHint="Opens LifeBuddy Sanctuary"
+        >
+          {/* Header Row */}
+          <View style={[styles.headerRow, { borderBottomColor: colors.border }]}>
+            <View style={styles.headerTitleGroup}>
+              <SymbolView
+                name={{ ios: 'sparkles', android: 'auto_awesome', web: 'auto_awesome' }}
+                size={15}
+                tintColor={colors.primary}
+              />
+              <ThemedText style={[styles.headerTitle, { color: colors.textSecondary }]}>
+                LIFEBUDDY COMPANION
               </ThemedText>
-              <View
-                style={[
-                  styles.levelBadge,
-                  {
-                    backgroundColor: colors.primarySoft,
-                    borderColor: colors.primary,
-                  },
-                ]}
-              >
-                <ThemedText style={[styles.levelBadgeText, { color: colors.primary }]}>
-                  Lvl {companionState.level}
-                </ThemedText>
-              </View>
             </View>
+            <View style={styles.sanctuaryAction}>
+              <ThemedText style={[styles.sanctuaryText, { color: colors.primary }]}>
+                Sanctuary
+              </ThemedText>
+              <SymbolView
+                name={{ ios: 'chevron.right', android: 'chevron_right', web: 'chevron_right' }}
+                size={12}
+                tintColor={colors.primary}
+              />
+            </View>
+          </View>
 
-            <ThemedText style={[styles.speciesText, { color: colors.textSecondary }]}>
-              {activeCompanion.species} · {stage}
-            </ThemedText>
+          {/* Content Row */}
+          <View style={styles.contentRow}>
+            <CompanionAvatar id={activeCompanion.id} size="lg" />
 
-            {/* Growth Progress Bar */}
-            <View style={styles.progressContainer}>
-              <View style={styles.progressTextRow}>
-                <ThemedText style={[styles.progressLabel, { color: colors.textSecondary }]}>
-                  Growth XP
+            <View style={styles.infoCol}>
+              <View style={styles.nameRow}>
+                <ThemedText
+                  style={[styles.companionName, { color: colors.text }]}
+                  numberOfLines={1}
+                >
+                  {companionDisplayName}
                 </ThemedText>
-                <ThemedText style={[styles.progressCount, { color: colors.textSecondary }]}>
-                  {xpInCurrentLevel} / 200
-                </ThemedText>
-              </View>
-              <View
-                style={[
-                  styles.progressTrack,
-                  { backgroundColor: isDark ? colors.surfaceSecondary : colors.border },
-                ]}
-              >
                 <View
                   style={[
-                    styles.progressFill,
+                    styles.levelBadge,
                     {
-                      width: `${xpPercentage}%`,
-                      backgroundColor: colors.primary,
+                      backgroundColor: colors.primarySoft,
+                      borderColor: colors.primary,
                     },
                   ]}
-                />
+                >
+                  <ThemedText style={[styles.levelBadgeText, { color: badgeTextColor }]}>
+                    Lvl {companionState.level}
+                  </ThemedText>
+                </View>
+              </View>
+
+              <ThemedText style={[styles.speciesText, { color: colors.textSecondary }]}>
+                {activeCompanion.species} · {stage}
+              </ThemedText>
+
+              {/* Growth Progress Bar */}
+              <View style={styles.progressContainer}>
+                <View style={styles.progressTextRow}>
+                  <ThemedText style={[styles.progressLabel, { color: colors.textSecondary }]}>
+                    Growth XP
+                  </ThemedText>
+                  <ThemedText style={[styles.progressCount, { color: colors.textSecondary }]}>
+                    {xpInCurrentLevel} / 200
+                  </ThemedText>
+                </View>
+                <View
+                  accessibilityRole="progressbar"
+                  accessibilityLabel="Companion growth XP progress"
+                  accessibilityValue={{ min: 0, max: 200, now: xpInCurrentLevel }}
+                  style={[
+                    styles.progressTrack,
+                    { backgroundColor: isDark ? colors.surfaceSecondary : colors.border },
+                  ]}
+                >
+                  <View
+                    style={[
+                      styles.progressFill,
+                      {
+                        width: `${xpPercentage}%`,
+                        backgroundColor: colors.primary,
+                      },
+                    ]}
+                  />
+                </View>
               </View>
             </View>
           </View>
-        </View>
 
-        {/* Gentle Encouragement Quote Card */}
-        <View
-          style={[
-            styles.quoteContainer,
-            {
-              backgroundColor: colors.primarySoft,
-              borderColor: colors.border,
-            },
-          ]}
-        >
-          <ThemedText style={[styles.quoteText, { color: colors.text }]}>
-            &ldquo;{activeCompanion.quote}&rdquo;
-          </ThemedText>
-        </View>
+          {/* Gentle Encouragement Quote Card */}
+          <View
+            style={[
+              styles.quoteContainer,
+              {
+                backgroundColor: colors.primarySoft,
+                borderColor: colors.border,
+              },
+            ]}
+          >
+            <ThemedText style={[styles.quoteText, { color: colors.text }]}>
+              &ldquo;{activeCompanion.quote}&rdquo;
+            </ThemedText>
+          </View>
+        </Pressable>
+
         {/* Ask LifeBuddy AI Action Trigger */}
         <Pressable
-          onPress={(e) => {
-            e.stopPropagation?.();
-            router.push('/ai' as any);
-          }}
+          onPress={() => router.push('/ai' as any)}
           hitSlop={4}
           style={({ pressed }) => [
             styles.aiBar,
@@ -205,7 +211,8 @@ export function LifeBuddyWidget({ onPressSanctuary }: LifeBuddyWidgetProps) {
             pressed && { opacity: 0.8 },
           ]}
           accessibilityRole="button"
-          accessibilityLabel="Ask LifeBuddy AI for planning and responsibility summaries"
+          accessibilityLabel="Ask LifeBuddy AI"
+          accessibilityHint="Opens AI assistant for planning and responsibility summaries"
         >
           <View style={styles.aiBarLeft}>
             <SymbolView
@@ -221,7 +228,7 @@ export function LifeBuddyWidget({ onPressSanctuary }: LifeBuddyWidgetProps) {
             Plan & summarize &rarr;
           </ThemedText>
         </Pressable>
-      </Pressable>
+      </View>
 
       {/* Internal Sanctuary Modal fallback */}
       {!onPressSanctuary && (

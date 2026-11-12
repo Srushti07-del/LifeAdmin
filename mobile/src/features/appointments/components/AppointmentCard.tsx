@@ -11,7 +11,6 @@ import { useAppTheme } from '@/context/ThemeContext';
 import { ThemedText } from '@/components/themed-text';
 import { Typography } from '@/constants/typography';
 import { Spacing, Radius } from '@/constants/spacing';
-import { createShadow } from '@/constants/shadows';
 import { Appointment } from '../types';
 import {
   isAppointmentToday,
@@ -63,7 +62,6 @@ export function AppointmentCard({ appointment, onPress }: AppointmentCardProps) 
           borderColor: isToday ? colors.primary : colors.border,
           opacity: pressed ? 0.88 : 1,
         },
-        createShadow(isDark, 'card'),
       ]}
       accessibilityRole="button"
       accessibilityLabel={`Appointment: ${appointment.title}, ${formatAppointmentDate(appointment.date)}, ${statusConfig.label}`}
@@ -215,7 +213,7 @@ const styles = StyleSheet.create({
   },
   categoryText: {
     fontSize: 11,
-    fontWeight: Typography.fontWeight.medium,
+    fontFamily: Typography.fontFamilies.sansMedium,
   },
   statusBadge: {
     flexDirection: 'row',
@@ -232,7 +230,7 @@ const styles = StyleSheet.create({
   },
   statusText: {
     fontSize: 10,
-    fontWeight: Typography.fontWeight.semibold,
+    fontFamily: Typography.fontFamilies.sansSemiBold,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
   },

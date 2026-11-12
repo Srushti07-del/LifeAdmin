@@ -12,7 +12,6 @@ import { ThemedView } from '@/components/themed-view';
 import { Colors } from '@/constants/colors';
 import { Typography } from '@/constants/typography';
 import { Spacing, Radius } from '@/constants/spacing';
-import { createShadow } from '@/constants/shadows';
 import { ReminderTotals, ReminderSectionKey } from '../types';
 
 interface ReminderSummaryCardProps {
@@ -36,7 +35,6 @@ export function ReminderSummaryCard({
           backgroundColor: colors.surface,
           borderColor: colors.border,
         },
-        createShadow(isDark, 'card'),
       ]}
     >
       <View style={styles.header}>
@@ -281,7 +279,9 @@ const styles = StyleSheet.create({
   },
   statItem: {
     flex: 1,
+    minHeight: 48,
     alignItems: 'center',
+    justifyContent: 'center',
     paddingVertical: 6,
   },
   statValue: {

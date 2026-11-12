@@ -15,6 +15,7 @@ import { Radius } from '@/constants/spacing';
 import { ThemeColors } from '@/constants/colors';
 import { Typography } from '@/constants/typography';
 import { useIsDark, useTheme } from '@/hooks/use-theme';
+import { hasRenderableNode, renderTextSafeChildren } from '@/utils/textChildren';
 
 export type ButtonVariant = 'primary' | 'secondary' | 'outline' | 'ghost' | 'danger';
 export type ButtonSize = 'sm' | 'md' | 'lg';
@@ -207,6 +208,15 @@ export const Button = React.forwardRef<React.ComponentRef<typeof Pressable>, But
       >
         {({ pressed }) => {
           const variantStyle = getVariantColors(pressed && !isDisabled);
+          const resolvedTextStyle = [variantStyle.text, currentSize.text, textStyle];
+          const hasIcon = hasRenderableNode(icon);
+          const hasRightIcon = hasRenderableNode(rightIcon);
+          const wrapTextNode = (content: React.ReactNode, key: string) => (
+            <Text key={key} style={resolvedTextStyle}>
+              {content}
+            </Text>
+          );
+
           return (
             <>
               {loading ? (
@@ -215,21 +225,19 @@ export const Button = React.forwardRef<React.ComponentRef<typeof Pressable>, But
                   color={variantStyle.spinnerColor}
                   style={styles.spinner}
                 />
-              ) : (
-                icon && <View style={styles.iconContainer}>{icon}</View>
-              )}
+              ) : hasIcon ? (
+                <View style={styles.iconContainer}>
+                  {renderTextSafeChildren(icon, wrapTextNode)}
+                </View>
+              ) : null}
 
-              {typeof children === 'string' ? (
-                <Text style={[variantStyle.text, currentSize.text, textStyle]}>
-                  {children}
-                </Text>
-              ) : (
-                children
-              )}
+              {renderTextSafeChildren(children, wrapTextNode)}
 
-              {!loading && rightIcon && (
-                <View style={styles.iconContainer}>{rightIcon}</View>
-              )}
+              {!loading && hasRightIcon ? (
+                <View style={styles.iconContainer}>
+                  {renderTextSafeChildren(rightIcon, wrapTextNode)}
+                </View>
+              ) : null}
             </>
           );
         }}
