@@ -1,56 +1,37 @@
 # LifeAdmin
 
-LifeAdmin is a personal life-management platform designed to organize everyday responsibilities into a calm, unified workspace. It helps students and professionals track tasks, bills, appointments, and important documents with intelligent reminders. The platform also includes LifeBuddy, an interactive virtual companion that reinforces positive habit-building without guilt.
+LifeAdmin is a personal life-management workspace designed to organize everyday responsibilities in one calm interface. It helps users manage tasks, bills, appointments, and documents with smart reminders and alerts. It also includes LifeBuddy, an interactive virtual companion for positive habit-building.
 
-## Key Features
+## Live Website
 
-- **Tasks & Deadlines:** Manage to-dos and recurring responsibilities across List and Board views.
-- **Bills & Subscriptions:** Monitor payment dates, recurring expenses, and upcoming dues in INR (₹).
-- **Calendar & Appointments:** Consolidated timeline aggregating all dated tasks, bills, and appointments.
-- **Documents & AI Extraction:** Upload personal files with automated metadata extraction via Google Gemini.
-- **LifeBuddy & AI Assistant:** Stylized 3D companion for habit reinforcement plus an interactive planning assistant.
+https://lifeadmin-web.onrender.com/
+
+## Features
+
+- **Dashboard & Deadlines:** Overview of upcoming tasks, bills, and active reminders.
+- **Tasks & Bills:** List and board task tracking with recurring bill management in INR (₹).
+- **Calendar & Appointments:** Consolidated timeline aggregating dated responsibilities and visits.
+- **Documents & AI Extraction:** File storage with automated Google Gemini metadata extraction.
+- **LifeBuddy Companion:** Stylized virtual companions reinforcing positive habits and progress.
 
 ## Tech Stack
 
-- **Frontend:** React 19, TypeScript, Vite, Tailwind CSS 4, React Router
-- **Backend:** Node.js, Express, TypeScript, JWT, Nodemailer
-- **Database:** MongoDB, Mongoose
-- **AI:** Google Gemini API (`@google/generative-ai`)
+- **Frontend:** React 19, TypeScript, Vite, Tailwind CSS
+- **Backend:** Node.js, Express, TypeScript, MongoDB, Mongoose, JWT
+- **AI:** Google Gemini API
 
-## Getting Started
-
-### Prerequisites
-- Node.js (v18+) and npm
-- MongoDB instance
-
-### Installation & Run
+## Run Locally
 
 ```bash
-# Install root, client, and server dependencies
-npm run install:all
-
-# Start frontend and backend concurrently
-npm run dev
+npm run install:all                  # Install root, server, and client dependencies
+cp server/.env.example server/.env   # Set MONGODB_URI and JWT_SECRET
+npm run dev                          # Start backend and frontend concurrently
 ```
-
-The web client runs on `http://localhost:5173` and the server on `http://localhost:5000`.
-
-## Environment Setup
-
-Copy the example environment file and configure required keys:
-
-```bash
-cp server/.env.example server/.env
-```
-
-Set `MONGODB_URI`, `JWT_SECRET`, and optionally `GEMINI_API_KEY` and SMTP settings in `server/.env`.
 
 ## Project Structure
 
-```text
-├── client/   # React frontend application
-├── server/   # Express backend API and database models
-├── mobile/   # React Native / Expo mobile app
-├── shared/   # Shared TypeScript types and contracts
-└── docs/     # Design system, UX specs, and documentation
-```
+- `client/` — React frontend application
+- `server/` — Express API server and MongoDB models
+- `mobile/` — React Native (Expo) mobile app
+- `shared/` — Shared TypeScript types and contracts
+- `docs/` — Documentation and specifications
