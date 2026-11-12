@@ -9,19 +9,28 @@ import { View, StyleSheet, ScrollView, Pressable } from 'react-native';
 import { SymbolView } from 'expo-symbols';
 import { useAppTheme } from '@/context/ThemeContext';
 import { ThemedText } from '@/components/themed-text';
-import { ModalSheet, Button, Input, getButtonForegroundColor } from '@/components/ui';
+import { ModalSheet, Button, Input, DatePickerField, getButtonForegroundColor } from '@/components/ui';
 import { Colors } from '@/constants/colors';
 import { Typography } from '@/constants/typography';
 import { Spacing, Radius } from '@/constants/spacing';
+import {
+  CurrencyCode,
+  DEFAULT_CURRENCY,
+  getCurrencyInfo,
+  resolveTransactionCurrency,
+} from '@/utils/currency';
+import { isValidLocalISODate } from '@/utils/dateTimeValidation';
 import { DocumentItem, CreateEntityFromDocParams } from '../types';
 import { prepareEntityFromExtraction } from '../services/documentCalculations';
 
 export interface DocumentEntityConversionModalProps {
   isOpen: boolean;
   document: DocumentItem | null;
+  preferredCurrency?: CurrencyCode;
   initialType?: 'task' | 'bill' | 'reminder';
   initialAmount?: number;
   initialDate?: string;
+  initialCurrency?: string;
   onClose: () => void;
   onConfirm: (docId: string, params: CreateEntityFromDocParams) => Promise<void>;
 }
@@ -29,9 +38,11 @@ export interface DocumentEntityConversionModalProps {
 export function DocumentEntityConversionModal({
   isOpen,
   document,
+  preferredCurrency = DEFAULT_CURRENCY,
   initialType = 'task',
   initialAmount,
   initialDate,
+  initialCurrency,
   onClose,
   onConfirm,
 }: DocumentEntityConversionModalProps) {
@@ -41,6 +52,7 @@ export function DocumentEntityConversionModal({
   const [title, setTitle] = useState<string>('');
   const [dueDate, setDueDate] = useState<string>('');
   const [amount, setAmount] = useState<string>('');
+  const [currency, setCurrency] = useState<CurrencyCode>(preferredCurrency);
   const [priority, setPriority] = useState<'low' | 'medium' | 'high' | 'urgent'>('medium');
   const [description, setDescription] = useState<string>('');
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
@@ -50,15 +62,20 @@ export function DocumentEntityConversionModal({
   useEffect(() => {
     if (document) {
       const defaults = prepareEntityFromExtraction(document, initialType);
+      const resolvedCurrency = resolveTransactionCurrency(
+        initialCurrency || defaults.currency || document.aiExtracted?.amounts?.[0]?.currency,
+        preferredCurrency
+      );
       setEntityType(initialType);
       setTitle(defaults.title);
       setDueDate(initialDate || defaults.dueDate || '');
       setAmount(initialAmount ? String(initialAmount) : defaults.amount ? String(defaults.amount) : '');
+      setCurrency(resolvedCurrency);
       setPriority(defaults.priority || 'medium');
       setDescription(defaults.description || '');
       setError(null);
     }
-  }, [document, initialType, initialAmount, initialDate]);
+  }, [document, initialType, initialAmount, initialDate, initialCurrency, preferredCurrency]);
 
   // When user switches entity type tab, re-adjust default title
   const handleTypeChange = (newType: 'task' | 'bill' | 'reminder') => {
@@ -74,9 +91,17 @@ export function DocumentEntityConversionModal({
 
   if (!document) return null;
 
+  const currencyInfo = getCurrencyInfo(currency);
+
   const handleSubmit = async () => {
     if (!title.trim()) {
       setError('Title is required to create a record.');
+      return;
+    }
+
+    const trimmedDueDate = dueDate.trim();
+    if (trimmedDueDate && !isValidLocalISODate(trimmedDueDate)) {
+      setError('Please select a valid due date (YYYY-MM-DD).');
       return;
     }
 
@@ -87,8 +112,9 @@ export function DocumentEntityConversionModal({
       const params: CreateEntityFromDocParams = {
         type: entityType,
         title: title.trim(),
-        dueDate: dueDate.trim() || undefined,
+        dueDate: trimmedDueDate || undefined,
         amount: entityType === 'bill' && amount ? parseFloat(amount) : undefined,
+        currency: entityType === 'bill' ? currency : undefined,
         priority: entityType === 'task' ? priority : undefined,
         description: description.trim() || undefined,
       };
@@ -201,7 +227,7 @@ export function DocumentEntityConversionModal({
         {entityType === 'bill' && (
           <View style={styles.formGroup}>
             <ThemedText style={[styles.inputLabel, { color: colors.text }]}>
-              Amount Due (₹)
+              Amount Due ({currencyInfo.symbol} {currencyInfo.code})
             </ThemedText>
             <Input
               value={amount}
@@ -214,13 +240,15 @@ export function DocumentEntityConversionModal({
 
         {/* Due Date */}
         <View style={styles.formGroup}>
-          <ThemedText style={[styles.inputLabel, { color: colors.text }]}>
-            Due Date (YYYY-MM-DD)
-          </ThemedText>
-          <Input
+          <DatePickerField
+            label="Due Date (Optional)"
+            placeholder="Select due date"
             value={dueDate}
-            onChangeText={setDueDate}
-            placeholder="YYYY-MM-DD"
+            onChange={(val) => {
+              setDueDate(val);
+              if (error) setError(null);
+            }}
+            allowClear
           />
         </View>
 

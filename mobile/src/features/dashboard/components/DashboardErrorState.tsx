@@ -12,7 +12,6 @@ import { getButtonForegroundColor } from '@/components/ui/Button';
 import { Colors } from '@/constants/colors';
 import { Typography } from '@/constants/typography';
 import { Spacing, Radius } from '@/constants/spacing';
-import { createShadow } from '@/constants/shadows';
 import apiConfig from '@/services/config';
 
 interface DashboardErrorStateProps {
@@ -32,7 +31,6 @@ export function DashboardErrorState({
       <View
         style={[
           styles.card,
-          createShadow(isDark, 'card'),
           {
             backgroundColor: colors.surface,
             borderColor: isDark ? colors.border : colors.borderSubtle,

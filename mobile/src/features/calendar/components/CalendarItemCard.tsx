@@ -189,7 +189,7 @@ const styles = StyleSheet.create({
   },
   typeLabel: {
     fontSize: Typography.fontSize.xs,
-    fontWeight: Typography.fontWeight.semibold,
+    fontFamily: Typography.fontFamilies.sansSemiBold,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
   },
@@ -201,11 +201,11 @@ const styles = StyleSheet.create({
   },
   categoryText: {
     fontSize: 10,
-    fontWeight: Typography.fontWeight.medium,
+    fontFamily: Typography.fontFamilies.sansMedium,
   },
   title: {
     fontSize: Typography.fontSize.base,
-    fontWeight: Typography.fontWeight.semibold,
+    fontFamily: Typography.fontFamilies.sansSemiBold,
     lineHeight: 20,
     marginVertical: 2,
   },

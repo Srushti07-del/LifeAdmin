@@ -65,11 +65,7 @@ export function MeetLifeBuddyStep({
               style={({ pressed }) => [
                 styles.companionCard,
                 {
-                  backgroundColor: isSelected
-                    ? isDark
-                      ? 'rgba(22, 143, 145, 0.22)'
-                      : '#E6F4FE'
-                    : colors.surface,
+                  backgroundColor: isSelected ? colors.primarySoft : colors.surface,
                   borderColor: isSelected ? colors.primary : colors.border,
                 },
                 pressed && { opacity: 0.85 },
@@ -116,7 +112,7 @@ export function MeetLifeBuddyStep({
         style={[
           styles.bioBox,
           {
-            backgroundColor: isDark ? colors.surfaceSecondary : '#F8FAFC',
+            backgroundColor: colors.surfaceSecondary,
             borderColor: colors.border,
           },
         ]}

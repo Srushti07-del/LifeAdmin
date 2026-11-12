@@ -11,7 +11,6 @@ import { ThemedText } from '@/components/themed-text';
 import { Colors } from '@/constants/colors';
 import { Typography } from '@/constants/typography';
 import { Spacing, Radius } from '@/constants/spacing';
-import { createShadow } from '@/constants/shadows';
 import { DashboardStats } from '../types';
 
 interface StatsOverviewProps {
@@ -48,7 +47,6 @@ export function StatsOverview({ stats, onStatPress }: StatsOverviewProps) {
                 : Colors.urgency.critical.accent
               : colors.border,
           },
-          createShadow(isDark, 'xs'),
           pressed && styles.pressed,
         ]}
       >
@@ -69,7 +67,6 @@ export function StatsOverview({ stats, onStatPress }: StatsOverviewProps) {
           </ThemedText>
         </View>
         <ThemedText
-          numberOfLines={1}
           style={[styles.statLabel, { color: overdueOn ? overdueText : colors.textSecondary }]}
         >
           Overdue
@@ -96,7 +93,6 @@ export function StatsOverview({ stats, onStatPress }: StatsOverviewProps) {
                 : Colors.urgency.urgent.accent
               : colors.border,
           },
-          createShadow(isDark, 'xs'),
           pressed && styles.pressed,
         ]}
       >
@@ -117,7 +113,6 @@ export function StatsOverview({ stats, onStatPress }: StatsOverviewProps) {
           </ThemedText>
         </View>
         <ThemedText
-          numberOfLines={1}
           style={[styles.statLabel, { color: soonOn ? soonText : colors.textSecondary }]}
         >
           Due Soon
@@ -136,7 +131,6 @@ export function StatsOverview({ stats, onStatPress }: StatsOverviewProps) {
             backgroundColor: colors.surface,
             borderColor: colors.border,
           },
-          createShadow(isDark, 'xs'),
           pressed && styles.pressed,
         ]}
       >
@@ -167,7 +161,6 @@ export function StatsOverview({ stats, onStatPress }: StatsOverviewProps) {
             backgroundColor: colors.surface,
             borderColor: colors.border,
           },
-          createShadow(isDark, 'xs'),
           pressed && styles.pressed,
         ]}
       >
@@ -175,7 +168,7 @@ export function StatsOverview({ stats, onStatPress }: StatsOverviewProps) {
           <SymbolView
             name={{ ios: 'bell.fill', android: 'notifications_active', web: 'notifications_active' }}
             size={18}
-            tintColor={isDark ? Colors.urgency.dueSoon.darkText : Colors.urgency.dueSoon.accent}
+            tintColor={colors.primary}
           />
           <ThemedText style={[styles.statCount, { color: colors.text }]}>
             {stats.activeReminders ?? 0}
@@ -192,15 +185,17 @@ export function StatsOverview({ stats, onStatPress }: StatsOverviewProps) {
 const styles = StyleSheet.create({
   container: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
     gap: Spacing.two,
     paddingHorizontal: Spacing.four,
     marginBottom: Spacing.four,
   },
   statCard: {
-    flex: 1,
+    flexGrow: 1,
+    flexBasis: '46%',
     minWidth: 0,
-    paddingVertical: Spacing.two + 2,
-    paddingHorizontal: Spacing.two + 2,
+    paddingVertical: Spacing.two + 4,
+    paddingHorizontal: Spacing.three,
     borderRadius: Radius.lg,
     borderWidth: 1,
   },
@@ -213,12 +208,13 @@ const styles = StyleSheet.create({
   statCount: {
     fontSize: Typography.fontSize.xl,
     lineHeight: 24,
-    fontWeight: Typography.fontWeight.bold,
+    fontFamily: Typography.fontFamilies.sansBold,
     fontVariant: ['tabular-nums'],
   },
   statLabel: {
     fontSize: Typography.fontSize.xs,
-    fontWeight: Typography.fontWeight.medium,
+    lineHeight: 16,
+    fontFamily: Typography.fontFamilies.sansMedium,
   },
   pressed: {
     opacity: 0.8,

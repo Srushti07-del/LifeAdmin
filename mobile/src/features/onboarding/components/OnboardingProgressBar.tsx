@@ -35,7 +35,7 @@ export function OnboardingProgressBar({
           const isActive = stepNumber === currentStep;
           const isPassed = stepNumber < currentStep;
 
-          let dotColor = isDark ? colors.border : '#E2E8F0';
+          let dotColor = colors.border;
           if (isActive) {
             dotColor = colors.primary;
           } else if (isPassed) {

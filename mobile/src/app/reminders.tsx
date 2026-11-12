@@ -28,21 +28,25 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { SymbolView } from "expo-symbols";
-import { useLocalSearchParams } from "expo-router";
+import { useLocalSearchParams, useRouter } from "expo-router";
 import { useAppTheme } from "@/context/ThemeContext";
 import { useAuth } from "@/context/AuthContext";
+import { useSnackbar } from "@/context/SnackbarContext";
+import { useFabBottomPadding } from "@/hooks/use-safe-bottom-padding";
+import { parseReminderSectionParam } from "@/utils/routeFilters";
 import { ThemedText } from "@/components/themed-text";
 import { ThemedView } from "@/components/themed-view";
 import {
   SearchInput,
   Button,
   EmptyState,
+  FloatingActionButton,
+  HeaderBackButton,
   getButtonForegroundColor,
 } from "@/components/ui";
 import { Colors } from "@/constants/colors";
 import { Typography } from "@/constants/typography";
 import { Spacing, Radius } from "@/constants/spacing";
-import { BottomTabInset } from "@/constants/theme";
 import {
   Reminder,
   ReminderFormData,
@@ -61,6 +65,7 @@ import {
   ReminderDetailsModal,
   NotificationPermissionBanner,
 } from "@/features/reminders";
+import { canUndoReminderToggle } from "@/utils/undoActions";
 
 const CATEGORIES = [
   "All",
@@ -84,6 +89,9 @@ const PRIORITIES: Array<{ key: string; label: string }> = [
 export default function RemindersScreen() {
   const { colors, isDark } = useAppTheme();
   const { user } = useAuth();
+  const { showSnackbar } = useSnackbar();
+  const router = useRouter();
+  const bottomPadding = useFabBottomPadding(Spacing.six, false);
   const currentUserId = user?.id || "default_user";
 
   // Data state
@@ -154,9 +162,21 @@ export default function RemindersScreen() {
   const [selectedReminderForDetails, setSelectedReminderForDetails] =
     useState<Reminder | null>(null);
 
-  // Deep-link to specific reminder when opened via notification or URL
-  const params = useLocalSearchParams<{ reminderId?: string }>();
+  // Deep-link to specific reminder or initial section filter when opened via notification or URL
+  const params = useLocalSearchParams<{
+    reminderId?: string;
+    section?: string | string[];
+  }>();
   const handledReminderIdRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    const parsedSection = parseReminderSectionParam(params.section);
+    if (!parsedSection) return;
+    setFilterSection(parsedSection);
+    if (typeof (router as any).setParams === "function") {
+      (router as any).setParams({ section: undefined });
+    }
+  }, [params.section, router]);
 
   useEffect(() => {
     if (!params.reminderId || isLoading) return;
@@ -167,12 +187,13 @@ export default function RemindersScreen() {
     if (matched) {
       setSelectedReminderForDetails(matched);
     } else {
-      Alert.alert(
-        "Reminder Not Found",
-        "This reminder may have been deleted, completed, or rescheduled.",
-      );
+      showSnackbar({
+        variant: "warning",
+        title: "Reminder Not Found",
+        message: "This reminder may have been deleted, completed, or rescheduled.",
+      });
     }
-  }, [params.reminderId, isLoading, reminders]);
+  }, [params.reminderId, isLoading, reminders, showSnackbar]);
 
   // Fetch reminders and reconcile device notifications
   const loadReminders = useCallback(
@@ -266,10 +287,11 @@ export default function RemindersScreen() {
       if (selectedReminderForDetails?._id === updated._id) {
         setSelectedReminderForDetails(updated);
       }
-      Alert.alert(
-        "Reminder Updated",
-        "Your alert schedule has been synchronized.",
-      );
+      showSnackbar({
+        variant: "success",
+        title: "Reminder Updated",
+        message: "Your alert schedule has been synchronized.",
+      });
     } else {
       const created = await reminderService.createReminder(data);
       setReminders((prev) => [created, ...prev]);
@@ -277,22 +299,52 @@ export default function RemindersScreen() {
         created,
         currentUserId,
       );
-      Alert.alert("Reminder Created", "Your notification has been scheduled.");
+      showSnackbar({
+        variant: "success",
+        title: "Reminder Created",
+        message: "Your notification has been scheduled.",
+      });
     }
   };
 
   // Toggle complete / reopen
-  const handleToggleComplete = async (reminder: Reminder) => {
+  const handleToggleComplete = async (reminder: Reminder, isUndo = false) => {
+    const wasCompleted = reminder.status === "completed";
     try {
-      if (reminder.status === "completed") {
+      if (wasCompleted) {
         const reopened = await reminderService.reopenReminder(reminder._id);
         setReminders((prev) =>
           prev.map((r) => (r._id === reminder._id ? reopened : r)),
         );
+        if (selectedReminderForDetails?._id === reminder._id) {
+          setSelectedReminderForDetails(reopened);
+        }
         await notificationService.scheduleReminderNotification(
           reopened,
           currentUserId,
         );
+
+        if (isUndo) {
+          showSnackbar({
+            variant: "info",
+            title: "Action Undone",
+            message: `"${reminder.title}" restored to active schedule.`,
+            duration: 2800,
+          });
+        } else {
+          showSnackbar({
+            variant: "info",
+            title: "Reminder Reopened",
+            message: `"${reminder.title}" restored to active schedule.`,
+            action: canUndoReminderToggle(true, reminder)
+              ? {
+                  label: "Undo",
+                  accessibilityLabel: `Undo reopening ${reminder.title}`,
+                  onPress: () => void handleToggleComplete(reopened, true),
+                }
+              : undefined,
+          });
+        }
       } else {
         const { reminder: completed, nextOccurrence } =
           await reminderService.completeReminder(reminder._id);
@@ -309,29 +361,55 @@ export default function RemindersScreen() {
           }
           return next;
         });
+        if (selectedReminderForDetails?._id === reminder._id) {
+          setSelectedReminderForDetails(completed);
+        }
 
         if (nextOccurrence) {
           await notificationService.scheduleReminderNotification(
             nextOccurrence,
             currentUserId,
           );
-          Alert.alert(
-            "Recurring Reminder Scheduled",
-            `Next occurrence scheduled for ${new Date(nextOccurrence.dueDate).toLocaleDateString()}.`,
-          );
+          showSnackbar({
+            variant: "success",
+            title: "Recurring Reminder Scheduled",
+            message: `Next occurrence scheduled for ${new Date(nextOccurrence.dueDate).toLocaleDateString()}.`,
+          });
+        } else if (isUndo) {
+          showSnackbar({
+            variant: "info",
+            title: "Action Undone",
+            message: `"${reminder.title}" marked as done.`,
+            duration: 2800,
+          });
+        } else {
+          showSnackbar({
+            variant: "success",
+            title: "Reminder Completed",
+            message: `"${reminder.title}" marked as done.`,
+            action: canUndoReminderToggle(false, reminder, nextOccurrence)
+              ? {
+                  label: "Undo",
+                  accessibilityLabel: `Undo completing ${reminder.title}`,
+                  onPress: () => void handleToggleComplete(completed, true),
+                }
+              : undefined,
+          });
         }
       }
     } catch (err: any) {
       console.warn("Error toggling complete:", err);
-      Alert.alert(
-        "Action Failed",
-        err?.message || "Unable to update reminder status.",
-      );
+      showSnackbar({
+        variant: "error",
+        title: "Action Failed",
+        message: err?.message || "Unable to update reminder status.",
+      });
     }
   };
 
   // Delete handler
   const handleDeleteReminder = async (id: string) => {
+    const deletedTitle = reminders.find((r) => r._id === id)?.title;
     try {
       await reminderService.deleteReminder(id);
       await notificationService.cancelReminderNotification(id, currentUserId);
@@ -339,12 +417,18 @@ export default function RemindersScreen() {
       if (selectedReminderForDetails?._id === id) {
         setSelectedReminderForDetails(null);
       }
+      showSnackbar({
+        variant: "info",
+        title: "Reminder Deleted",
+        message: deletedTitle ? `"${deletedTitle}" removed.` : "Reminder removed.",
+      });
     } catch (err: any) {
       console.warn("Delete reminder error:", err);
-      Alert.alert(
-        "Delete Failed",
-        err?.message || "Unable to remove reminder.",
-      );
+      showSnackbar({
+        variant: "error",
+        title: "Delete Failed",
+        message: err?.message || "Unable to remove reminder.",
+      });
     }
   };
 
@@ -373,7 +457,7 @@ export default function RemindersScreen() {
           showsVerticalScrollIndicator={false}
           contentContainerStyle={[
             styles.scrollContent,
-            { paddingBottom: BottomTabInset + Spacing.six },
+            { paddingBottom: bottomPadding },
           ]}
         refreshControl={
           <RefreshControl
@@ -386,6 +470,7 @@ export default function RemindersScreen() {
       >
         {/* Header */}
         <View style={styles.header}>
+          <HeaderBackButton fallbackHref="/more" />
           <View style={styles.headerTitles}>
             <ThemedText style={[styles.title, { color: colors.text }]}>
               Smart Reminders
@@ -396,25 +481,6 @@ export default function RemindersScreen() {
               Time-sensitive cues and native background notifications
             </ThemedText>
           </View>
-
-          <Button
-            variant="primary"
-            size="sm"
-            onPress={() => {
-              setEditingReminder(null);
-              setIsFormOpen(true);
-            }}
-            style={styles.newBtn}
-            icon={
-              <SymbolView
-                name={{ ios: "plus", android: "add" }}
-                size={16}
-                tintColor={getButtonForegroundColor("primary", colors, isDark)}
-              />
-            }
-          >
-            New
-          </Button>
         </View>
 
         {/* Permission Banner (Notification Display or Android Exact Alarm) */}
@@ -790,6 +856,16 @@ export default function RemindersScreen() {
         )}
       </ScrollView>
 
+      <FloatingActionButton
+        label="New Alert"
+        accessibilityLabel="Create reminder"
+        onPress={() => {
+          setEditingReminder(null);
+          setIsFormOpen(true);
+        }}
+        isTabScreen={false}
+      />
+
       {/* Create / Edit Form Modal */}
       <ReminderFormModal
         isOpen={isFormOpen}
@@ -831,6 +907,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
+    gap: Spacing.three,
     marginBottom: Spacing.three,
   },
   headerTitles: {
@@ -846,9 +923,6 @@ const styles = StyleSheet.create({
     fontSize: Typography.fontSize.xs,
     fontFamily: Typography.fontFamilies.sans,
     marginTop: 2,
-  },
-  newBtn: {
-    marginLeft: Spacing.two,
   },
   searchRow: {
     flexDirection: "row",
@@ -874,6 +948,8 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.three,
   },
   categoryPill: {
+    minHeight: 36,
+    justifyContent: "center",
     paddingHorizontal: Spacing.three,
     paddingVertical: 6,
     borderRadius: Radius.full,

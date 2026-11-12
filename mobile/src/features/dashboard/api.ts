@@ -6,6 +6,8 @@
 import apiClient from '@/services/apiClient';
 import Endpoints from '@/services/endpoints';
 import apiConfig from '@/services/config';
+import type { Bill } from '@/features/bills/types';
+import { DEFAULT_CURRENCY, normalizeCurrencyCode } from '../../utils/currency';
 import { DashboardOverview } from './types';
 
 /**
@@ -76,7 +78,7 @@ export async function quickCreateBill(data: {
   return await apiClient.post(Endpoints.bills.create, {
     name: data.name,
     amount: data.amount,
-    currency: data.currency || '₹',
+    currency: normalizeCurrencyCode(data.currency || DEFAULT_CURRENCY),
     dueDate: data.dueDate || new Date().toISOString(),
     category: data.category || 'Utilities',
     paymentStatus: 'pending',
@@ -129,6 +131,10 @@ export async function markTaskCompleted(id: string) {
 /**
  * Quick Action: Mark bill paid
  */
-export async function markBillPaid(id: string) {
-  return await apiClient.patch(Endpoints.bills.pay(id));
+export async function markBillPaid(
+  id: string
+): Promise<{ message: string; bill: Bill; nextOccurrence?: Bill | null }> {
+  return await apiClient.patch<{ message: string; bill: Bill; nextOccurrence?: Bill | null }>(
+    Endpoints.bills.pay(id)
+  );
 }

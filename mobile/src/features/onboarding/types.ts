@@ -30,15 +30,16 @@ export interface LifeDomainOption {
   id: string;
   label: string;
   icon: string;
+  iosIcon: string;
 }
 
 export const AVAILABLE_DOMAINS: LifeDomainOption[] = [
-  { id: 'Personal', label: 'Personal', icon: 'person' },
-  { id: 'Work', label: 'Work & Career', icon: 'business_center' },
-  { id: 'Finance', label: 'Finance & Bills', icon: 'account_balance_wallet' },
-  { id: 'Health', label: 'Health & Wellness', icon: 'favorite' },
-  { id: 'Education', label: 'Education & Study', icon: 'school' },
-  { id: 'Home', label: 'Home & Rent', icon: 'home' },
+  { id: 'Personal', label: 'Personal', icon: 'person', iosIcon: 'person.fill' },
+  { id: 'Work', label: 'Work & Career', icon: 'business_center', iosIcon: 'briefcase.fill' },
+  { id: 'Finance', label: 'Finance & Bills', icon: 'account_balance_wallet', iosIcon: 'creditcard.fill' },
+  { id: 'Health', label: 'Health & Wellness', icon: 'favorite', iosIcon: 'heart.fill' },
+  { id: 'Education', label: 'Education & Study', icon: 'school', iosIcon: 'graduationcap.fill' },
+  { id: 'Home', label: 'Home & Rent', icon: 'home', iosIcon: 'house.fill' },
 ];
 
 export const SENSIBLE_DEFAULT_CATEGORIES: string[] = [

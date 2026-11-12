@@ -10,10 +10,9 @@ import {
   ViewStyle,
 } from 'react-native';
 
-import { createShadow } from '@/constants/shadows';
 import { Radius, Spacing } from '@/constants/spacing';
 import { Typography } from '@/constants/typography';
-import { useIsDark, useTheme } from '@/hooks/use-theme';
+import { useTheme } from '@/hooks/use-theme';
 
 export interface StatCardProps extends ViewProps {
   label: string;
@@ -46,9 +45,8 @@ export function StatCard({
   ...props
 }: StatCardProps) {
   const colors = useTheme();
-  const isDark = useIsDark();
 
-  const cardShadow = createShadow(isDark, 'card');
+  const cardViewProps = onPress ? {} : props;
 
   const content = (
     <View
@@ -58,10 +56,9 @@ export function StatCard({
           backgroundColor: colors.surface,
           borderColor: colors.border,
         },
-        cardShadow,
         style,
       ]}
-      {...props}
+      {...cardViewProps}
     >
       {/* Header Row */}
       <View style={styles.headerRow}>
@@ -137,7 +134,9 @@ export function StatCard({
       <Pressable
         onPress={onPress}
         style={({ pressed }) => [pressed && styles.pressed]}
-        accessibilityRole="button"
+        accessible={props.accessible ?? true}
+        accessibilityRole={props.accessibilityRole ?? 'button'}
+        {...props}
       >
         {content}
       </Pressable>

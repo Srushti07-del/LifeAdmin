@@ -19,7 +19,9 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { createShadow } from '@/constants/shadows';
 import { Radius, Spacing } from '@/constants/spacing';
 import { Typography } from '@/constants/typography';
+import { useSnackbarModalHost } from '@/context/SnackbarContext';
 import { useIsDark, useTheme } from '@/hooks/use-theme';
+import { SnackbarViewport } from './Snackbar';
 
 export interface ModalSheetProps extends Omit<ModalProps, 'visible' | 'children'> {
   isOpen: boolean;
@@ -53,6 +55,7 @@ export function ModalSheet({
   const isDark = useIsDark();
   const insets = useSafeAreaInsets();
   const bottomPad = Math.max(insets.bottom, Spacing.four);
+  const modalHostId = useSnackbarModalHost(isOpen);
 
   if (!isOpen) return null;
 
@@ -198,6 +201,7 @@ export function ModalSheet({
             ) : null}
           </View>
         </View>
+        <SnackbarViewport hostId={modalHostId} />
       </KeyboardAvoidingView>
     </Modal>
   );

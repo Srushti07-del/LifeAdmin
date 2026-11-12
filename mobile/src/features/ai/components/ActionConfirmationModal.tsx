@@ -15,11 +15,23 @@ import {
 import { SymbolView } from 'expo-symbols';
 import { useAppTheme } from '@/context/ThemeContext';
 import { ThemedText } from '@/components/themed-text';
-import { ModalSheet, Button, Input, getButtonForegroundColor } from '@/components/ui';
+import {
+  ModalSheet,
+  Button,
+  Input,
+  DatePickerField,
+  TimePickerField,
+  getButtonForegroundColor,
+} from '@/components/ui';
 import { Colors } from '@/constants/colors';
 import { Typography } from '@/constants/typography';
 import { Spacing, Radius } from '@/constants/spacing';
-import { createShadow } from '@/constants/shadows';
+import {
+  CurrencyCode,
+  DEFAULT_CURRENCY,
+  getCurrencyInfo,
+  resolveTransactionCurrency,
+} from '@/utils/currency';
 import { ProposedAction } from '../types';
 import {
   getActionTypeBadge,
@@ -33,6 +45,7 @@ interface ActionConfirmationModalProps {
   action: ProposedAction | null;
   onConfirm: (modifiedAction: ProposedAction) => Promise<void>;
   isSubmitting?: boolean;
+  preferredCurrency?: CurrencyCode;
 }
 
 const PRIORITIES = [
@@ -48,6 +61,7 @@ export function ActionConfirmationModal({
   action,
   onConfirm,
   isSubmitting = false,
+  preferredCurrency = DEFAULT_CURRENCY,
 }: ActionConfirmationModalProps) {
   const { colors, isDark } = useAppTheme();
 
@@ -77,6 +91,8 @@ export function ActionConfirmationModal({
 
   const badge = getActionTypeBadge(action.type, isDark);
   const icon = getActionTypeIcon(action.type);
+  const resolvedCurrency = resolveTransactionCurrency(action.currency, preferredCurrency);
+  const currencyInfo = getCurrencyInfo(resolvedCurrency);
 
   const handleConfirm = async () => {
     if (isSubmitting) return;
@@ -90,6 +106,10 @@ export function ActionConfirmationModal({
       dueTime: dueTime.trim() || undefined,
       time: dueTime.trim() || undefined,
       amount: amount.trim() ? parseFloat(amount) : undefined,
+      currency:
+        action.type === 'bill' || action.amount != null || action.currency
+          ? resolvedCurrency
+          : undefined,
       priority,
       category: category.trim() || 'Personal',
       requiresConfirmation: true,
@@ -186,7 +206,6 @@ export function ActionConfirmationModal({
         <View
           style={[
             styles.typeCard,
-            createShadow(isDark, 'xs'),
             {
               backgroundColor: colors.surface,
               borderColor: colors.border,
@@ -242,35 +261,37 @@ export function ActionConfirmationModal({
         </View>
 
         {/* Due Date & Time */}
-        <View style={styles.rowTwoCols}>
-          <View style={[styles.formGroup, { flex: 1 }]}>
-            <ThemedText style={[styles.inputLabel, { color: colors.text }]}>
-              Date (YYYY-MM-DD)
-            </ThemedText>
-            <Input
-              value={dueDate}
-              onChangeText={setDueDate}
-              placeholder="2026-11-20"
-            />
-          </View>
+        <View style={styles.formGroup}>
+          <DatePickerField
+            label="Date (Optional)"
+            placeholder="Select date"
+            value={dueDate}
+            onChange={(val) => {
+              setDueDate(val);
+              if (validationError) setValidationError(null);
+            }}
+            allowClear
+          />
+        </View>
 
-          <View style={[styles.formGroup, { flex: 1 }]}>
-            <ThemedText style={[styles.inputLabel, { color: colors.text }]}>
-              Time (HH:mm)
-            </ThemedText>
-            <Input
-              value={dueTime}
-              onChangeText={setDueTime}
-              placeholder="14:30"
-            />
-          </View>
+        <View style={styles.formGroup}>
+          <TimePickerField
+            label="Time (Optional)"
+            placeholder="Select time"
+            value={dueTime}
+            onChange={(val) => {
+              setDueTime(val);
+              if (validationError) setValidationError(null);
+            }}
+            allowClear
+          />
         </View>
 
         {/* Amount for Bills */}
         {(action.type === 'bill' || action.amount != null) && (
           <View style={styles.formGroup}>
             <ThemedText style={[styles.inputLabel, { color: colors.text }]}>
-              Amount (₹ INR)
+              Amount ({currencyInfo.symbol} {currencyInfo.code})
             </ThemedText>
             <Input
               value={amount}

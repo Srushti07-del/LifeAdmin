@@ -1,8 +1,8 @@
 /**
  * Quick Actions Section Component
  * Compact 3x2 grid of 6 creation shortcuts across Tasks, Bills, Appointments,
- * Calendar Events, Reminders, and Documents.
- * Tap creates; press and hold opens the matching module.
+ * Calendar Events, Reminders, and Documents, paired with a secondary compact
+ * row of one-tap shortcuts to pushed module screens.
  */
 
 import React from 'react';
@@ -12,7 +12,6 @@ import { useAppTheme } from '@/context/ThemeContext';
 import { ThemedText } from '@/components/themed-text';
 import { Typography } from '@/constants/typography';
 import { Spacing, Radius } from '@/constants/spacing';
-import { createShadow } from '@/constants/shadows';
 import { QuickActionType } from '../types';
 
 interface QuickActionsSectionProps {
@@ -25,11 +24,43 @@ interface ActionConfig {
   label: string;
   shortLabel: string;
   sublabel: string;
-  route: string;
-  routeLabel: string;
   icon: { ios: string; android: string; web: string };
   accentColor: string;
 }
+
+export interface ModuleShortcutConfig {
+  route: '/documents' | '/appointments' | '/reminders' | '/ai';
+  label: string;
+  accessibilityLabel: string;
+  icon: { ios: string; android: string; web: string };
+}
+
+export const MODULE_SHORTCUTS: ModuleShortcutConfig[] = [
+  {
+    route: '/documents',
+    label: 'Documents',
+    accessibilityLabel: 'Open Documents Vault',
+    icon: { ios: 'folder.fill', android: 'folder_open', web: 'folder_open' },
+  },
+  {
+    route: '/appointments',
+    label: 'Appointments',
+    accessibilityLabel: 'Open Appointments',
+    icon: { ios: 'calendar.badge.clock', android: 'medical_services', web: 'medical_services' },
+  },
+  {
+    route: '/reminders',
+    label: 'Reminders',
+    accessibilityLabel: 'Open Smart Reminders',
+    icon: { ios: 'bell.fill', android: 'notifications', web: 'notifications' },
+  },
+  {
+    route: '/ai',
+    label: 'LifeBuddy AI',
+    accessibilityLabel: 'Open LifeBuddy AI Assistant',
+    icon: { ios: 'sparkles', android: 'auto_awesome', web: 'auto_awesome' },
+  },
+];
 
 export function QuickActionsSection({
   onActionPress,
@@ -43,8 +74,6 @@ export function QuickActionsSection({
       label: 'Add Task',
       shortLabel: 'Task',
       sublabel: 'To-do / deadline',
-      route: '/tasks',
-      routeLabel: 'Tasks',
       icon: { ios: 'checkmark.circle.badge.plus', android: 'add_task', web: 'add_task' },
       accentColor: colors.primary,
     },
@@ -53,8 +82,6 @@ export function QuickActionsSection({
       label: 'Add Bill',
       shortLabel: 'Bill',
       sublabel: 'Payment / due',
-      route: '/bills',
-      routeLabel: 'Bills',
       icon: { ios: 'creditcard.badge.plus', android: 'receipt_long', web: 'receipt_long' },
       accentColor: isDark ? '#34D399' : '#059669',
     },
@@ -63,8 +90,6 @@ export function QuickActionsSection({
       label: 'Appointment',
       shortLabel: 'Visit',
       sublabel: 'Doctor / visit',
-      route: '/appointments',
-      routeLabel: 'Visits',
       icon: { ios: 'person.crop.circle.badge.plus', android: 'medical_services', web: 'medical_services' },
       accentColor: isDark ? '#38BDF8' : '#0284C7',
     },
@@ -73,8 +98,6 @@ export function QuickActionsSection({
       label: 'Calendar Event',
       shortLabel: 'Event',
       sublabel: 'Date & schedule',
-      route: '/calendar',
-      routeLabel: 'Calendar',
       icon: { ios: 'calendar.badge.plus', android: 'event', web: 'event' },
       accentColor: colors.primary,
     },
@@ -83,8 +106,6 @@ export function QuickActionsSection({
       label: 'Reminder',
       shortLabel: 'Reminder',
       sublabel: 'Alert & nudge',
-      route: '/reminders',
-      routeLabel: 'Alerts',
       icon: { ios: 'bell.badge.fill', android: 'alarm_add', web: 'alarm_add' },
       accentColor: isDark ? '#FBBF24' : '#D97706',
     },
@@ -93,8 +114,6 @@ export function QuickActionsSection({
       label: 'Upload Doc',
       shortLabel: 'Document',
       sublabel: 'Scan / vault',
-      route: '/documents',
-      routeLabel: 'Vault',
       icon: { ios: 'doc.badge.plus', android: 'upload_file', web: 'upload_file' },
       accentColor: isDark ? colors.primary : colors.primaryDeep,
     },
@@ -107,7 +126,7 @@ export function QuickActionsSection({
           Quick Actions
         </ThemedText>
         <ThemedText style={[styles.sectionHint, { color: colors.textSecondary }]}>
-          Tap to create{onNavigatePress ? ' · hold to open the module' : ''}
+          Tap to create
         </ThemedText>
       </View>
 
@@ -116,27 +135,15 @@ export function QuickActionsSection({
           <Pressable
             key={action.type}
             onPress={() => onActionPress(action.type)}
-            onLongPress={onNavigatePress ? () => onNavigatePress(action.route) : undefined}
-            delayLongPress={350}
             accessible
             accessibilityRole="button"
             accessibilityLabel={`${action.label}, ${action.sublabel}`}
-            accessibilityHint={onNavigatePress ? `Hold to open ${action.routeLabel}` : undefined}
-            accessibilityActions={
-              onNavigatePress
-                ? [{ name: 'activate', label: `Open ${action.routeLabel}` }]
-                : undefined
-            }
-            onAccessibilityAction={(e) => {
-              if (e.nativeEvent.actionName === 'activate') onNavigatePress?.(action.route);
-            }}
             style={({ pressed }) => [
               styles.tile,
               {
                 backgroundColor: colors.surface,
                 borderColor: isDark ? colors.border : colors.borderSubtle,
               },
-              createShadow(isDark, 'xs'),
               pressed && styles.pressed,
             ]}
           >
@@ -149,6 +156,46 @@ export function QuickActionsSection({
           </Pressable>
         ))}
       </View>
+
+      {onNavigatePress ? (
+        <View style={[styles.modulesRow, { borderTopColor: colors.borderSubtle }]}>
+          <ThemedText style={[styles.modulesLabel, { color: colors.textSecondary }]}>
+            Modules
+          </ThemedText>
+          <View style={styles.modulesChips}>
+            {MODULE_SHORTCUTS.map((mod) => (
+              <Pressable
+                key={mod.route}
+                onPress={() => onNavigatePress(mod.route)}
+                hitSlop={{ top: 4, bottom: 4, left: 2, right: 2 }}
+                accessible
+                accessibilityRole="button"
+                accessibilityLabel={mod.accessibilityLabel}
+                style={({ pressed }) => [
+                  styles.moduleChip,
+                  {
+                    backgroundColor: isDark ? colors.surface : colors.surfaceSecondary,
+                    borderColor: isDark ? colors.border : colors.borderSubtle,
+                  },
+                  pressed && styles.chipPressed,
+                ]}
+              >
+                <SymbolView
+                  name={mod.icon as any}
+                  size={13}
+                  tintColor={colors.primary}
+                />
+                <ThemedText
+                  numberOfLines={1}
+                  style={[styles.moduleChipText, { color: colors.text }]}
+                >
+                  {mod.label}
+                </ThemedText>
+              </Pressable>
+            ))}
+          </View>
+        </View>
+      ) : null}
     </View>
   );
 }
@@ -167,6 +214,7 @@ const styles = StyleSheet.create({
   },
   sectionHint: {
     fontSize: Typography.fontSize.xs,
+    fontFamily: Typography.fontFamilies.sans,
     marginTop: 2,
   },
   grid: {
@@ -195,12 +243,45 @@ const styles = StyleSheet.create({
   },
   actionLabel: {
     fontSize: Typography.fontSize.xs,
-    fontWeight: Typography.fontWeight.semibold,
+    fontFamily: Typography.fontFamilies.sansSemiBold,
     textAlign: 'center',
+  },
+  modulesRow: {
+    marginTop: Spacing.three,
+    paddingTop: Spacing.two + 2,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    gap: Spacing.two,
+  },
+  modulesLabel: {
+    fontSize: Typography.fontSize.xs,
+    fontFamily: Typography.fontFamilies.sansSemiBold,
+    letterSpacing: 0.3,
+  },
+  modulesChips: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: Spacing.two,
+  },
+  moduleChip: {
+    minHeight: 36,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: Spacing.three,
+    paddingVertical: 6,
+    borderRadius: Radius.full,
+    borderWidth: 1,
+  },
+  moduleChipText: {
+    fontSize: Typography.fontSize.xs,
+    fontFamily: Typography.fontFamilies.sansMedium,
   },
   pressed: {
     opacity: 0.8,
     transform: [{ scale: 0.97 }],
+  },
+  chipPressed: {
+    opacity: 0.78,
   },
 });
 

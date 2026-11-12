@@ -10,13 +10,18 @@ import {
   StyleSheet,
   ScrollView,
   Pressable,
-  Alert,
 } from 'react-native';
 import { useAppTheme } from '@/context/ThemeContext';
+import { useSnackbar } from '@/context/SnackbarContext';
 import { ThemedText } from '@/components/themed-text';
-import { ModalSheet, Input, Button } from '@/components/ui';
+import { ModalSheet, Input, Button, DatePickerField, TimePickerField } from '@/components/ui';
 import { Typography } from '@/constants/typography';
 import { Spacing, Radius } from '@/constants/spacing';
+import {
+  isValidLocalISODate,
+  isValidHHMMTime,
+  validateTimeRangeOrder,
+} from '@/utils/dateTimeValidation';
 import { Appointment, AppointmentFormData } from '../types';
 import { toLocalISODate } from '../services/appointmentCalculations';
 
@@ -38,6 +43,7 @@ export function AppointmentFormModal({
   defaultDate,
 }: AppointmentFormModalProps) {
   const { colors, isDark } = useAppTheme();
+  const { showSnackbar } = useSnackbar();
 
   const [formData, setFormData] = useState<AppointmentFormData>({
     title: '',
@@ -52,7 +58,12 @@ export function AppointmentFormModal({
   });
 
   const [submitting, setSubmitting] = useState(false);
-  const [errors, setErrors] = useState<{ title?: string; date?: string }>({});
+  const [errors, setErrors] = useState<{
+    title?: string;
+    date?: string;
+    time?: string;
+    endTime?: string;
+  }>({});
 
   useEffect(() => {
     if (appointment) {
@@ -84,12 +95,34 @@ export function AppointmentFormModal({
   }, [appointment, defaultDate, isOpen]);
 
   const validate = (): boolean => {
-    const errs: { title?: string; date?: string } = {};
+    const errs: {
+      title?: string;
+      date?: string;
+      time?: string;
+      endTime?: string;
+    } = {};
     if (!formData.title.trim()) {
       errs.title = 'Title is required';
     }
     if (!formData.date) {
       errs.date = 'Date is required';
+    } else if (!isValidLocalISODate(formData.date)) {
+      errs.date = 'Please select a valid date';
+    }
+    if (formData.time && !isValidHHMMTime(formData.time)) {
+      errs.time = 'Invalid start time';
+    }
+    if (formData.endTime && !isValidHHMMTime(formData.endTime)) {
+      errs.endTime = 'Invalid end time';
+    }
+    if (!errs.time && !errs.endTime) {
+      const range = validateTimeRangeOrder(formData.time, formData.endTime, {
+        requireStartWhenEndSet: true,
+      });
+      if (!range.valid) {
+        if (range.startError) errs.time = range.startError;
+        if (range.endError) errs.endTime = range.endError;
+      }
     }
     setErrors(errs);
     return Object.keys(errs).length === 0;
@@ -113,10 +146,11 @@ export function AppointmentFormModal({
       });
       onClose();
     } catch (err: any) {
-      Alert.alert(
-        'Save Failed',
-        err?.message || 'Could not save appointment. Please try again.'
-      );
+      showSnackbar({
+        variant: 'error',
+        title: 'Save Failed',
+        message: err?.message || 'Could not save appointment. Please try again.',
+      });
     } finally {
       setSubmitting(false);
     }
@@ -153,11 +187,10 @@ export function AppointmentFormModal({
 
         {/* Date Input with Quick Presets */}
         <View style={styles.fieldWrapper}>
-          <Input
-            label="Date * (YYYY-MM-DD)"
-            placeholder="YYYY-MM-DD"
+          <DatePickerField
+            label="Date *"
             value={formData.date}
-            onChangeText={(val) => {
+            onChange={(val) => {
               setFormData((prev) => ({ ...prev, date: val }));
               if (errors.date) setErrors((prev) => ({ ...prev, date: undefined }));
             }}
@@ -189,23 +222,33 @@ export function AppointmentFormModal({
         </View>
 
         {/* Time and End Time Inputs */}
-        <View style={styles.timesRow}>
-          <View style={styles.flexOne}>
-            <Input
-              label="Start Time (HH:mm)"
-              placeholder="10:00"
-              value={formData.time}
-              onChangeText={(val) => setFormData((prev) => ({ ...prev, time: val }))}
-            />
-          </View>
-          <View style={styles.flexOne}>
-            <Input
-              label="End Time (HH:mm)"
-              placeholder="11:00"
-              value={formData.endTime}
-              onChangeText={(val) => setFormData((prev) => ({ ...prev, endTime: val }))}
-            />
-          </View>
+        <View style={styles.fieldWrapper}>
+          <TimePickerField
+            label="Start Time"
+            placeholder="Select start time"
+            value={formData.time}
+            onChange={(val) => {
+              setFormData((prev) => ({ ...prev, time: val }));
+              if (errors.time || errors.endTime) {
+                setErrors((prev) => ({ ...prev, time: undefined, endTime: undefined }));
+              }
+            }}
+            allowClear
+            error={errors.time}
+          />
+          <TimePickerField
+            label="End Time (Optional)"
+            placeholder="Select end time"
+            value={formData.endTime}
+            onChange={(val) => {
+              setFormData((prev) => ({ ...prev, endTime: val }));
+              if (errors.endTime) {
+                setErrors((prev) => ({ ...prev, endTime: undefined }));
+              }
+            }}
+            allowClear
+            error={errors.endTime}
+          />
         </View>
 
         {/* Specialist & Organization */}
@@ -327,7 +370,7 @@ const styles = StyleSheet.create({
   },
   label: {
     fontSize: Typography.fontSize.xs,
-    fontWeight: Typography.fontWeight.medium,
+    fontFamily: Typography.fontFamilies.sansMedium,
     marginBottom: 4,
   },
   presetsRow: {
@@ -336,13 +379,15 @@ const styles = StyleSheet.create({
     marginTop: Spacing.one,
   },
   presetChip: {
+    minHeight: 36,
+    justifyContent: 'center',
     paddingHorizontal: Spacing.three,
     paddingVertical: 5,
     borderRadius: Radius.full,
   },
   presetText: {
     fontSize: Typography.fontSize.xs,
-    fontWeight: Typography.fontWeight.medium,
+    fontFamily: Typography.fontFamilies.sansMedium,
   },
   timesRow: {
     flexDirection: 'row',
@@ -356,6 +401,8 @@ const styles = StyleSheet.create({
     paddingVertical: Spacing.one,
   },
   categoryChip: {
+    minHeight: 36,
+    justifyContent: 'center',
     paddingHorizontal: Spacing.three,
     paddingVertical: 6,
     borderRadius: Radius.full,

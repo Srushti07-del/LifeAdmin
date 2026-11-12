@@ -10,7 +10,6 @@ import { useAppTheme } from '@/context/ThemeContext';
 import { ThemedText } from '@/components/themed-text';
 import { Typography } from '@/constants/typography';
 import { Spacing, Radius } from '@/constants/spacing';
-import { createShadow } from '@/constants/shadows';
 import { AppointmentTotals } from '../types';
 
 export interface AppointmentSummaryCardProps {
@@ -28,7 +27,6 @@ export function AppointmentSummaryCard({ totals }: AppointmentSummaryCardProps) 
           backgroundColor: colors.surface,
           borderColor: colors.border,
         },
-        createShadow(isDark, 'card'),
       ]}
     >
       {/* Top Banner Row */}
@@ -128,7 +126,7 @@ const styles = StyleSheet.create({
   },
   eyebrow: {
     fontSize: Typography.fontSize.xs,
-    fontWeight: Typography.fontWeight.semibold,
+    fontFamily: Typography.fontFamilies.sansSemiBold,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
   },
@@ -168,7 +166,7 @@ const styles = StyleSheet.create({
   },
   metricLabel: {
     fontSize: 11,
-    fontWeight: Typography.fontWeight.medium,
+    fontFamily: Typography.fontFamilies.sansMedium,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
   },

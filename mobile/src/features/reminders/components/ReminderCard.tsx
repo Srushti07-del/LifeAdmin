@@ -12,7 +12,6 @@ import { ThemedText } from '@/components/themed-text';
 import { Colors } from '@/constants/colors';
 import { Typography } from '@/constants/typography';
 import { Spacing, Radius } from '@/constants/spacing';
-import { createShadow } from '@/constants/shadows';
 import { Reminder } from '../types';
 import {
   getReminderSection,
@@ -99,10 +98,15 @@ export function ReminderCard({
     ? Colors.urgency.dueSoon.darkBg
     : Colors.urgency.dueSoon.lightBg;
 
+  const recurrenceFg = isDark ? Colors.urgency.upcoming.darkText : colors.primaryDeep;
+  const deleteIconColor = isDark ? Colors.urgency.critical.darkText : Colors.urgency.critical.lightText;
+  const cardAccessibilityLabel = `Reminder ${reminder.title}, ${formattedDate}${
+    formattedTime ? ` at ${formattedTime}` : ''
+  }, ${isCompleted ? 'completed' : isOverdue ? 'overdue' : 'active'}`;
+
   return (
-    <Pressable
-      onPress={onPress}
-      style={({ pressed }) => [
+    <View
+      style={[
         styles.cardContainer,
         {
           backgroundColor: colors.surface,
@@ -110,19 +114,23 @@ export function ReminderCard({
             isOverdue && !isCompleted
               ? Colors.urgency.critical.accent
               : colors.border,
-          opacity: isCompleted ? 0.68 : pressed ? 0.94 : 1,
+          opacity: isCompleted ? 0.68 : 1,
         },
-        createShadow(isDark, 'card'),
       ]}
     >
       <View style={styles.mainRow}>
         {/* Completion Checkbox */}
         <Pressable
-          onPress={(e) => {
-            e.stopPropagation();
-            onToggleComplete();
-          }}
-          hitSlop={10}
+          onPress={onToggleComplete}
+          hitSlop={12}
+          accessibilityRole="checkbox"
+          accessibilityState={{ checked: isCompleted }}
+          accessibilityLabel={
+            isCompleted
+              ? `Mark reminder ${reminder.title} incomplete`
+              : `Complete reminder ${reminder.title}`
+          }
+          accessibilityHint="Toggles reminder completion status"
           style={[
             styles.checkbox,
             {
@@ -145,7 +153,13 @@ export function ReminderCard({
         </Pressable>
 
         {/* Content Body */}
-        <View style={styles.contentBody}>
+        <Pressable
+          onPress={onPress}
+          style={({ pressed }) => [styles.contentBody, pressed && { opacity: 0.85 }]}
+          accessibilityRole="button"
+          accessibilityLabel={cardAccessibilityLabel}
+          accessibilityHint="Opens reminder details"
+        >
           {/* Top Title & Priority */}
           <View style={styles.titleRow}>
             <ThemedText
@@ -229,9 +243,9 @@ export function ReminderCard({
                 <SymbolView
                   name={{ ios: 'repeat', android: 'repeat' }}
                   size={11}
-                  tintColor={colors.primary}
+                  tintColor={recurrenceFg}
                 />
-                <ThemedText style={[styles.chipText, { color: colors.primary }]}>
+                <ThemedText style={[styles.chipText, { color: recurrenceFg }]}>
                   {recurrenceLabel}
                 </ThemedText>
               </View>
@@ -256,16 +270,16 @@ export function ReminderCard({
               </View>
             )}
           </View>
-        </View>
+        </Pressable>
 
         {/* Quick Actions Menu */}
         <View style={styles.actionsColumn}>
           <Pressable
-            onPress={(e) => {
-              e.stopPropagation();
-              onEdit();
-            }}
+            onPress={onEdit}
             hitSlop={8}
+            accessibilityRole="button"
+            accessibilityLabel={`Edit reminder ${reminder.title}`}
+            accessibilityHint="Opens reminder editor"
             style={[
               styles.actionBtn,
               { backgroundColor: colors.surfaceSecondary },
@@ -279,11 +293,11 @@ export function ReminderCard({
           </Pressable>
 
           <Pressable
-            onPress={(e) => {
-              e.stopPropagation();
-              onDelete();
-            }}
+            onPress={onDelete}
             hitSlop={8}
+            accessibilityRole="button"
+            accessibilityLabel={`Delete reminder ${reminder.title}`}
+            accessibilityHint="Permanently removes this reminder"
             style={[
               styles.actionBtn,
               { backgroundColor: colors.surfaceSecondary },
@@ -292,12 +306,12 @@ export function ReminderCard({
             <SymbolView
               name={{ ios: 'trash', android: 'delete' }}
               size={15}
-              tintColor={Colors.urgency.critical.accent}
+              tintColor={deleteIconColor}
             />
           </Pressable>
         </View>
       </View>
-    </Pressable>
+    </View>
   );
 }
 
@@ -399,8 +413,8 @@ const styles = StyleSheet.create({
     gap: Spacing.one,
   },
   actionBtn: {
-    width: 32,
-    height: 32,
+    width: 36,
+    height: 36,
     borderRadius: Radius.sm,
     alignItems: 'center',
     justifyContent: 'center',

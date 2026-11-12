@@ -15,7 +15,6 @@ import { useAppTheme } from '@/context/ThemeContext';
 import { ThemedText } from '@/components/themed-text';
 import { Typography } from '@/constants/typography';
 import { Colors } from '@/constants/colors';
-import { createShadow } from '@/constants/shadows';
 import { Spacing, Radius } from '@/constants/spacing';
 import { formatCurrency, CurrencyCode } from '@/utils/currency';
 import { BillTotals } from '../types';
@@ -41,7 +40,6 @@ export function BillSummaryCard({
           backgroundColor: colors.surface,
           borderColor: colors.border,
         },
-        createShadow(isDark, 'card'),
       ]}
     >
       {/* Header: Monthly Overview & Progress */}

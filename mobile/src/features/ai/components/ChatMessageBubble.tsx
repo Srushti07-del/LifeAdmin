@@ -11,7 +11,7 @@ import { ThemedText } from '@/components/themed-text';
 import { getButtonForegroundColor } from '@/components/ui';
 import { Typography } from '@/constants/typography';
 import { Spacing, Radius } from '@/constants/spacing';
-import { createShadow } from '@/constants/shadows';
+import { CurrencyCode, DEFAULT_CURRENCY } from '@/utils/currency';
 import { ChatMessage, ProposedAction } from '../types';
 import {
   getActionTypeIcon,
@@ -22,11 +22,13 @@ import {
 interface ChatMessageBubbleProps {
   message: ChatMessage;
   onReviewAction: (action: ProposedAction) => void;
+  preferredCurrency?: CurrencyCode;
 }
 
 export function ChatMessageBubble({
   message,
   onReviewAction,
+  preferredCurrency = DEFAULT_CURRENCY,
 }: ChatMessageBubbleProps) {
   const { colors, isDark } = useAppTheme();
   const isUser = message.role === 'user';
@@ -70,7 +72,6 @@ export function ChatMessageBubble({
               ? [styles.bubbleUser, { backgroundColor: colors.primary }]
               : [
                   styles.bubbleAssistant,
-                  createShadow(isDark, 'xs'),
                   {
                     backgroundColor: colors.surface,
                     borderColor: colors.border,
@@ -114,14 +115,13 @@ export function ChatMessageBubble({
             {actions.map((item, idx) => {
               const badge = getActionTypeBadge(item.type, isDark);
               const icon = getActionTypeIcon(item.type);
-              const subtitle = formatActionSubtitle(item);
+              const subtitle = formatActionSubtitle(item, preferredCurrency);
 
               return (
                   <View
                   key={`${item.title}-${idx}`}
                   style={[
                     styles.actionCard,
-                    createShadow(isDark, 'xs'),
                     {
                       backgroundColor: colors.surface,
                       borderColor: colors.border,

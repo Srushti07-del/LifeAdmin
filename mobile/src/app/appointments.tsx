@@ -17,21 +17,25 @@ import {
   Pressable,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
 import { useAppTheme } from '@/context/ThemeContext';
+import { useSnackbar } from '@/context/SnackbarContext';
+import { useFabBottomPadding } from '@/hooks/use-safe-bottom-padding';
+import { parseAppointmentFilterParam } from '@/utils/routeFilters';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import {
   SearchInput,
   FilterBar,
   FilterItem,
-  Button,
   EmptyState,
+  FloatingActionButton,
+  HeaderBackButton,
   getButtonForegroundColor,
 } from '@/components/ui';
 import { Typography } from '@/constants/typography';
 import { Spacing, Radius } from '@/constants/spacing';
-import { BottomTabInset } from '@/constants/theme';
 import {
   Appointment,
   AppointmentFilterKey,
@@ -61,6 +65,10 @@ const SORT_OPTIONS: SortOption[] = [
 
 export default function AppointmentsScreen() {
   const { colors, isDark } = useAppTheme();
+  const { showSnackbar } = useSnackbar();
+  const router = useRouter();
+  const params = useLocalSearchParams<{ filter?: string | string[] }>();
+  const bottomPadding = useFabBottomPadding(Spacing.six, false);
 
   // Data state
   const [appointments, setAppointments] = useState<Appointment[]>([]);
@@ -74,6 +82,15 @@ export default function AppointmentsScreen() {
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [activeSort, setActiveSort] = useState<AppointmentSortKey>('date');
   const [showSortPicker, setShowSortPicker] = useState<boolean>(false);
+
+  useEffect(() => {
+    const parsedFilter = parseAppointmentFilterParam(params.filter);
+    if (!parsedFilter) return;
+    setActiveFilter(parsedFilter);
+    if (typeof (router as any).setParams === 'function') {
+      (router as any).setParams({ filter: undefined });
+    }
+  }, [params.filter, router]);
 
   // Modal states
   const [isFormOpen, setIsFormOpen] = useState<boolean>(false);
@@ -147,19 +164,35 @@ export default function AppointmentsScreen() {
         setSelectedAppointmentForDetails(res.appointment);
       }
       setEditingAppointment(null);
+      showSnackbar({
+        variant: 'success',
+        title: 'Appointment Updated',
+        message: `"${res.appointment.title}" saved.`,
+      });
     } else {
       const res = await appointmentService.createAppointment(formData);
       setAppointments((prev) => [res.appointment, ...prev]);
+      showSnackbar({
+        variant: 'success',
+        title: 'Appointment Scheduled',
+        message: `"${res.appointment.title}" added to your schedule.`,
+      });
     }
   };
 
   // Delete appointment
   const handleDeleteAppointment = async (appointmentId: string) => {
+    const existingTitle = appointments.find((a) => a._id === appointmentId)?.title;
     await appointmentService.deleteAppointment(appointmentId);
     setAppointments((prev) => prev.filter((a) => a._id !== appointmentId));
     if (selectedAppointmentForDetails?._id === appointmentId) {
       setSelectedAppointmentForDetails(null);
     }
+    showSnackbar({
+      variant: 'info',
+      title: 'Appointment Deleted',
+      message: existingTitle ? `"${existingTitle}" removed.` : 'Appointment removed.',
+    });
   };
 
   // Open Form in Create mode
@@ -189,6 +222,7 @@ export default function AppointmentsScreen() {
       <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
         {/* Header */}
         <View style={styles.header}>
+          <HeaderBackButton fallbackHref="/more" />
           <View style={styles.headerTitleCol}>
             <ThemedText style={[styles.title, { color: colors.text }]}>
               Appointments
@@ -197,21 +231,6 @@ export default function AppointmentsScreen() {
               Doctor visits, consultations, and professional meetings
             </ThemedText>
           </View>
-
-          <Button
-            variant="primary"
-            size="sm"
-            onPress={handleOpenCreateModal}
-            icon={
-              <SymbolView
-                name={{ ios: 'plus', android: 'add', web: 'add' }}
-                size={16}
-                tintColor={getButtonForegroundColor('primary', colors, isDark)}
-              />
-            }
-          >
-            Add
-          </Button>
         </View>
 
         {/* Scrollable Content */}
@@ -219,7 +238,7 @@ export default function AppointmentsScreen() {
           style={styles.scrollArea}
           contentContainerStyle={[
             styles.scrollContent,
-            { paddingBottom: BottomTabInset + Spacing.six },
+            { paddingBottom: bottomPadding },
           ]}
           showsVerticalScrollIndicator={false}
           refreshControl={
@@ -468,6 +487,13 @@ export default function AppointmentsScreen() {
             </View>
           )}
         </ScrollView>
+
+        <FloatingActionButton
+          label="New Visit"
+          accessibilityLabel="Add appointment"
+          onPress={handleOpenCreateModal}
+          isTabScreen={false}
+        />
       </SafeAreaView>
 
       {/* Create & Edit Modal Sheet */}
@@ -504,6 +530,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    gap: Spacing.three,
     paddingHorizontal: Spacing.four,
     paddingTop: Spacing.two,
     paddingBottom: Spacing.three,
@@ -552,7 +579,7 @@ const styles = StyleSheet.create({
   },
   sortTrayTitle: {
     fontSize: Typography.fontSize.xs,
-    fontWeight: Typography.fontWeight.semibold,
+    fontFamily: Typography.fontFamilies.sansSemiBold,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
   },
@@ -562,6 +589,8 @@ const styles = StyleSheet.create({
     gap: Spacing.two,
   },
   sortOptionChip: {
+    minHeight: 36,
+    justifyContent: 'center',
     paddingHorizontal: Spacing.three,
     paddingVertical: 6,
     borderRadius: Radius.full,
@@ -578,6 +607,8 @@ const styles = StyleSheet.create({
     paddingVertical: Spacing.one,
   },
   categoryChip: {
+    minHeight: 36,
+    justifyContent: 'center',
     paddingHorizontal: Spacing.three,
     paddingVertical: 6,
     borderRadius: Radius.full,

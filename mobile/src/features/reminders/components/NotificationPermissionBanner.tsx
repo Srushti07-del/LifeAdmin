@@ -111,7 +111,13 @@ export function NotificationPermissionBanner({
           </ThemedText>
         </Pressable>
 
-        <Pressable onPress={onDismiss} hitSlop={8} style={styles.closeBtn}>
+        <Pressable
+          onPress={onDismiss}
+          hitSlop={8}
+          accessibilityRole="button"
+          accessibilityLabel="Dismiss notification banner"
+          style={styles.closeBtn}
+        >
           <SymbolView
             name={{ ios: 'xmark', android: 'close' }}
             size={14}
@@ -160,6 +166,8 @@ const styles = StyleSheet.create({
     gap: Spacing.one,
   },
   enableBtn: {
+    minHeight: 36,
+    justifyContent: 'center',
     paddingHorizontal: Spacing.three,
     paddingVertical: 6,
     borderRadius: Radius.full,
@@ -170,6 +178,10 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
   },
   closeBtn: {
+    minWidth: 36,
+    minHeight: 36,
+    alignItems: 'center',
+    justifyContent: 'center',
     padding: 4,
   },
 });

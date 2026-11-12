@@ -7,10 +7,9 @@
  * - Single-tap completion toggle, bottom-sheet create/edit/details modals
  */
 
-import React, { useCallback, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
-  Alert,
   Pressable,
   RefreshControl,
   ScrollView,
@@ -18,9 +17,10 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useFocusEffect } from 'expo-router';
+import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
 import { useAppTheme } from '@/context/ThemeContext';
+import { useSnackbar } from '@/context/SnackbarContext';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import {
@@ -28,14 +28,15 @@ import {
   EmptyState,
   FilterBar,
   FilterItem,
+  FloatingActionButton,
   SearchInput,
   SegmentedControl,
-  getButtonForegroundColor,
 } from '@/components/ui';
 import { Colors } from '@/constants/colors';
 import { Radius, Spacing } from '@/constants/spacing';
-import { BottomTabInset } from '@/constants/theme';
 import { Typography } from '@/constants/typography';
+import { useFabBottomPadding } from '@/hooks/use-safe-bottom-padding';
+import { parseTaskFilterParam } from '@/utils/routeFilters';
 import {
   Task,
   TaskBoardView,
@@ -53,6 +54,7 @@ import {
   getToggledCompletionStatus,
   taskService,
 } from '@/features/tasks';
+import { getTaskStatusFeedback } from '@/utils/undoActions';
 
 const SORT_LABELS: Record<TaskSortOption, string> = {
   dueDate: 'Due Date',
@@ -64,6 +66,10 @@ const SORT_CYCLE: TaskSortOption[] = ['dueDate', 'priority', 'recent'];
 
 export default function TasksScreen() {
   const { colors, isDark } = useAppTheme();
+  const { showSnackbar } = useSnackbar();
+  const router = useRouter();
+  const params = useLocalSearchParams<{ filter?: string | string[] }>();
+  const bottomPadding = useFabBottomPadding(Spacing.nine, true);
 
   const [tasks, setTasks] = useState<Task[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
@@ -75,6 +81,16 @@ export default function TasksScreen() {
   const [categoryFilter, setCategoryFilter] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [sortBy, setSortBy] = useState<TaskSortOption>('dueDate');
+
+  useEffect(() => {
+    const parsedFilter = parseTaskFilterParam(params.filter);
+    if (!parsedFilter) return;
+    setStatusFilter(parsedFilter);
+    setViewMode('list');
+    if (typeof (router as any).setParams === 'function') {
+      (router as any).setParams({ filter: undefined });
+    }
+  }, [params.filter, router]);
 
   const [isFormOpen, setIsFormOpen] = useState<boolean>(false);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
@@ -146,7 +162,8 @@ export default function TasksScreen() {
     await handleChangeStatus(task, nextStatus);
   };
 
-  const handleChangeStatus = async (task: Task, nextStatus: TaskStatus) => {
+  const handleChangeStatus = async (task: Task, nextStatus: TaskStatus, isUndo = false) => {
+    const previousStatus = task.status;
     setUpdatingTaskId(task._id);
     // Optimistic update for responsive native feel
     setTasks((prev) =>
@@ -158,11 +175,36 @@ export default function TasksScreen() {
 
     try {
       const res = await taskService.updateTaskStatus(task._id, nextStatus);
+      const updatedTask = res?.task || { ...task, status: nextStatus };
       if (res?.task) {
         setTasks((prev) => prev.map((t) => (t._id === task._id ? res.task : t)));
         if (selectedTask?._id === task._id) {
           setSelectedTask(res.task);
         }
+      }
+
+      const feedback = getTaskStatusFeedback(nextStatus, task.title);
+      if (isUndo) {
+        showSnackbar({
+          variant: 'info',
+          title: 'Action Undone',
+          message: feedback.message,
+          duration: 2800,
+        });
+      } else {
+        showSnackbar({
+          variant: 'success',
+          title: feedback.title,
+          message: feedback.message,
+          action:
+            previousStatus !== nextStatus
+              ? {
+                  label: 'Undo',
+                  accessibilityLabel: `Undo status change for ${task.title}`,
+                  onPress: () => void handleChangeStatus(updatedTask, previousStatus, true),
+                }
+              : undefined,
+        });
       }
     } catch (err: any) {
       // Revert on failure
@@ -170,7 +212,11 @@ export default function TasksScreen() {
       if (selectedTask?._id === task._id) {
         setSelectedTask(task);
       }
-      Alert.alert('Update Failed', err?.message || 'Could not update task status.');
+      showSnackbar({
+        variant: 'error',
+        title: 'Update Failed',
+        message: err?.message || 'Could not update task status.',
+      });
     } finally {
       setUpdatingTaskId(null);
     }
@@ -186,6 +232,11 @@ export default function TasksScreen() {
       } else {
         await loadTasks(true);
       }
+      showSnackbar({
+        variant: 'success',
+        title: 'Task Updated',
+        message: `"${res?.task?.title || payload.title || editingTask.title}" saved.`,
+      });
     } else {
       const res = await taskService.createTask(payload);
       if (res?.task) {
@@ -193,15 +244,30 @@ export default function TasksScreen() {
       } else {
         await loadTasks(true);
       }
+      showSnackbar({
+        variant: 'success',
+        title: 'Task Created',
+        message: `"${res?.task?.title || payload.title || 'New task'}" added.`,
+      });
     }
   };
 
   const handleDeleteTask = async (id: string) => {
+    const deletedTitle = tasks.find((t) => t._id === id)?.title;
     try {
       await taskService.deleteTask(id);
       setTasks((prev) => prev.filter((t) => t._id !== id));
+      showSnackbar({
+        variant: 'info',
+        title: 'Task Deleted',
+        message: deletedTitle ? `"${deletedTitle}" removed.` : 'Task removed.',
+      });
     } catch (err: any) {
-      Alert.alert('Delete Failed', err?.message || 'Could not remove this task.');
+      showSnackbar({
+        variant: 'error',
+        title: 'Delete Failed',
+        message: err?.message || 'Could not remove this task.',
+      });
     }
   };
 
@@ -230,7 +296,7 @@ export default function TasksScreen() {
         <ScrollView
           contentContainerStyle={[
             styles.scrollContent,
-            { paddingBottom: BottomTabInset + Spacing.six },
+            { paddingBottom: bottomPadding },
           ]}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
@@ -253,22 +319,6 @@ export default function TasksScreen() {
                 Calm, structured tracking for what matters next
               </ThemedText>
             </View>
-
-            <Button
-              variant="primary"
-              size="sm"
-              onPress={openCreateModal}
-              icon={
-                <SymbolView
-                  name={{ ios: 'plus', android: 'add', web: 'add' }}
-                  size={15}
-                  tintColor={getButtonForegroundColor('primary', colors, isDark)}
-                  weight="semibold"
-                />
-              }
-            >
-              New Task
-            </Button>
           </View>
 
           {/* View Switcher (List / Board) */}
@@ -468,6 +518,15 @@ export default function TasksScreen() {
           )}
         </ScrollView>
 
+        {!isLoading && tasks.length > 0 && (
+          <FloatingActionButton
+            label="New Task"
+            accessibilityLabel="Create new task"
+            onPress={openCreateModal}
+            isTabScreen
+          />
+        )}
+
         <TaskFormModal
           isOpen={isFormOpen}
           onClose={() => {
@@ -563,6 +622,8 @@ const styles = StyleSheet.create({
     paddingBottom: Spacing.three,
   },
   categoryPill: {
+    minHeight: 36,
+    justifyContent: 'center',
     paddingHorizontal: Spacing.three,
     paddingVertical: 6,
     borderRadius: Radius.full,

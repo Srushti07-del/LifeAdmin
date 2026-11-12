@@ -1,6 +1,7 @@
 import {
   DarkTheme,
   DefaultTheme,
+  Stack,
   ThemeProvider as NavigationThemeProvider,
   useRouter,
   usePathname,
@@ -8,7 +9,7 @@ import {
 } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import type { NotificationResponse } from 'expo-notifications';
-import { Platform } from 'react-native';
+import { Platform, useWindowDimensions } from 'react-native';
 import { useEffect, useRef, useCallback } from 'react';
 import { useFonts } from 'expo-font';
 import { DMSerifDisplay_400Regular, DMSerifDisplay_400Regular_Italic } from '@expo-google-fonts/dm-serif-display';
@@ -21,9 +22,11 @@ import {
 } from '@expo-google-fonts/inter';
 
 import { AnimatedSplashOverlay } from '@/components/animated-icon';
-import AppTabs from '@/components/app-tabs';
+import { SnackbarViewport } from '@/components/ui/Snackbar';
+import { shouldOffsetSnackbarForBottomTabs } from '@/utils/navigationLayout';
 import { ThemeProvider as AppThemeProvider, useAppTheme } from '@/context/ThemeContext';
 import { AuthProvider, useAuth } from '@/context/AuthContext';
+import { SnackbarProvider } from '@/context/SnackbarContext';
 import { AuthNavigator } from '@/features/auth/components/AuthNavigator';
 import { AuthLoadingScreen } from '@/features/auth/screens/AuthLoadingScreen';
 import { usePasswordResetDeepLink } from '@/features/auth';
@@ -32,12 +35,18 @@ import { notificationService } from '@/features/reminders/services/notificationS
 
 SplashScreen.preventAutoHideAsync();
 
+export const unstable_settings = {
+  anchor: '(tabs)',
+};
+
 function RootNavigator() {
   const router = useRouter();
-  const { isDark } = useAppTheme();
+  const { colors, isDark } = useAppTheme();
+  const { width } = useWindowDimensions();
   const { user, isLoading, isGuest, isOnboardingCompleted, completeOnboarding } = useAuth();
   const pathname = usePathname();
   const params = useLocalSearchParams<{ token?: string }>();
+  const hasBottomTabs = shouldOffsetSnackbarForBottomTabs(pathname, width, Platform.OS);
 
   // Register Android App Link and custom scheme deep link listener
   usePasswordResetDeepLink();
@@ -160,6 +169,7 @@ function RootNavigator() {
     return (
       <NavigationThemeProvider value={isDark ? DarkTheme : DefaultTheme}>
         <AuthNavigator initialScreen="reset-password" initialToken={params.token || ''} />
+        <SnackbarViewport hasBottomTabs={false} />
       </NavigationThemeProvider>
     );
   }
@@ -169,6 +179,7 @@ function RootNavigator() {
     return (
       <NavigationThemeProvider value={isDark ? DarkTheme : DefaultTheme}>
         <AuthNavigator />
+        <SnackbarViewport hasBottomTabs={false} />
       </NavigationThemeProvider>
     );
   }
@@ -182,6 +193,7 @@ function RootNavigator() {
           isGuest={isGuest}
           onComplete={completeOnboarding}
         />
+        <SnackbarViewport hasBottomTabs={false} />
       </NavigationThemeProvider>
     );
   }
@@ -190,7 +202,24 @@ function RootNavigator() {
   return (
     <NavigationThemeProvider value={isDark ? DarkTheme : DefaultTheme}>
       <AnimatedSplashOverlay />
-      <AppTabs />
+      <Stack
+        screenOptions={{
+          headerShown: false,
+          contentStyle: { backgroundColor: colors.background },
+        }}
+      >
+        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+        <Stack.Screen name="ai" options={{ headerShown: false }} />
+        <Stack.Screen name="appointments" options={{ headerShown: false }} />
+        <Stack.Screen name="documents" options={{ headerShown: false }} />
+        <Stack.Screen name="reminders" options={{ headerShown: false }} />
+        <Stack.Screen name="settings" options={{ headerShown: false }} />
+        <Stack.Screen name="login" options={{ headerShown: false }} />
+        <Stack.Screen name="register" options={{ headerShown: false }} />
+        <Stack.Screen name="forgot-password" options={{ headerShown: false }} />
+        <Stack.Screen name="reset-password" options={{ headerShown: false }} />
+      </Stack>
+      <SnackbarViewport hasBottomTabs={hasBottomTabs} />
     </NavigationThemeProvider>
   );
 }
@@ -198,9 +227,11 @@ function RootNavigator() {
 export default function RootLayout() {
   return (
     <AppThemeProvider>
-      <AuthProvider>
-        <RootNavigator />
-      </AuthProvider>
+      <SnackbarProvider>
+        <AuthProvider>
+          <RootNavigator />
+        </AuthProvider>
+      </SnackbarProvider>
     </AppThemeProvider>
   );
 }

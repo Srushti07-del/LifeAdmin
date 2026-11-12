@@ -14,5 +14,10 @@ export * from './FilterBar';
 export * from './SearchInput';
 export * from './SegmentedControl';
 export * from './StatCard';
+export * from './Snackbar';
+export * from './HeaderBackButton';
+export * from './DatePickerField';
+export * from './TimePickerField';
+export * from './FloatingActionButton';
 export * from './collapsible';
 

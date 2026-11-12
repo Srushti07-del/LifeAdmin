@@ -10,7 +10,6 @@ import { useAppTheme } from '@/context/ThemeContext';
 import { ThemedText } from '@/components/themed-text';
 import { Badge, UrgencyTag, UrgencyType } from '@/components/ui';
 import { Colors } from '@/constants/colors';
-import { createShadow } from '@/constants/shadows';
 import { Radius, Spacing } from '@/constants/spacing';
 import { Typography } from '@/constants/typography';
 import { Priority, Task } from '../types';
@@ -67,20 +66,18 @@ export function TaskCard({
         : '#FCA5A5'
       : colors.border;
 
+  const cardAccessibilityLabel = `Task ${task.title}, priority ${priorityMeta.label}, ${urgency.label}`;
+
   return (
-    <Pressable
-      onPress={() => onPress(task)}
-      style={({ pressed }) => [
+    <View
+      style={[
         styles.card,
         {
           backgroundColor: colors.surface,
           borderColor,
-          opacity: isCompleted ? 0.62 : pressed ? 0.94 : 1,
+          opacity: isCompleted ? 0.62 : 1,
         },
-        !isCompleted && createShadow(isDark, 'card'),
       ]}
-      accessibilityRole="button"
-      accessibilityLabel={`Task ${task.title}, priority ${priorityMeta.label}, ${urgency.label}`}
     >
       {/* Left 48x48dp Completion Checkbox */}
       <Pressable
@@ -89,8 +86,9 @@ export function TaskCard({
         hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
         style={styles.checkboxHitArea}
         accessibilityRole="checkbox"
-        accessibilityState={{ checked: isCompleted }}
+        accessibilityState={{ checked: isCompleted, disabled: isUpdating, busy: isUpdating }}
         accessibilityLabel={isCompleted ? `Mark ${task.title} incomplete` : `Complete ${task.title}`}
+        accessibilityHint="Toggles task completion status"
       >
         {isUpdating ? (
           <ActivityIndicator size="small" color={colors.primary} />
@@ -127,7 +125,13 @@ export function TaskCard({
       </Pressable>
 
       {/* Main Content */}
-      <View style={styles.content}>
+      <Pressable
+        onPress={() => onPress(task)}
+        style={({ pressed }) => [styles.content, pressed && { opacity: 0.85 }]}
+        accessibilityRole="button"
+        accessibilityLabel={cardAccessibilityLabel}
+        accessibilityHint="Opens task details"
+      >
         <View style={styles.titleRow}>
           <ThemedText
             style={[
@@ -208,8 +212,8 @@ export function TaskCard({
             </View>
           ) : null}
         </View>
-      </View>
-    </Pressable>
+      </Pressable>
+    </View>
   );
 }
 

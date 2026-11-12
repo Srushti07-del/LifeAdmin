@@ -13,7 +13,6 @@ import { getButtonForegroundColor } from '@/components/ui';
 import { Colors } from '@/constants/colors';
 import { Typography } from '@/constants/typography';
 import { Spacing, Radius } from '@/constants/spacing';
-import { createShadow } from '@/constants/shadows';
 import { CurrencyCode, convertAmountTo, formatCurrency } from '@/utils/currency';
 import { formatShortDate } from '@/utils/date';
 import { aiService } from '@/features/ai';
@@ -80,6 +79,36 @@ export function AIDailyBriefingWidget({
     [overview, preferredCurrency, exchangeRates]
   );
 
+  const visibleBriefing = useMemo(() => {
+    const attentionItems = overview?.needsAttention ?? [];
+    const shownKeys = new Set<string>();
+    for (const item of attentionItems) {
+      if (item.id) shownKeys.add(`${item.type}:${item.id}`);
+      if (item.title) shownKeys.add(`${item.type}:title:${item.title.trim().toLowerCase()}`);
+    }
+
+    const isAlreadyInNeedsAttention = (item: { id?: string; type: string; title: string }) => {
+      if (item.id && shownKeys.has(`${item.type}:${item.id}`)) return true;
+      return shownKeys.has(`${item.type}:title:${item.title.trim().toLowerCase()}`);
+    };
+
+    const pendingResponsibilities = briefing.pendingResponsibilities.filter(
+      (item) => !isAlreadyInNeedsAttention(item)
+    );
+    const billsRequiringAttention = briefing.billsRequiringAttention.filter(
+      (item) => !isAlreadyInNeedsAttention(item)
+    );
+    const upcomingDeadlines = briefing.upcomingDeadlines.filter(
+      (item) => !isAlreadyInNeedsAttention(item)
+    );
+
+    return {
+      pendingResponsibilities,
+      billsRequiringAttention,
+      upcomingDeadlines,
+    };
+  }, [briefing, overview?.needsAttention]);
+
   const emptyNotice = useMemo(
     () => getEmptyBriefingNotice(overview, isLoadingOverview),
     [overview, isLoadingOverview]
@@ -134,10 +163,10 @@ export function AIDailyBriefingWidget({
     }
   };
 
-  const isAllClear =
-    briefing.pendingResponsibilities.length === 0 &&
-    briefing.billsRequiringAttention.length === 0 &&
-    briefing.upcomingDeadlines.length === 0;
+  const hasAdditionalItems =
+    visibleBriefing.pendingResponsibilities.length > 0 ||
+    visibleBriefing.billsRequiringAttention.length > 0 ||
+    visibleBriefing.upcomingDeadlines.length > 0;
 
   return (
     <View style={styles.wrapper}>
@@ -148,7 +177,6 @@ export function AIDailyBriefingWidget({
             backgroundColor: colors.surface,
             borderColor: colors.border,
           },
-          createShadow(isDark, 'card'),
         ]}
       >
         {/* Header Row */}
@@ -188,13 +216,13 @@ export function AIDailyBriefingWidget({
           </View>
         ) : (
           <View style={styles.body}>
-            {/* Real-data breakdown grid */}
-            {briefing.pendingResponsibilities.length > 0 && (
+            {/* Real-data breakdown grid — excludes items already displayed in Needs Attention */}
+            {visibleBriefing.pendingResponsibilities.length > 0 && (
               <View style={styles.groupBlock}>
                 <ThemedText style={[styles.groupTitle, { color: colors.textSecondary }]}>
                   PENDING RESPONSIBILITIES
                 </ThemedText>
-                {briefing.pendingResponsibilities.map((item) => (
+                {visibleBriefing.pendingResponsibilities.map((item) => (
                   <Pressable
                     key={`pending-${item.id}`}
                     onPress={() => onPressItem?.(item.type, item.id)}
@@ -217,7 +245,7 @@ export function AIDailyBriefingWidget({
               </View>
             )}
 
-            {briefing.billsRequiringAttention.length > 0 && (
+            {visibleBriefing.billsRequiringAttention.length > 0 && (
               <View style={styles.groupBlock}>
                 <View style={styles.groupHeaderRow}>
                   <ThemedText style={[styles.groupTitle, { color: colors.textSecondary }]}>
@@ -227,7 +255,7 @@ export function AIDailyBriefingWidget({
                     {briefing.totalUrgentBillsFormatted}
                   </ThemedText>
                 </View>
-                {briefing.billsRequiringAttention.map((bill) => {
+                {visibleBriefing.billsRequiringAttention.map((bill) => {
                   const converted = convertAmountTo(
                     bill.amount || 0,
                     bill.currency,
@@ -258,12 +286,12 @@ export function AIDailyBriefingWidget({
               </View>
             )}
 
-            {briefing.upcomingDeadlines.length > 0 && (
+            {visibleBriefing.upcomingDeadlines.length > 0 && (
               <View style={styles.groupBlock}>
                 <ThemedText style={[styles.groupTitle, { color: colors.textSecondary }]}>
                   UPCOMING DEADLINES
                 </ThemedText>
-                {briefing.upcomingDeadlines.map((item) => (
+                {visibleBriefing.upcomingDeadlines.map((item) => (
                   <Pressable
                     key={`deadline-${item.id}`}
                     onPress={() => onPressItem?.(item.type, item.id)}
@@ -286,9 +314,8 @@ export function AIDailyBriefingWidget({
               </View>
             )}
 
-            {/* Contextual suggestion derived strictly from real counts/items.
-                Hidden when everything is clear: the headline and Needs Attention already say so. */}
-            {!isAllClear && (
+            {/* Contextual suggestion only when additional items remain beyond Needs Attention */}
+            {hasAdditionalItems && (
               <View
                 style={[
                   styles.suggestionBox,
@@ -376,7 +403,7 @@ export function AIDailyBriefingWidget({
                   </View>
                   <Pressable
                     onPress={() => handleFetchAIBriefing(true)}
-                    hitSlop={6}
+                    hitSlop={8}
                     style={[styles.retryPill, { backgroundColor: pillBg }]}
                     accessibilityRole="button"
                     accessibilityLabel="Retry AI briefing"
@@ -403,7 +430,12 @@ export function AIDailyBriefingWidget({
                   <ThemedText style={[styles.aiReplyLabel, { color: colors.primary }]}>
                     {aiSource === 'ai' ? 'Gemini AI Summary' : 'LifeBuddy Context Summary'}
                   </ThemedText>
-                  <Pressable onPress={() => setAiReply(null)} hitSlop={8}>
+                  <Pressable
+                    onPress={() => setAiReply(null)}
+                    hitSlop={12}
+                    accessibilityRole="button"
+                    accessibilityLabel="Hide briefing summary"
+                  >
                     <ThemedText style={[styles.clearText, { color: colors.textMuted }]}>
                       Hide
                     </ThemedText>
@@ -608,6 +640,8 @@ const styles = StyleSheet.create({
     lineHeight: 17,
   },
   retryPill: {
+    minHeight: 36,
+    justifyContent: 'center',
     paddingHorizontal: Spacing.three,
     paddingVertical: 4,
     borderRadius: Radius.md,
@@ -650,6 +684,7 @@ const styles = StyleSheet.create({
   },
   actionBtn: {
     flex: 1,
+    minHeight: 44,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',

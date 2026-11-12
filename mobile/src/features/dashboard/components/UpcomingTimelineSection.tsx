@@ -11,7 +11,6 @@ import { ThemedText } from '@/components/themed-text';
 import { Colors } from '@/constants/colors';
 import { Typography } from '@/constants/typography';
 import { Spacing, Radius } from '@/constants/spacing';
-import { createShadow } from '@/constants/shadows';
 import { CurrencyCode, convertAmountTo, formatCurrency } from '@/utils/currency';
 import { formatTime, formatTimelineDate } from '@/utils/date';
 import { UpcomingItem } from '../types';
@@ -162,7 +161,6 @@ export function UpcomingTimelineSection({
                     backgroundColor: colors.surface,
                     borderColor: isDark ? colors.border : colors.borderSubtle,
                   },
-                  createShadow(isDark, 'xs'),
                   pressed && styles.pressed,
                 ]}
               >
@@ -258,13 +256,13 @@ const styles = StyleSheet.create({
   },
   dayNumber: {
     fontSize: Typography.fontSize.base,
-    fontWeight: Typography.fontWeight.bold,
+    fontFamily: Typography.fontFamilies.sansBold,
     fontVariant: ['tabular-nums'],
   },
   monthName: {
     fontSize: 10,
     textTransform: 'uppercase',
-    fontWeight: Typography.fontWeight.semibold,
+    fontFamily: Typography.fontFamilies.sansSemiBold,
   },
   relativePill: {
     marginTop: 4,
@@ -274,7 +272,7 @@ const styles = StyleSheet.create({
   },
   relativeText: {
     fontSize: 9,
-    fontWeight: Typography.fontWeight.bold,
+    fontFamily: Typography.fontFamilies.sansBold,
   },
   connectorColumn: {
     width: 20,
@@ -317,7 +315,7 @@ const styles = StyleSheet.create({
   },
   typeBadgeText: {
     fontSize: 11,
-    fontWeight: Typography.fontWeight.bold,
+    fontFamily: Typography.fontFamilies.sansBold,
     textTransform: 'uppercase',
   },
   timeText: {
@@ -326,7 +324,7 @@ const styles = StyleSheet.create({
   },
   itemTitle: {
     fontSize: Typography.fontSize.sm,
-    fontWeight: Typography.fontWeight.semibold,
+    fontFamily: Typography.fontFamilies.sansSemiBold,
   },
   itemSubtitle: {
     fontSize: Typography.fontSize.xs,
@@ -334,7 +332,7 @@ const styles = StyleSheet.create({
   },
   amountText: {
     fontSize: Typography.fontSize.sm,
-    fontWeight: Typography.fontWeight.bold,
+    fontFamily: Typography.fontFamilies.sansBold,
     fontVariant: ['tabular-nums'],
     marginTop: 4,
   },

@@ -22,18 +22,23 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import * as WebBrowser from 'expo-web-browser';
 import { SymbolView } from 'expo-symbols';
 import { useAppTheme } from '@/context/ThemeContext';
+import { useAuth } from '@/context/AuthContext';
+import { useSnackbar } from '@/context/SnackbarContext';
+import { useFabBottomPadding } from '@/hooks/use-safe-bottom-padding';
+import { CurrencyCode, normalizeCurrencyCode } from '@/utils/currency';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import {
   SearchInput,
   Button,
   EmptyState,
+  FloatingActionButton,
+  HeaderBackButton,
   getButtonForegroundColor,
 } from '@/components/ui';
 import { Colors } from '@/constants/colors';
 import { Typography } from '@/constants/typography';
 import { Spacing, Radius } from '@/constants/spacing';
-import { BottomTabInset } from '@/constants/theme';
 import {
   DocumentItem,
   DocumentSortKey,
@@ -76,6 +81,13 @@ const SORT_OPTIONS: SortOption[] = [
 
 export default function DocumentsScreen() {
   const { colors, isDark } = useAppTheme();
+  const { user } = useAuth();
+  const { showSnackbar } = useSnackbar();
+  const bottomPadding = useFabBottomPadding(Spacing.six, false);
+  const preferredCurrency = useMemo(
+    () => normalizeCurrencyCode(user?.preferredCurrency),
+    [user?.preferredCurrency]
+  );
 
   // Data state
   const [documents, setDocuments] = useState<DocumentItem[]>([]);
@@ -99,6 +111,7 @@ export default function DocumentsScreen() {
   const [conversionType, setConversionType] = useState<'task' | 'bill' | 'reminder'>('task');
   const [conversionAmount, setConversionAmount] = useState<number | undefined>(undefined);
   const [conversionDate, setConversionDate] = useState<string | undefined>(undefined);
+  const [conversionCurrency, setConversionCurrency] = useState<CurrencyCode | undefined>(undefined);
 
   // Fetch documents from server
   const loadDocuments = useCallback(async (isSilent = false) => {
@@ -140,7 +153,11 @@ export default function DocumentsScreen() {
   const handleUploadDocument = async (params: UploadDocumentParams) => {
     const newDoc = await documentService.uploadDocument(params);
     setDocuments((prev) => [newDoc, ...prev]);
-    Alert.alert('Upload Successful', 'Your document has been analyzed and stored in the vault.');
+    showSnackbar({
+      variant: 'success',
+      title: 'Upload Successful',
+      message: 'Your document has been analyzed and stored in the vault.',
+    });
   };
 
   // Edit metadata handler
@@ -150,20 +167,34 @@ export default function DocumentsScreen() {
     if (selectedDocForDetails?._id === id) {
       setSelectedDocForDetails(updated);
     }
-    Alert.alert('Updated', 'Document details have been saved.');
+    showSnackbar({
+      variant: 'success',
+      title: 'Updated',
+      message: 'Document details have been saved.',
+    });
   };
 
   // Delete handler
   const handleDeleteDocument = async (id: string) => {
+    const docName = documents.find((d) => d._id === id)?.originalName;
     try {
       await documentService.deleteDocument(id);
       setDocuments((prev) => prev.filter((d) => d._id !== id));
       if (selectedDocForDetails?._id === id) {
         setSelectedDocForDetails(null);
       }
+      showSnackbar({
+        variant: 'info',
+        title: 'Document Deleted',
+        message: docName ? `"${docName}" removed from vault.` : 'Document removed from vault.',
+      });
     } catch (err: any) {
       console.warn('Delete document error:', err);
-      Alert.alert('Delete Failed', err?.message || 'Unable to remove document.');
+      showSnackbar({
+        variant: 'error',
+        title: 'Delete Failed',
+        message: err?.message || 'Unable to remove document.',
+      });
     }
   };
 
@@ -190,7 +221,11 @@ export default function DocumentsScreen() {
       await WebBrowser.openBrowserAsync(downloadUrl);
     } catch (err: any) {
       console.warn('Open file error:', err);
-      Alert.alert('Preview Error', 'Could not open document viewer.');
+      showSnackbar({
+        variant: 'error',
+        title: 'Preview Error',
+        message: 'Could not open document viewer.',
+      });
     }
   };
 
@@ -199,12 +234,14 @@ export default function DocumentsScreen() {
     doc: DocumentItem,
     type: 'task' | 'bill' | 'reminder',
     amount?: number,
-    date?: string
+    date?: string,
+    currency?: CurrencyCode
   ) => {
     setConversionDoc(doc);
     setConversionType(type);
     setConversionAmount(amount);
     setConversionDate(date);
+    setConversionCurrency(currency);
   };
 
   // Confirm entity conversion
@@ -219,10 +256,11 @@ export default function DocumentsScreen() {
         prev.map((d) => (d._id === docId ? res.document : d))
       );
     }
-    Alert.alert(
-      'Record Created',
-      `Successfully generated ${params.type.toUpperCase()} from document!`
-    );
+    showSnackbar({
+      variant: 'success',
+      title: 'Record Created',
+      message: `Successfully generated ${params.type.toUpperCase()} from document.`,
+    });
   };
 
   return (
@@ -233,7 +271,7 @@ export default function DocumentsScreen() {
       >
         <ScrollView
           showsVerticalScrollIndicator={false}
-          contentContainerStyle={[styles.scrollContent, { paddingBottom: BottomTabInset + Spacing.six }]}
+          contentContainerStyle={[styles.scrollContent, { paddingBottom: bottomPadding }]}
         refreshControl={
           <RefreshControl
             refreshing={isRefreshing}
@@ -245,6 +283,7 @@ export default function DocumentsScreen() {
       >
         {/* Header */}
         <View style={styles.header}>
+          <HeaderBackButton fallbackHref="/more" />
           <View style={styles.headerTitles}>
             <ThemedText style={[styles.title, { color: colors.text }]}>
               Documents Vault
@@ -253,22 +292,6 @@ export default function DocumentsScreen() {
               Secure file repository with AI deadline extraction
             </ThemedText>
           </View>
-
-          <Button
-            variant="primary"
-            size="sm"
-            onPress={() => setIsUploadModalOpen(true)}
-            style={styles.uploadBtn}
-            icon={
-              <SymbolView
-                name={{ ios: 'plus', android: 'add' }}
-                size={16}
-                tintColor={getButtonForegroundColor('primary', colors, isDark)}
-              />
-            }
-          >
-            Upload
-          </Button>
         </View>
 
         {/* Aggregate Summary Card */}
@@ -281,12 +304,17 @@ export default function DocumentsScreen() {
               value={searchQuery}
               onChangeText={setSearchQuery}
               placeholder="Search by name, provider, type, notes..."
+              accessibilityLabel="Search documents"
             />
           </View>
 
           <Pressable
             onPress={() => setShowSortPicker((prev) => !prev)}
             hitSlop={4}
+            accessibilityRole="button"
+            accessibilityLabel="Sort documents"
+            accessibilityHint="Shows or hides document sort options"
+            accessibilityState={{ expanded: showSortPicker }}
             style={[
               styles.sortBtn,
               {
@@ -333,6 +361,9 @@ export default function DocumentsScreen() {
                       setShowSortPicker(false);
                     }}
                     hitSlop={6}
+                    accessibilityRole="button"
+                    accessibilityLabel={`Sort by ${opt.label}`}
+                    accessibilityState={{ selected: activeSort === opt.key }}
                     style={[
                       styles.sortChip,
                       {
@@ -374,6 +405,9 @@ export default function DocumentsScreen() {
                 key={cat}
                 onPress={() => setSelectedCategory(cat)}
                 hitSlop={6}
+                accessibilityRole="button"
+                accessibilityLabel={cat === 'All' ? 'All document categories' : `${cat} category`}
+                accessibilityState={{ selected: selectedCategory === cat }}
                 style={[
                   styles.categoryPill,
                   {
@@ -476,6 +510,7 @@ export default function DocumentsScreen() {
               <DocumentCard
                 key={doc._id}
                 document={doc}
+                preferredCurrency={preferredCurrency}
                 onPress={() => setSelectedDocForDetails(doc)}
                 onOpen={() => handleOpenFile(doc)}
                 onConvert={() => handleOpenConversion(doc, 'task')}
@@ -486,6 +521,14 @@ export default function DocumentsScreen() {
           </View>
         )}
       </ScrollView>
+
+      <FloatingActionButton
+        label="Upload"
+        accessibilityLabel="Upload document"
+        icon={{ ios: 'doc.badge.plus', android: 'upload_file', web: 'upload_file' }}
+        onPress={() => setIsUploadModalOpen(true)}
+        isTabScreen={false}
+      />
 
       {/* Upload Modal */}
       <DocumentUploadModal
@@ -498,6 +541,7 @@ export default function DocumentsScreen() {
       <DocumentDetailsModal
         isOpen={Boolean(selectedDocForDetails)}
         document={selectedDocForDetails}
+        preferredCurrency={preferredCurrency}
         onClose={() => setSelectedDocForDetails(null)}
         onEdit={(doc) => {
           setSelectedDocForDetails(null);
@@ -505,7 +549,9 @@ export default function DocumentsScreen() {
         }}
         onDelete={handleDeleteDocument}
         onConvertToTask={(doc, date) => handleOpenConversion(doc, 'task', undefined, date)}
-        onConvertToBill={(doc, amount, date) => handleOpenConversion(doc, 'bill', amount, date)}
+        onConvertToBill={(doc, amount, date, currency) =>
+          handleOpenConversion(doc, 'bill', amount, date, currency)
+        }
         onConvertToReminder={(doc, date) => handleOpenConversion(doc, 'reminder', undefined, date)}
         onReExtracted={(updated) => {
           setDocuments((prev) => prev.map((d) => (d._id === updated._id ? updated : d)));
@@ -525,9 +571,11 @@ export default function DocumentsScreen() {
       <DocumentEntityConversionModal
         isOpen={Boolean(conversionDoc)}
         document={conversionDoc}
+        preferredCurrency={preferredCurrency}
         initialType={conversionType}
         initialAmount={conversionAmount}
         initialDate={conversionDate}
+        initialCurrency={conversionCurrency}
         onClose={() => setConversionDoc(null)}
         onConfirm={handleConfirmConversion}
       />
@@ -548,6 +596,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    gap: Spacing.three,
     marginBottom: Spacing.three,
   },
   headerTitles: {
@@ -563,9 +612,6 @@ const styles = StyleSheet.create({
     fontSize: Typography.fontSize.xs,
     fontFamily: Typography.fontFamilies.sans,
     marginTop: 2,
-  },
-  uploadBtn: {
-    marginLeft: Spacing.two,
   },
   searchRow: {
     flexDirection: 'row',
@@ -602,6 +648,8 @@ const styles = StyleSheet.create({
     gap: Spacing.two,
   },
   sortChip: {
+    minHeight: 36,
+    justifyContent: 'center',
     paddingHorizontal: Spacing.three,
     paddingVertical: 6,
     borderRadius: Radius.full,
@@ -618,6 +666,8 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.three,
   },
   categoryPill: {
+    minHeight: 36,
+    justifyContent: 'center',
     paddingHorizontal: Spacing.three,
     paddingVertical: 6,
     borderRadius: Radius.full,

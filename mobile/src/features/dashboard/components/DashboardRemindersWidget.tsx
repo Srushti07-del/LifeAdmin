@@ -11,7 +11,6 @@ import { ThemedText } from '@/components/themed-text';
 import { Colors } from '@/constants/colors';
 import { Typography } from '@/constants/typography';
 import { Spacing, Radius } from '@/constants/spacing';
-import { createShadow } from '@/constants/shadows';
 import { formatShortDate, formatTime } from '@/utils/date';
 import { DashboardReminderPreview } from '../types';
 
@@ -36,7 +35,6 @@ export function DashboardRemindersWidget({
       <View
         style={[
           styles.card,
-          createShadow(isDark, 'card'),
           {
             backgroundColor: colors.surface,
             borderColor: colors.border,

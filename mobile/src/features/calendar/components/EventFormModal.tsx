@@ -10,14 +10,19 @@ import {
   ScrollView,
   Pressable,
   Switch,
-  Alert,
 } from 'react-native';
 import { SymbolView } from 'expo-symbols';
 import { useAppTheme } from '@/context/ThemeContext';
+import { useSnackbar } from '@/context/SnackbarContext';
 import { ThemedText } from '@/components/themed-text';
-import { ModalSheet, Input, Button } from '@/components/ui';
+import { ModalSheet, Input, Button, TimePickerField } from '@/components/ui';
 import { Typography } from '@/constants/typography';
 import { Spacing, Radius } from '@/constants/spacing';
+import {
+  isValidLocalISODate,
+  isValidHHMMTime,
+  validateTimeRangeOrder,
+} from '@/utils/dateTimeValidation';
 import { CalendarEventItem, EventFormData } from '../types';
 import { toLocalISODate } from '../services/calendarCalculations';
 import { EventDatePickerField } from './EventDatePickerField';
@@ -51,6 +56,7 @@ export function EventFormModal({
   defaultDate,
 }: EventFormModalProps) {
   const { colors, isDark } = useAppTheme();
+  const { showSnackbar } = useSnackbar();
 
   const [formData, setFormData] = useState<EventFormData>({
     title: '',
@@ -66,7 +72,12 @@ export function EventFormModal({
   });
 
   const [submitting, setSubmitting] = useState(false);
-  const [errors, setErrors] = useState<{ title?: string; startDate?: string }>({});
+  const [errors, setErrors] = useState<{
+    title?: string;
+    startDate?: string;
+    startTime?: string;
+    endTime?: string;
+  }>({});
 
   useEffect(() => {
     if (event) {
@@ -100,13 +111,39 @@ export function EventFormModal({
   }, [event, defaultDate, isOpen]);
 
   const validate = (): boolean => {
-    const errs: { title?: string; startDate?: string } = {};
+    const errs: {
+      title?: string;
+      startDate?: string;
+      startTime?: string;
+      endTime?: string;
+    } = {};
     if (!formData.title.trim()) {
       errs.title = 'Title is required';
     }
     if (!formData.startDate) {
       errs.startDate = 'Start date is required';
+    } else if (!isValidLocalISODate(formData.startDate)) {
+      errs.startDate = 'Please select a valid date';
     }
+
+    if (!formData.allDay) {
+      if (formData.startTime && !isValidHHMMTime(formData.startTime)) {
+        errs.startTime = 'Invalid start time';
+      }
+      if (formData.endTime && !isValidHHMMTime(formData.endTime)) {
+        errs.endTime = 'Invalid end time';
+      }
+      if (!errs.startTime && !errs.endTime) {
+        const range = validateTimeRangeOrder(formData.startTime, formData.endTime, {
+          requireStartWhenEndSet: true,
+        });
+        if (!range.valid) {
+          if (range.startError) errs.startTime = range.startError;
+          if (range.endError) errs.endTime = range.endError;
+        }
+      }
+    }
+
     setErrors(errs);
     return Object.keys(errs).length === 0;
   };
@@ -130,10 +167,11 @@ export function EventFormModal({
       });
       onClose();
     } catch (err: any) {
-      Alert.alert(
-        'Save Failed',
-        err?.message || 'Could not save calendar event. Please try again.'
-      );
+      showSnackbar({
+        variant: 'error',
+        title: 'Save Failed',
+        message: err?.message || 'Could not save calendar event. Please try again.',
+      });
     } finally {
       setSubmitting(false);
     }
@@ -231,19 +269,35 @@ export function EventFormModal({
         {!formData.allDay && (
           <View style={styles.timesRow}>
             <View style={styles.flexOne}>
-              <Input
-                label="Start Time (HH:mm)"
-                placeholder="10:00"
-                value={formData.startTime}
-                onChangeText={(val) => setFormData((prev) => ({ ...prev, startTime: val }))}
+              <TimePickerField
+                label="Start Time (Optional)"
+                placeholder="Start time"
+                compact
+                value={formData.startTime || ''}
+                onChange={(val) => {
+                  setFormData((prev) => ({ ...prev, startTime: val }));
+                  if (errors.startTime || errors.endTime) {
+                    setErrors((prev) => ({ ...prev, startTime: undefined, endTime: undefined }));
+                  }
+                }}
+                allowClear
+                error={errors.startTime}
               />
             </View>
             <View style={styles.flexOne}>
-              <Input
-                label="End Time (HH:mm)"
-                placeholder="11:00"
-                value={formData.endTime}
-                onChangeText={(val) => setFormData((prev) => ({ ...prev, endTime: val }))}
+              <TimePickerField
+                label="End Time (Optional)"
+                placeholder="End time"
+                compact
+                value={formData.endTime || ''}
+                onChange={(val) => {
+                  setFormData((prev) => ({ ...prev, endTime: val }));
+                  if (errors.endTime) {
+                    setErrors((prev) => ({ ...prev, endTime: undefined }));
+                  }
+                }}
+                allowClear
+                error={errors.endTime}
               />
             </View>
           </View>
@@ -273,6 +327,7 @@ export function EventFormModal({
                 <Pressable
                   key={cat}
                   onPress={() => setFormData((prev) => ({ ...prev, category: cat }))}
+                  hitSlop={{ top: 6, bottom: 6, left: 2, right: 2 }}
                   style={[
                     styles.categoryChip,
                     {
@@ -314,6 +369,7 @@ export function EventFormModal({
                 <Pressable
                   key={color}
                   onPress={() => setFormData((prev) => ({ ...prev, color }))}
+                  hitSlop={6}
                   style={[
                     styles.swatch,
                     { backgroundColor: color },
@@ -380,7 +436,7 @@ const styles = StyleSheet.create({
   },
   label: {
     fontSize: Typography.fontSize.xs,
-    fontWeight: Typography.fontWeight.medium,
+    fontFamily: Typography.fontFamilies.sansMedium,
     marginBottom: 4,
   },
   presetsRow: {
@@ -389,13 +445,15 @@ const styles = StyleSheet.create({
     marginTop: Spacing.one,
   },
   presetChip: {
+    minHeight: 36,
+    justifyContent: 'center',
     paddingHorizontal: Spacing.three,
-    paddingVertical: 5,
+    paddingVertical: 6,
     borderRadius: Radius.full,
   },
   presetText: {
     fontSize: Typography.fontSize.xs,
-    fontWeight: Typography.fontWeight.medium,
+    fontFamily: Typography.fontFamilies.sansMedium,
   },
   switchRow: {
     flexDirection: 'row',
@@ -411,7 +469,7 @@ const styles = StyleSheet.create({
   },
   switchLabel: {
     fontSize: Typography.fontSize.sm,
-    fontWeight: Typography.fontWeight.medium,
+    fontFamily: Typography.fontFamilies.sansMedium,
   },
   switchSub: {
     fontSize: Typography.fontSize.xs,
@@ -419,16 +477,20 @@ const styles = StyleSheet.create({
   },
   timesRow: {
     flexDirection: 'row',
-    gap: Spacing.three,
+    alignItems: 'flex-start',
+    gap: Spacing.two,
   },
   flexOne: {
     flex: 1,
+    minWidth: 0,
   },
   categoryScroll: {
     gap: Spacing.two,
     paddingVertical: Spacing.one,
   },
   categoryChip: {
+    minHeight: 36,
+    justifyContent: 'center',
     paddingHorizontal: Spacing.three,
     paddingVertical: 6,
     borderRadius: Radius.full,
@@ -444,9 +506,9 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   swatch: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     justifyContent: 'center',
     alignItems: 'center',
   },

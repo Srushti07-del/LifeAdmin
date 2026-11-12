@@ -11,7 +11,12 @@ import { ThemedText } from '@/components/themed-text';
 import { Colors } from '@/constants/colors';
 import { Typography } from '@/constants/typography';
 import { Spacing, Radius } from '@/constants/spacing';
-import { createShadow } from '@/constants/shadows';
+import {
+  CurrencyCode,
+  DEFAULT_CURRENCY,
+  formatCurrency,
+  resolveTransactionCurrency,
+} from '@/utils/currency';
 import { DocumentItem } from '../types';
 import {
   formatFileSize,
@@ -21,6 +26,7 @@ import {
 
 interface DocumentCardProps {
   document: DocumentItem;
+  preferredCurrency?: CurrencyCode;
   onPress: () => void;
   onOpen: () => void;
   onConvert?: () => void;
@@ -30,6 +36,7 @@ interface DocumentCardProps {
 
 export function DocumentCard({
   document,
+  preferredCurrency = DEFAULT_CURRENCY,
   onPress,
   onOpen,
   onConvert,
@@ -79,10 +86,12 @@ export function DocumentCard({
   const imgColor = isDark ? '#93C5FD' : '#2563EB';
   const imgBg = isDark ? 'rgba(59, 130, 246, 0.2)' : '#DBEAFE';
 
+  const chipAccentColor = isDark ? Colors.urgency.upcoming.darkText : colors.primaryDeep;
+  const deleteIconColor = isDark ? Colors.urgency.critical.darkText : Colors.urgency.critical.lightText;
+
   return (
-    <Pressable
-      onPress={onPress}
-      style={({ pressed }) => [
+    <View
+      style={[
         styles.cardContainer,
         {
           backgroundColor: colors.surface,
@@ -91,165 +100,175 @@ export function DocumentCard({
             : isProcessing
             ? Colors.urgency.dueSoon.accent
             : colors.border,
-          opacity: pressed ? 0.94 : 1,
         },
-        createShadow(isDark, 'card'),
       ]}
     >
-      {/* Top Header: File Icon, Name, Category & Action menu */}
-      <View style={styles.topRow}>
-        <View
-          style={[
-            styles.fileIconBox,
-            {
-              backgroundColor: isPdf ? pdfBg : isImage ? imgBg : colors.primarySoft,
-            },
-          ]}
-        >
-          <SymbolView
-            name={{
-              ios: isPdf ? 'doc.text.fill' : isImage ? 'photo.fill' : 'doc.fill',
-              android: isPdf ? 'description' : isImage ? 'image' : 'insert_drive_file',
-            }}
-            size={20}
-            tintColor={isPdf ? pdfColor : isImage ? imgColor : colors.primary}
-          />
-          <ThemedText
+      <Pressable
+        onPress={onPress}
+        style={({ pressed }) => [pressed && { opacity: 0.88 }]}
+        accessibilityRole="button"
+        accessibilityLabel={`Document ${document.originalName}, category ${document.category || 'General'}, ${statusInfo.label}`}
+        accessibilityHint="Opens document details and AI extraction"
+      >
+        {/* Top Header: File Icon, Name, Category & Status badge */}
+        <View style={styles.topRow}>
+          <View
             style={[
-              styles.fileExtLabel,
-              { color: isPdf ? pdfColor : isImage ? imgColor : colors.primary },
+              styles.fileIconBox,
+              {
+                backgroundColor: isPdf ? pdfBg : isImage ? imgBg : colors.primarySoft,
+              },
             ]}
           >
-            {fileBadgeLabel}
-          </ThemedText>
-        </View>
-
-        <View style={styles.nameContainer}>
-          <ThemedText
-            numberOfLines={1}
-            style={[styles.fileName, { color: colors.text }]}
-          >
-            {document.originalName}
-          </ThemedText>
-
-          <View style={styles.metaRow}>
-            {document.documentType ? (
-              <View
-                style={[
-                  styles.typeChip,
-                  { backgroundColor: colors.surfaceSecondary },
-                ]}
-              >
-                <ThemedText
-                  style={[styles.typeChipText, { color: colors.textSecondary }]}
-                >
-                  {document.documentType}
-                </ThemedText>
-              </View>
-            ) : null}
-
-            <View
+            <SymbolView
+              name={{
+                ios: isPdf ? 'doc.text.fill' : isImage ? 'photo.fill' : 'doc.fill',
+                android: isPdf ? 'description' : isImage ? 'image' : 'insert_drive_file',
+              }}
+              size={20}
+              tintColor={isPdf ? pdfColor : isImage ? imgColor : chipAccentColor}
+            />
+            <ThemedText
               style={[
-                styles.categoryChip,
-                { backgroundColor: colors.primarySoft },
+                styles.fileExtLabel,
+                { color: isPdf ? pdfColor : isImage ? imgColor : chipAccentColor },
               ]}
             >
-              <ThemedText style={[styles.categoryChipText, { color: colors.primary }]}>
-                {document.category || 'General'}
-              </ThemedText>
-            </View>
-          </View>
-        </View>
-
-        {/* Status Badge */}
-        <View
-          style={[
-            styles.statusBadge,
-            {
-              backgroundColor: statusInfo.bg,
-              borderColor: isFailed || isProcessing ? statusInfo.color : 'transparent',
-              borderWidth: isFailed || isProcessing ? 1 : 0,
-            },
-          ]}
-        >
-          <ThemedText style={[styles.statusText, { color: statusInfo.color }]}>
-            {statusInfo.label}
-          </ThemedText>
-        </View>
-      </View>
-
-      {/* AI Summary / Insights Preview if available */}
-      {document.aiExtracted?.summary ? (
-        <View
-          style={[
-            styles.summaryBox,
-            {
-              backgroundColor: colors.surfaceSecondary,
-              borderColor: colors.borderSubtle,
-            },
-          ]}
-        >
-          <View style={styles.summaryHeader}>
-            <SymbolView
-              name={{ ios: 'sparkles', android: 'auto_awesome' }}
-              size={14}
-              tintColor={colors.primary}
-            />
-            <ThemedText style={[styles.summaryTitle, { color: colors.primary }]}>
-              {document.aiExtracted.provider
-                ? `${document.aiExtracted.provider}`
-                : 'AI Insight'}
+              {fileBadgeLabel}
             </ThemedText>
           </View>
-          <ThemedText
-            numberOfLines={2}
-            style={[styles.summaryText, { color: colors.textSecondary }]}
+
+          <View style={styles.nameContainer}>
+            <ThemedText
+              numberOfLines={1}
+              style={[styles.fileName, { color: colors.text }]}
+            >
+              {document.originalName}
+            </ThemedText>
+
+            <View style={styles.metaRow}>
+              {document.documentType ? (
+                <View
+                  style={[
+                    styles.typeChip,
+                    { backgroundColor: colors.surfaceSecondary },
+                  ]}
+                >
+                  <ThemedText
+                    style={[styles.typeChipText, { color: colors.textSecondary }]}
+                  >
+                    {document.documentType}
+                  </ThemedText>
+                </View>
+              ) : null}
+
+              <View
+                style={[
+                  styles.categoryChip,
+                  { backgroundColor: colors.primarySoft },
+                ]}
+              >
+                <ThemedText style={[styles.categoryChipText, { color: chipAccentColor }]}>
+                  {document.category || 'General'}
+                </ThemedText>
+              </View>
+            </View>
+          </View>
+
+          {/* Status Badge */}
+          <View
+            style={[
+              styles.statusBadge,
+              {
+                backgroundColor: statusInfo.bg,
+                borderColor: isFailed || isProcessing ? statusInfo.color : 'transparent',
+                borderWidth: isFailed || isProcessing ? 1 : 0,
+              },
+            ]}
           >
-            {document.aiExtracted.summary}
-          </ThemedText>
+            <ThemedText style={[styles.statusText, { color: statusInfo.color }]}>
+              {statusInfo.label}
+            </ThemedText>
+          </View>
         </View>
-      ) : null}
 
-      {/* Extracted Key Dates & Amounts Pill Bar */}
-      {hasExtractedData ? (
-        <View style={styles.extractedBar}>
-          {firstDate && (
-            <View
-              style={[
-                styles.extractedPill,
-                { backgroundColor: dateBg },
-              ]}
-            >
+        {/* AI Summary / Insights Preview if available */}
+        {document.aiExtracted?.summary ? (
+          <View
+            style={[
+              styles.summaryBox,
+              {
+                backgroundColor: colors.surfaceSecondary,
+                borderColor: colors.borderSubtle,
+              },
+            ]}
+          >
+            <View style={styles.summaryHeader}>
               <SymbolView
-                name={{ ios: 'calendar', android: 'calendar_today' }}
-                size={12}
-                tintColor={dateColor}
+                name={{ ios: 'sparkles', android: 'auto_awesome' }}
+                size={14}
+                tintColor={colors.primary}
               />
-              <ThemedText style={[styles.extractedPillText, { color: dateColor }]}>
-                {firstDate.label || 'Date'}: {formatDocumentDate(firstDate.date)}
+              <ThemedText style={[styles.summaryTitle, { color: colors.primary }]}>
+                {document.aiExtracted.provider
+                  ? `${document.aiExtracted.provider}`
+                  : 'AI Insight'}
               </ThemedText>
             </View>
-          )}
-
-          {firstAmount && (
-            <View
-              style={[
-                styles.extractedPill,
-                { backgroundColor: amountBg },
-              ]}
+            <ThemedText
+              numberOfLines={2}
+              style={[styles.summaryText, { color: colors.textSecondary }]}
             >
-              <SymbolView
-                name={{ ios: 'creditcard', android: 'payments' }}
-                size={12}
-                tintColor={amountColor}
-              />
-              <ThemedText style={[styles.extractedPillText, { color: amountColor }]}>
-                {firstAmount.label || 'Amount'}: ₹{firstAmount.amount.toLocaleString('en-IN')}
-              </ThemedText>
-            </View>
-          )}
-        </View>
-      ) : null}
+              {document.aiExtracted.summary}
+            </ThemedText>
+          </View>
+        ) : null}
+
+        {/* Extracted Key Dates & Amounts Pill Bar */}
+        {hasExtractedData ? (
+          <View style={styles.extractedBar}>
+            {firstDate && (
+              <View
+                style={[
+                  styles.extractedPill,
+                  { backgroundColor: dateBg },
+                ]}
+              >
+                <SymbolView
+                  name={{ ios: 'calendar', android: 'calendar_today' }}
+                  size={12}
+                  tintColor={dateColor}
+                />
+                <ThemedText style={[styles.extractedPillText, { color: dateColor }]}>
+                  {firstDate.label || 'Date'}: {formatDocumentDate(firstDate.date)}
+                </ThemedText>
+              </View>
+            )}
+
+            {firstAmount && (
+              <View
+                style={[
+                  styles.extractedPill,
+                  { backgroundColor: amountBg },
+                ]}
+              >
+                <SymbolView
+                  name={{ ios: 'creditcard', android: 'payments' }}
+                  size={12}
+                  tintColor={amountColor}
+                />
+                <ThemedText style={[styles.extractedPillText, { color: amountColor }]}>
+                  {firstAmount.label || 'Amount'}:{' '}
+                  {formatCurrency(
+                    firstAmount.amount,
+                    resolveTransactionCurrency(firstAmount.currency, preferredCurrency)
+                  )}
+                </ThemedText>
+              </View>
+            )}
+          </View>
+        ) : null}
+      </Pressable>
 
       {/* Footer: Date, Size and Action Buttons */}
       <View
@@ -265,11 +284,11 @@ export function DocumentCard({
         <View style={styles.actionButtons}>
           {/* Quick Open File */}
           <Pressable
-            onPress={(e) => {
-              e.stopPropagation();
-              onOpen();
-            }}
+            onPress={onOpen}
             hitSlop={8}
+            accessibilityRole="button"
+            accessibilityLabel={`Open ${document.originalName}`}
+            accessibilityHint="Opens the document file"
             style={[
               styles.iconBtn,
               { backgroundColor: colors.surfaceSecondary },
@@ -285,11 +304,11 @@ export function DocumentCard({
           {/* Quick Convert to Task/Bill if data extracted */}
           {hasExtractedData && onConvert && (
             <Pressable
-              onPress={(e) => {
-                e.stopPropagation();
-                onConvert();
-              }}
+              onPress={onConvert}
               hitSlop={8}
+              accessibilityRole="button"
+              accessibilityLabel={`Create task or bill from ${document.originalName}`}
+              accessibilityHint="Converts extracted details into a task or bill"
               style={[
                 styles.iconBtn,
                 { backgroundColor: colors.primarySoft },
@@ -298,18 +317,18 @@ export function DocumentCard({
               <SymbolView
                 name={{ ios: 'sparkles', android: 'auto_awesome' }}
                 size={16}
-                tintColor={colors.primary}
+                tintColor={chipAccentColor}
               />
             </Pressable>
           )}
 
           {/* Edit Metadata */}
           <Pressable
-            onPress={(e) => {
-              e.stopPropagation();
-              onEdit();
-            }}
+            onPress={onEdit}
             hitSlop={8}
+            accessibilityRole="button"
+            accessibilityLabel={`Edit ${document.originalName}`}
+            accessibilityHint="Opens document metadata editor"
             style={[
               styles.iconBtn,
               { backgroundColor: colors.surfaceSecondary },
@@ -324,11 +343,11 @@ export function DocumentCard({
 
           {/* Delete */}
           <Pressable
-            onPress={(e) => {
-              e.stopPropagation();
-              onDelete();
-            }}
+            onPress={onDelete}
             hitSlop={8}
+            accessibilityRole="button"
+            accessibilityLabel={`Delete ${document.originalName}`}
+            accessibilityHint="Permanently removes this document"
             style={[
               styles.iconBtn,
               { backgroundColor: colors.surfaceSecondary },
@@ -337,12 +356,12 @@ export function DocumentCard({
             <SymbolView
               name={{ ios: 'trash', android: 'delete' }}
               size={16}
-              tintColor={Colors.urgency.critical.accent}
+              tintColor={deleteIconColor}
             />
           </Pressable>
         </View>
       </View>
-    </Pressable>
+    </View>
   );
 }
 
@@ -473,8 +492,8 @@ const styles = StyleSheet.create({
     gap: Spacing.one,
   },
   iconBtn: {
-    width: 34,
-    height: 34,
+    width: 38,
+    height: 38,
     borderRadius: Radius.md,
     alignItems: 'center',
     justifyContent: 'center',

@@ -1,7 +1,10 @@
 import { Platform, StyleSheet, Text, type TextProps } from 'react-native';
 
 import { ThemeColor } from '@/constants/theme';
-import { Typography } from '@/constants/typography';
+import {
+  Typography,
+  resolveInterTypographyOverride,
+} from '@/constants/typography';
 import { useTheme } from '@/hooks/use-theme';
 
 export type ThemedTextProps = TextProps & {
@@ -22,8 +25,17 @@ export type ThemedTextProps = TextProps & {
 
 export function ThemedText({ style, type = 'default', themeColor, ...rest }: ThemedTextProps) {
   const theme = useTheme();
+  const resolvedThemeColor = themeColor ?? (type === 'linkPrimary' ? 'primary' : 'text');
+  const fontOverride = style
+    ? resolveInterTypographyOverride(StyleSheet.flatten([styles[type], style]))
+    : null;
 
-  return <Text style={[{ color: theme[themeColor ?? 'text'] }, styles[type], style]} {...rest} />;
+  return (
+    <Text
+      style={[{ color: theme[resolvedThemeColor] }, styles[type], style, fontOverride]}
+      {...rest}
+    />
+  );
 }
 
 const styles = StyleSheet.create({
@@ -76,7 +88,6 @@ const styles = StyleSheet.create({
     fontFamily: Typography.fontFamilies.sansSemiBold,
     lineHeight: 24,
     fontSize: 14,
-    color: '#087E83',
   },
   code: {
     fontFamily: Typography.fontFamilies.mono,

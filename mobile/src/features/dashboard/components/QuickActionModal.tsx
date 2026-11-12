@@ -6,6 +6,8 @@
 import React, { useState } from 'react';
 import { View, StyleSheet, Pressable } from 'react-native';
 import { useAppTheme } from '@/context/ThemeContext';
+import { useAuth } from '@/context/AuthContext';
+import { useSnackbar } from '@/context/SnackbarContext';
 import { ThemedText } from '@/components/themed-text';
 import {
   ModalSheet,
@@ -16,6 +18,8 @@ import {
 import { Colors } from '@/constants/colors';
 import { Typography } from '@/constants/typography';
 import { Spacing, Radius } from '@/constants/spacing';
+import { getCurrencyInfo, normalizeCurrencyCode } from '@/utils/currency';
+import { toLocalISODate, toUtcMidnightIsoFromLocalDate } from '@/utils/dateTimeValidation';
 import { QuickActionType } from '../types';
 import {
   quickCreateTask,
@@ -38,6 +42,11 @@ export function QuickActionModal({
   onSuccess,
 }: QuickActionModalProps) {
   const { colors, isDark } = useAppTheme();
+  const { user } = useAuth();
+  const { showSnackbar } = useSnackbar();
+
+  const preferredCurrency = normalizeCurrencyCode(user?.preferredCurrency);
+  const currencyInfo = getCurrencyInfo(preferredCurrency);
 
   const [title, setTitle] = useState('');
   const [amount, setAmount] = useState('');
@@ -52,7 +61,7 @@ export function QuickActionModal({
     if (datePreset === 'tomorrow') d.setDate(d.getDate() + 1);
     else if (datePreset === '3days') d.setDate(d.getDate() + 3);
     else if (datePreset === 'week') d.setDate(d.getDate() + 7);
-    return d.toISOString();
+    return toUtcMidnightIsoFromLocalDate(toLocalISODate(d)) ?? d.toISOString();
   };
 
   const getMeta = () => {
@@ -129,7 +138,7 @@ export function QuickActionModal({
           name: title.trim(),
           amount: parseFloat(amount),
           dueDate: targetDate,
-          currency: '₹',
+          currency: preferredCurrency,
         });
       } else if (type === 'reminder') {
         await quickCreateReminder({ title: title.trim(), dueDate: targetDate });
@@ -137,11 +146,26 @@ export function QuickActionModal({
         await quickCreateAppointment({ title: title.trim(), date: targetDate });
       }
 
+      const createdTitle = title.trim();
+      const typeLabel =
+        type === 'bill'
+          ? 'Bill'
+          : type === 'reminder'
+            ? 'Reminder'
+            : type === 'appointment'
+              ? 'Appointment'
+              : 'Task';
+
       setTitle('');
       setAmount('');
       setDatePreset('today');
       onSuccess();
       onClose();
+      showSnackbar({
+        variant: 'success',
+        title: `${typeLabel} Created`,
+        message: `"${createdTitle}" added.`,
+      });
     } catch (err: any) {
       setErrorMsg(err?.message || 'Failed to create item');
     } finally {
@@ -191,7 +215,7 @@ export function QuickActionModal({
 
         {type === 'bill' && (
           <Input
-            label="Amount (₹ INR)"
+            label={`Amount (${currencyInfo.symbol} ${currencyInfo.code})`}
             value={amount}
             onChangeText={setAmount}
             placeholder="1450"
@@ -271,14 +295,14 @@ const styles = StyleSheet.create({
   },
   errorText: {
     fontSize: Typography.fontSize.xs,
-    fontWeight: Typography.fontWeight.medium,
+    fontFamily: Typography.fontFamilies.sansMedium,
   },
   fieldGroup: {
     marginBottom: Spacing.one,
   },
   fieldLabel: {
     fontSize: Typography.fontSize.xs,
-    fontWeight: Typography.fontWeight.semibold,
+    fontFamily: Typography.fontFamilies.sansSemiBold,
     marginBottom: Spacing.one + 2,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
@@ -298,7 +322,7 @@ const styles = StyleSheet.create({
   },
   presetText: {
     fontSize: 11,
-    fontWeight: Typography.fontWeight.semibold,
+    fontFamily: Typography.fontFamilies.sansSemiBold,
   },
 });
 

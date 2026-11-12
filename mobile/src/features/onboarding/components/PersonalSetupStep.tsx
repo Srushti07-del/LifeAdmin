@@ -81,11 +81,7 @@ export function PersonalSetupStep({
                 style={({ pressed }) => [
                   styles.domainChip,
                   {
-                    backgroundColor: isSelected
-                      ? isDark
-                        ? 'rgba(22, 143, 145, 0.25)'
-                        : '#E6F4FE'
-                      : colors.surface,
+                    backgroundColor: isSelected ? colors.primarySoft : colors.surface,
                     borderColor: isSelected ? colors.primary : colors.border,
                     borderWidth: isSelected ? 1.5 : 1.2,
                   },
@@ -96,7 +92,7 @@ export function PersonalSetupStep({
                 accessibilityState={{ checked: isSelected }}
               >
                 <SymbolView
-                  name={{ ios: 'circle.fill', android: domain.icon, web: domain.icon } as any}
+                  name={{ ios: domain.iosIcon, android: domain.icon, web: domain.icon } as any}
                   size={16}
                   tintColor={isSelected ? colors.primary : colors.textSecondary}
                 />
@@ -117,11 +113,7 @@ export function PersonalSetupStep({
                   style={[
                     styles.checkCircle,
                     {
-                      borderColor: isSelected
-                        ? colors.primary
-                        : isDark
-                        ? colors.border
-                        : '#CBD5E1',
+                      borderColor: isSelected ? colors.primary : colors.border,
                       backgroundColor: isSelected ? colors.primary : 'transparent',
                     },
                   ]}
@@ -176,8 +168,8 @@ export function PersonalSetupStep({
           <Switch
             value={preferences.notificationsEnabled}
             onValueChange={(val) => onUpdatePreferences({ notificationsEnabled: val })}
-            thumbColor={preferences.notificationsEnabled ? colors.primary : '#94A3B8'}
-            trackColor={{ false: isDark ? '#334155' : '#CBD5E1', true: colors.primarySoft }}
+            thumbColor={preferences.notificationsEnabled ? colors.primary : colors.textMuted}
+            trackColor={{ false: colors.border, true: colors.primarySoft }}
           />
         </View>
       </View>
@@ -204,11 +196,7 @@ export function PersonalSetupStep({
                 style={({ pressed }) => [
                   styles.currencyPill,
                   {
-                    backgroundColor: isSelected
-                      ? isDark
-                        ? 'rgba(22, 143, 145, 0.25)'
-                        : '#E6F4FE'
-                      : colors.surface,
+                    backgroundColor: isSelected ? colors.primarySoft : colors.surface,
                     borderColor: isSelected ? colors.primary : colors.border,
                   },
                   pressed && { opacity: 0.8 },

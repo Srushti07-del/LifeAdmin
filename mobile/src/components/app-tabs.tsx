@@ -1,9 +1,18 @@
+import { useWindowDimensions } from 'react-native';
 import { NativeTabs } from 'expo-router/native-tabs';
+import { AdaptiveTabShell } from '@/components/AdaptiveTabShell';
 import { Typography } from '@/constants/typography';
 import { useAppTheme } from '@/context/ThemeContext';
+import { getNavigationLayoutMode } from '@/utils/navigationLayout';
 
 export default function AppTabs() {
   const { colors, isDark } = useAppTheme();
+  const { width } = useWindowDimensions();
+  const layoutMode = getNavigationLayoutMode(width);
+
+  if (layoutMode !== 'phone-tabs') {
+    return <AdaptiveTabShell layoutMode={layoutMode} />;
+  }
 
   return (
     <NativeTabs
@@ -26,28 +35,22 @@ export default function AppTabs() {
       <NativeTabs.Trigger name="index">
         <NativeTabs.Trigger.Label>Home</NativeTabs.Trigger.Label>
         <NativeTabs.Trigger.Icon
-          src={require('@/assets/images/tabIcons/home.png')}
-          renderingMode="template"
           md="home"
-          sf="house"
+          sf={{ default: 'house', selected: 'house.fill' }}
         />
       </NativeTabs.Trigger>
 
       <NativeTabs.Trigger name="tasks">
         <NativeTabs.Trigger.Label>Tasks</NativeTabs.Trigger.Label>
         <NativeTabs.Trigger.Icon
-          src={require('@/assets/images/tabIcons/explore.png')}
-          renderingMode="template"
           md="checklist"
-          sf="checklist"
+          sf={{ default: 'checkmark.square', selected: 'checkmark.square.fill' }}
         />
       </NativeTabs.Trigger>
 
       <NativeTabs.Trigger name="calendar">
         <NativeTabs.Trigger.Label>Calendar</NativeTabs.Trigger.Label>
         <NativeTabs.Trigger.Icon
-          src={require('@/assets/images/tabIcons/explore.png')}
-          renderingMode="template"
           md="calendar_month"
           sf="calendar"
         />
@@ -56,20 +59,16 @@ export default function AppTabs() {
       <NativeTabs.Trigger name="bills">
         <NativeTabs.Trigger.Label>Bills</NativeTabs.Trigger.Label>
         <NativeTabs.Trigger.Icon
-          src={require('@/assets/images/tabIcons/explore.png')}
-          renderingMode="template"
           md="receipt_long"
-          sf="creditcard"
+          sf={{ default: 'creditcard', selected: 'creditcard.fill' }}
         />
       </NativeTabs.Trigger>
 
       <NativeTabs.Trigger name="more">
         <NativeTabs.Trigger.Label>More</NativeTabs.Trigger.Label>
         <NativeTabs.Trigger.Icon
-          src={require('@/assets/images/tabIcons/explore.png')}
-          renderingMode="template"
-          md="more_horiz"
-          sf="ellipsis"
+          md="pending"
+          sf={{ default: 'ellipsis.circle', selected: 'ellipsis.circle.fill' }}
         />
       </NativeTabs.Trigger>
     </NativeTabs>

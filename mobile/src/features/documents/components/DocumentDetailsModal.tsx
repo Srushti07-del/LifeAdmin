@@ -16,11 +16,18 @@ import {
 import * as WebBrowser from 'expo-web-browser';
 import { SymbolView } from 'expo-symbols';
 import { useAppTheme } from '@/context/ThemeContext';
+import { useSnackbar } from '@/context/SnackbarContext';
 import { ThemedText } from '@/components/themed-text';
 import { ModalSheet, Button, getButtonForegroundColor } from '@/components/ui';
 import { Colors } from '@/constants/colors';
 import { Typography } from '@/constants/typography';
 import { Spacing, Radius } from '@/constants/spacing';
+import {
+  CurrencyCode,
+  DEFAULT_CURRENCY,
+  formatCurrency,
+  resolveTransactionCurrency,
+} from '@/utils/currency';
 import { DocumentItem } from '../types';
 import {
   formatFileSize,
@@ -32,11 +39,17 @@ import { documentService } from '../services/documentService';
 export interface DocumentDetailsModalProps {
   isOpen: boolean;
   document: DocumentItem | null;
+  preferredCurrency?: CurrencyCode;
   onClose: () => void;
   onEdit: (doc: DocumentItem) => void;
   onDelete: (id: string) => void;
   onConvertToTask: (doc: DocumentItem, date?: string) => void;
-  onConvertToBill: (doc: DocumentItem, amount?: number, date?: string) => void;
+  onConvertToBill: (
+    doc: DocumentItem,
+    amount?: number,
+    date?: string,
+    currency?: CurrencyCode
+  ) => void;
   onConvertToReminder: (doc: DocumentItem, date?: string) => void;
   onReExtracted?: (updatedDoc: DocumentItem) => void;
 }
@@ -44,6 +57,7 @@ export interface DocumentDetailsModalProps {
 export function DocumentDetailsModal({
   isOpen,
   document,
+  preferredCurrency = DEFAULT_CURRENCY,
   onClose,
   onEdit,
   onDelete,
@@ -53,6 +67,7 @@ export function DocumentDetailsModal({
   onReExtracted,
 }: DocumentDetailsModalProps) {
   const { colors, isDark } = useAppTheme();
+  const { showSnackbar } = useSnackbar();
   const [isReExtracting, setIsReExtracting] = useState<boolean>(false);
 
   if (!document) return null;
@@ -80,7 +95,11 @@ export function DocumentDetailsModal({
       await WebBrowser.openBrowserAsync(downloadUrl);
     } catch (err: any) {
       console.warn('Error opening document:', err);
-      Alert.alert('Cannot Open Document', 'Unable to launch document preview.');
+      showSnackbar({
+        variant: 'error',
+        title: 'Cannot Open Document',
+        message: 'Unable to launch document preview.',
+      });
     }
   };
 
@@ -91,10 +110,18 @@ export function DocumentDetailsModal({
       if (onReExtracted) {
         onReExtracted(updated);
       }
-      Alert.alert('Analysis Complete', 'Document data has been re-extracted.');
+      showSnackbar({
+        variant: 'success',
+        title: 'Analysis Complete',
+        message: 'Document data has been re-extracted.',
+      });
     } catch (err: any) {
       console.warn('Re-extract error:', err);
-      Alert.alert('Re-extraction Failed', err?.message || 'Unable to re-process document.');
+      showSnackbar({
+        variant: 'error',
+        title: 'Re-extraction Failed',
+        message: err?.message || 'Unable to re-process document.',
+      });
     } finally {
       setIsReExtracting(false);
     }
@@ -134,6 +161,8 @@ export function DocumentDetailsModal({
           <Pressable
             onPress={handleOpenFile}
             hitSlop={6}
+            accessibilityRole="button"
+            accessibilityLabel={`View or preview ${document.originalName}`}
             style={({ pressed }) => [
               styles.actionPill,
               {
@@ -158,6 +187,8 @@ export function DocumentDetailsModal({
               onEdit(document);
             }}
             hitSlop={6}
+            accessibilityRole="button"
+            accessibilityLabel={`Edit ${document.originalName} metadata`}
             style={({ pressed }) => [
               styles.actionPill,
               {
@@ -181,6 +212,8 @@ export function DocumentDetailsModal({
           <Pressable
             onPress={handleDeletePrompt}
             hitSlop={6}
+            accessibilityRole="button"
+            accessibilityLabel={`Delete ${document.originalName}`}
             style={({ pressed }) => [
               styles.actionPill,
               {
@@ -342,6 +375,8 @@ export function DocumentDetailsModal({
                   <Pressable
                     onPress={() => onConvertToTask(document, item.date)}
                     hitSlop={6}
+                    accessibilityRole="button"
+                    accessibilityLabel={`Create task from ${item.label || 'important date'}, ${formatDocumentDate(item.date)}`}
                     style={[styles.smallConvertBtn, { backgroundColor: dateBg }]}
                   >
                     <ThemedText style={[styles.smallConvertBtnText, { color: dateColor }]}>
@@ -352,6 +387,8 @@ export function DocumentDetailsModal({
                   <Pressable
                     onPress={() => onConvertToReminder(document, item.date)}
                     hitSlop={6}
+                    accessibilityRole="button"
+                    accessibilityLabel={`Create reminder from ${item.label || 'important date'}, ${formatDocumentDate(item.date)}`}
                     style={[styles.smallConvertBtn, { backgroundColor: dateBg }]}
                   >
                     <ThemedText style={[styles.smallConvertBtnText, { color: dateColor }]}>
@@ -379,31 +416,42 @@ export function DocumentDetailsModal({
               EXTRACTED AMOUNTS & CHARGES
             </ThemedText>
 
-            {amounts.map((item, idx) => (
-              <View
-                key={`amt-${idx}`}
-                style={[styles.extractedRow, { borderBottomColor: colors.borderSubtle }]}
-              >
-                <View style={{ flex: 1 }}>
-                  <ThemedText style={[styles.extractedRowLabel, { color: colors.text }]}>
-                    {item.label || 'Amount Due'}
-                  </ThemedText>
-                  <ThemedText style={[styles.extractedRowValue, { color: amountColor }]}>
-                    ₹{item.amount.toLocaleString('en-IN')}
-                  </ThemedText>
-                </View>
-
-                <Pressable
-                  onPress={() => onConvertToBill(document, item.amount)}
-                  hitSlop={6}
-                  style={[styles.smallConvertBtn, { backgroundColor: amountBg }]}
+            {amounts.map((item, idx) => {
+              const resolvedAmtCurrency = resolveTransactionCurrency(
+                item.currency,
+                preferredCurrency
+              );
+              const formattedAmt = formatCurrency(item.amount, resolvedAmtCurrency);
+              return (
+                <View
+                  key={`amt-${idx}`}
+                  style={[styles.extractedRow, { borderBottomColor: colors.borderSubtle }]}
                 >
-                  <ThemedText style={[styles.smallConvertBtnText, { color: amountColor }]}>
-                    + Create Bill
-                  </ThemedText>
-                </Pressable>
-              </View>
-            ))}
+                  <View style={{ flex: 1 }}>
+                    <ThemedText style={[styles.extractedRowLabel, { color: colors.text }]}>
+                      {item.label || 'Amount Due'}
+                    </ThemedText>
+                    <ThemedText style={[styles.extractedRowValue, { color: amountColor }]}>
+                      {formattedAmt}
+                    </ThemedText>
+                  </View>
+
+                  <Pressable
+                    onPress={() =>
+                      onConvertToBill(document, item.amount, undefined, resolvedAmtCurrency)
+                    }
+                    hitSlop={6}
+                    accessibilityRole="button"
+                    accessibilityLabel={`Create bill for ${item.label || 'amount due'}, ${formattedAmt}`}
+                    style={[styles.smallConvertBtn, { backgroundColor: amountBg }]}
+                  >
+                    <ThemedText style={[styles.smallConvertBtnText, { color: amountColor }]}>
+                      + Create Bill
+                    </ThemedText>
+                  </Pressable>
+                </View>
+              );
+            })}
           </View>
         )}
 
@@ -472,6 +520,8 @@ const styles = StyleSheet.create({
   actionPill: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: 40,
     gap: 6,
     paddingHorizontal: Spacing.four,
     paddingVertical: 8,
@@ -571,8 +621,10 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   smallConvertBtn: {
-    paddingHorizontal: 8,
-    paddingVertical: 5,
+    minHeight: 36,
+    justifyContent: 'center',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
     borderRadius: Radius.sm,
   },
   smallConvertBtnText: {

@@ -69,9 +69,12 @@ export function BillCard({
     ? bill.recurrence.type.charAt(0).toUpperCase() + bill.recurrence.type.slice(1)
     : null;
 
+  const billTitle = bill.name || bill.title || 'Untitled Bill';
+  const recurrenceFg = isDark ? Colors.urgency.upcoming.darkText : colors.primaryDeep;
+  const cardAccessibilityLabel = `Bill ${billTitle}, ${formatCurrency(bill.amount, bill.currency)}, ${status.label}`;
+
   return (
     <Card
-      onPress={() => onPress?.(bill)}
       style={[
         styles.card,
         compact && styles.compactCard,
@@ -86,104 +89,114 @@ export function BillCard({
         },
         style,
       ]}
-      accessibilityRole="button"
-      accessibilityLabel={`Bill ${bill.name || bill.title}, ${formatCurrency(bill.amount, bill.currency)}, ${status.label}`}
     >
       <View style={[styles.content, compact && styles.compactContent]}>
-        {/* Top Row: Provider/Category and Status Badge */}
-        <View style={styles.topRow}>
-          <View style={styles.metaRow}>
-            <View
-              style={[
-                styles.categoryChip,
-                { backgroundColor: colors.surfaceSecondary },
-              ]}
-            >
-              <ThemedText
-                style={[styles.categoryText, { color: colors.textSecondary }]}
-                numberOfLines={1}
-              >
-                {bill.category || 'Finance'}
-              </ThemedText>
-            </View>
-
-            {!compact && recurrenceLabel && (
+        <Pressable
+          onPress={onPress ? () => onPress(bill) : undefined}
+          disabled={!onPress}
+          style={({ pressed }) => [
+            { gap: compact ? Spacing.two + 2 : Spacing.three },
+            pressed && onPress && { opacity: 0.88 },
+          ]}
+          accessibilityRole={onPress ? 'button' : undefined}
+          accessibilityLabel={cardAccessibilityLabel}
+          accessibilityHint={onPress ? 'Opens bill details' : undefined}
+        >
+          {/* Top Row: Provider/Category and Status Badge */}
+          <View style={styles.topRow}>
+            <View style={styles.metaRow}>
               <View
                 style={[
-                  styles.recurrenceChip,
-                  { backgroundColor: colors.primarySoft },
+                  styles.categoryChip,
+                  { backgroundColor: colors.surfaceSecondary },
                 ]}
               >
-                <SymbolView
-                  name={{ ios: 'arrow.clockwise', android: 'autorenew', web: 'autorenew' }}
-                  size={11}
-                  tintColor={colors.primary}
-                />
-                <ThemedText style={[styles.recurrenceText, { color: colors.primary }]}>
-                  {recurrenceLabel}
+                <ThemedText
+                  style={[styles.categoryText, { color: colors.textSecondary }]}
+                  numberOfLines={1}
+                >
+                  {bill.category || 'Finance'}
                 </ThemedText>
               </View>
-            )}
+
+              {!compact && recurrenceLabel && (
+                <View
+                  style={[
+                    styles.recurrenceChip,
+                    { backgroundColor: colors.primarySoft },
+                  ]}
+                >
+                  <SymbolView
+                    name={{ ios: 'arrow.clockwise', android: 'autorenew', web: 'autorenew' }}
+                    size={11}
+                    tintColor={recurrenceFg}
+                  />
+                  <ThemedText style={[styles.recurrenceText, { color: recurrenceFg }]}>
+                    {recurrenceLabel}
+                  </ThemedText>
+                </View>
+              )}
+            </View>
+
+            <UrgencyTag
+              urgency={mapUrgencyType(status.key)}
+              label={status.label}
+            />
           </View>
 
-          <UrgencyTag
-            urgency={mapUrgencyType(status.key)}
-            label={status.label}
-          />
-        </View>
-
-        {/* Main Body: Bill Title & Amount */}
-        <View style={compact ? styles.compactMain : styles.mainRow}>
-          <View style={styles.titleCol}>
-            <ThemedText
-              style={[
-                styles.billName,
-                compact && styles.compactBillName,
-                {
-                  color: isPaid ? colors.textSecondary : colors.text,
-                  textDecorationLine: isPaid ? 'line-through' : 'none',
-                },
-              ]}
-              numberOfLines={compact ? 2 : 1}
-            >
-              {bill.name || bill.title || 'Untitled Bill'}
-            </ThemedText>
-
-            {Boolean(bill.provider) && (
+          {/* Main Body: Bill Title & Amount */}
+          <View style={compact ? styles.compactMain : styles.mainRow}>
+            <View style={styles.titleCol}>
               <ThemedText
-                style={[styles.providerText, { color: colors.textSecondary }]}
-                numberOfLines={1}
+                style={[
+                  styles.billName,
+                  compact && styles.compactBillName,
+                  {
+                    color: isPaid ? colors.textSecondary : colors.text,
+                    textDecorationLine: isPaid ? 'line-through' : 'none',
+                  },
+                ]}
+                numberOfLines={compact ? 2 : 1}
               >
-                {bill.provider}
+                {billTitle}
               </ThemedText>
-            )}
-          </View>
 
-          <View style={compact ? styles.compactAmountCol : styles.amountCol}>
-            <ThemedText
-              style={[
-                styles.amountText,
-                compact && styles.compactAmountText,
-                {
-                  color: isPaid
-                    ? colors.textSecondary
-                    : status.key === 'overdue'
-                    ? isDark
-                      ? Colors.urgency.critical.darkText
-                      : Colors.urgency.critical.lightText
-                    : colors.text,
-                },
-              ]}
-            >
-              {formatCurrency(bill.amount, bill.currency)}
-            </ThemedText>
-            {compact && recurrenceLabel ? (
-              <ThemedText style={[styles.compactRecurrence, { color: colors.primary }]}>
-                {recurrenceLabel}
+              {Boolean(bill.provider) && (
+                <ThemedText
+                  style={[styles.providerText, { color: colors.textSecondary }]}
+                  numberOfLines={1}
+                >
+                  {bill.provider}
+                </ThemedText>
+              )}
+            </View>
+
+            <View style={compact ? styles.compactAmountCol : styles.amountCol}>
+              <ThemedText
+                style={[
+                  styles.amountText,
+                  compact && styles.compactAmountText,
+                  {
+                    color: isPaid
+                      ? colors.textSecondary
+                      : status.key === 'overdue'
+                      ? isDark
+                        ? Colors.urgency.critical.darkText
+                        : Colors.urgency.critical.lightText
+                      : colors.text,
+                  },
+                ]}
+              >
+                {formatCurrency(bill.amount, bill.currency)}
               </ThemedText>
-            ) : null}
+              {compact && recurrenceLabel ? (
+                <ThemedText style={[styles.compactRecurrence, { color: recurrenceFg }]}>
+                  {recurrenceLabel}
+                </ThemedText>
+              ) : null}
+            </View>
           </View>
-        </View>
+        </Pressable>
 
         {/* Bottom Row: Due Date & Action Button */}
         <View
@@ -210,11 +223,15 @@ export function BillCard({
           </View>
 
           <Pressable
-            onPress={(e) => {
-              e.stopPropagation();
-              onTogglePaid?.(bill);
-            }}
+            onPress={() => onTogglePaid?.(bill)}
             disabled={isActionLoading}
+            hitSlop={8}
+            accessibilityRole="button"
+            accessibilityLabel={
+              isPaid ? `Mark ${billTitle} as unpaid` : `Mark ${billTitle} as paid`
+            }
+            accessibilityHint={isPaid ? 'Reverts paid status' : 'Records bill payment'}
+            accessibilityState={{ disabled: isActionLoading, busy: isActionLoading }}
             style={({ pressed }) => [
               styles.actionButton,
               compact && styles.compactActionButton,
@@ -226,7 +243,6 @@ export function BillCard({
               },
               pressed && { opacity: 0.8 },
             ]}
-            hitSlop={6}
           >
             {isActionLoading ? (
               <ActivityIndicator
@@ -389,7 +405,7 @@ const styles = StyleSheet.create({
     borderRadius: Radius.lg,
     borderWidth: 1,
     minWidth: 90,
-    minHeight: 34,
+    minHeight: 38,
     alignItems: 'center',
     justifyContent: 'center',
   },

@@ -116,7 +116,7 @@ const styles = StyleSheet.create({
     padding: 3,
     borderRadius: Radius.lg,
     borderWidth: 1,
-    height: 38,
+    height: 44,
     width: '100%',
   },
   tab: {

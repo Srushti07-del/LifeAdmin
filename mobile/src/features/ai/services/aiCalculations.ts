@@ -4,7 +4,14 @@
  */
 
 import { ProposedAction, ActionType } from '../types';
-import { formatCurrency } from '../../../utils/currency';
+import {
+  CurrencyCode,
+  DEFAULT_CURRENCY,
+  formatCurrency,
+  resolveTransactionCurrency,
+  tryNormalizeCurrencyCode,
+} from '../../../utils/currency';
+import { isValidLocalISODate, isValidHHMMTime } from '../../../utils/dateTimeValidation';
 
 export const SUGGESTED_PROMPTS = [
   'What should I focus on today?',
@@ -128,7 +135,13 @@ export function validateProposedAction(action: Partial<ProposedAction>): {
     errors.push('Amount must be a non-negative number.');
   }
 
-  if (action.dueTime && !/^\d{2}:\d{2}$/.test(action.dueTime)) {
+  const dateValue = action.dueDate || action.date;
+  if (dateValue && !isValidLocalISODate(dateValue)) {
+    errors.push('Date must be a valid calendar date in YYYY-MM-DD format.');
+  }
+
+  const timeValue = action.dueTime || action.time;
+  if (timeValue && !isValidHHMMTime(timeValue)) {
     errors.push('Time must be in HH:mm 24-hour format.');
   }
 
@@ -139,9 +152,33 @@ export function validateProposedAction(action: Partial<ProposedAction>): {
 }
 
 /**
+ * Ensures any financial AI action carries a normalized ISO currency code (never a symbol).
+ */
+export function normalizeProposedActionCurrency(
+  action: ProposedAction,
+  preferredCurrency: string = DEFAULT_CURRENCY
+): ProposedAction {
+  const normalizedExplicit = action.currency
+    ? tryNormalizeCurrencyCode(action.currency)
+    : undefined;
+
+  if (action.type !== 'bill' && action.amount == null && !normalizedExplicit) {
+    return action;
+  }
+
+  return {
+    ...action,
+    currency: resolveTransactionCurrency(normalizedExplicit, preferredCurrency),
+  };
+}
+
+/**
  * Formats readable subtitle summary for an action
  */
-export function formatActionSubtitle(action: ProposedAction): string {
+export function formatActionSubtitle(
+  action: ProposedAction,
+  preferredCurrency: CurrencyCode = DEFAULT_CURRENCY
+): string {
   const parts: string[] = [];
 
   const date = action.dueDate || action.date;
@@ -155,7 +192,8 @@ export function formatActionSubtitle(action: ProposedAction): string {
   }
 
   if (action.amount != null && !isNaN(action.amount)) {
-    parts.push(formatCurrency(action.amount, action.currency || '₹'));
+    const currency = resolveTransactionCurrency(action.currency, preferredCurrency);
+    parts.push(formatCurrency(action.amount, currency));
   }
 
   if (action.priority) {

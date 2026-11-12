@@ -17,15 +17,16 @@ import {
   StyleSheet,
   Pressable,
   TextInput,
-  Alert,
   Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { SymbolView } from 'expo-symbols';
 import { useAppTheme } from '@/context/ThemeContext';
 import { useAuth } from '@/context/AuthContext';
+import { useSnackbar, useSnackbarModalHost } from '@/context/SnackbarContext';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
+import { SnackbarViewport } from '@/components/ui/Snackbar';
 import { getButtonForegroundColor } from '@/components/ui/Button';
 import { Colors } from '@/constants/colors';
 import { Typography } from '@/constants/typography';
@@ -47,6 +48,8 @@ export function CompanionSanctuaryModal({
 }: CompanionSanctuaryModalProps) {
   const { colors, isDark } = useAppTheme();
   const { user } = useAuth();
+  const { showSnackbar } = useSnackbar();
+  const modalHostId = useSnackbarModalHost(visible);
 
   const [companionState, setCompanionState] = useState<CompanionState>({
     activeId: 'aura',
@@ -95,7 +98,11 @@ export function CompanionSanctuaryModal({
   const handleSaveName = async () => {
     const trimmed = nameInput.trim();
     if (!trimmed) {
-      Alert.alert('Invalid Name', 'Companion name cannot be empty.');
+      showSnackbar({
+        variant: 'warning',
+        title: 'Invalid Name',
+        message: 'Companion name cannot be empty.',
+      });
       return;
     }
 
@@ -108,6 +115,11 @@ export function CompanionSanctuaryModal({
     setCompanionState(updated);
     setEditingName(false);
     await companionService.saveCompanionState(userId, updated, true);
+    showSnackbar({
+      variant: 'success',
+      title: 'Name Updated',
+      message: `Your companion is now named ${trimmed}.`,
+    });
   };
 
   const handleSwitchCompanion = async (companionId: string) => {
@@ -125,10 +137,11 @@ export function CompanionSanctuaryModal({
     setSelectedDetailCompanion(null);
 
     await companionService.saveCompanionState(userId, updated, true);
-    Alert.alert(
-      'Companion Adopted',
-      `${target.name} is now your active LifeBuddy companion!`
-    );
+    showSnackbar({
+      variant: 'success',
+      title: 'Companion Adopted',
+      message: `${target.name} is now your active LifeBuddy companion.`,
+    });
   };
 
   return (
@@ -193,7 +206,6 @@ export function CompanionSanctuaryModal({
             <View
               style={[
                 styles.spotlightCard,
-                createShadow(isDark, 'card'),
                 {
                   backgroundColor: colors.surface,
                   borderColor: colors.border,
@@ -216,7 +228,16 @@ export function CompanionSanctuaryModal({
                     },
                   ]}
                 >
-                  <ThemedText style={[styles.levelPillText, { color: colors.primary }]}>
+                  <ThemedText
+                    style={[
+                      styles.levelPillText,
+                      {
+                        color: isDark
+                          ? Colors.urgency.upcoming.darkText
+                          : colors.primaryDeep,
+                      },
+                    ]}
+                  >
                     Level {companionState.level} · {stage}
                   </ThemedText>
                 </View>
@@ -233,6 +254,7 @@ export function CompanionSanctuaryModal({
                     <TextInput
                       value={nameInput}
                       onChangeText={setNameInput}
+                      accessibilityLabel="Companion name"
                       style={[
                         styles.nameInput,
                         {
@@ -250,6 +272,8 @@ export function CompanionSanctuaryModal({
                       onPress={handleSaveName}
                       style={[styles.saveNameBtn, { backgroundColor: colors.primary }]}
                       hitSlop={6}
+                      accessibilityRole="button"
+                      accessibilityLabel="Save companion name"
                     >
                       <SymbolView
                         name={{ ios: 'checkmark', android: 'check', web: 'check' }}
@@ -270,6 +294,8 @@ export function CompanionSanctuaryModal({
                         { backgroundColor: colors.surfaceSecondary },
                       ]}
                       hitSlop={8}
+                      accessibilityRole="button"
+                      accessibilityLabel="Rename companion"
                     >
                       <SymbolView
                         name={{ ios: 'pencil', android: 'edit', web: 'edit' }}
@@ -311,6 +337,9 @@ export function CompanionSanctuaryModal({
                   </ThemedText>
                 </View>
                 <View
+                  accessibilityRole="progressbar"
+                  accessibilityLabel="Companion growth progress"
+                  accessibilityValue={{ min: 0, max: 200, now: xpInCurrentLevel }}
                   style={[
                     styles.progressBarTrack,
                     { backgroundColor: isDark ? colors.surfaceSecondary : colors.border },
@@ -402,7 +431,6 @@ export function CompanionSanctuaryModal({
                     key={companion.id}
                     style={[
                       styles.companionCard,
-                      createShadow(isDark, 'card'),
                       {
                         backgroundColor: colors.surface,
                         borderColor: isActive ? colors.primary : colors.border,
@@ -454,6 +482,8 @@ export function CompanionSanctuaryModal({
                     <View style={styles.cardActionsRow}>
                       <Pressable
                         onPress={() => setSelectedDetailCompanion(companion)}
+                        accessibilityRole="button"
+                        accessibilityLabel={`View details for ${companion.name}`}
                         style={({ pressed }) => [
                           styles.actionBtn,
                           styles.detailsBtn,
@@ -478,6 +508,8 @@ export function CompanionSanctuaryModal({
                       {!isActive && (
                         <Pressable
                           onPress={() => handleSwitchCompanion(companion.id)}
+                          accessibilityRole="button"
+                          accessibilityLabel={`Adopt ${companion.name}`}
                           style={({ pressed }) => [
                             styles.actionBtn,
                             styles.adoptBtn,
@@ -546,11 +578,14 @@ export function CompanionSanctuaryModal({
               animationType="fade"
               onRequestClose={() => setSelectedDetailCompanion(null)}
             >
-              <Pressable
-                style={styles.detailOverlay}
-                onPress={() => setSelectedDetailCompanion(null)}
-              >
+              <View style={styles.detailOverlay}>
                 <Pressable
+                  style={StyleSheet.absoluteFill}
+                  onPress={() => setSelectedDetailCompanion(null)}
+                  accessibilityRole="button"
+                  accessibilityLabel="Dismiss companion details"
+                />
+                <View
                   style={[
                     styles.detailCard,
                     createShadow(isDark, 'modal'),
@@ -559,7 +594,6 @@ export function CompanionSanctuaryModal({
                       borderColor: colors.border,
                     },
                   ]}
-                  onPress={(e) => e.stopPropagation()}
                 >
                   <View style={styles.detailAvatarWrap}>
                     <CompanionAvatar id={selectedDetailCompanion.id} size="xl" />
@@ -601,6 +635,8 @@ export function CompanionSanctuaryModal({
                   <View style={styles.detailActionsRow}>
                     <Pressable
                       onPress={() => setSelectedDetailCompanion(null)}
+                      accessibilityRole="button"
+                      accessibilityLabel={`Close ${selectedDetailCompanion.name} details`}
                       style={[
                         styles.detailCloseBtn,
                         {
@@ -617,6 +653,8 @@ export function CompanionSanctuaryModal({
                     {selectedDetailCompanion.id !== companionState.activeId && (
                       <Pressable
                         onPress={() => handleSwitchCompanion(selectedDetailCompanion.id)}
+                        accessibilityRole="button"
+                        accessibilityLabel={`Make ${selectedDetailCompanion.name} your active companion`}
                         style={[styles.detailAdoptBtn, { backgroundColor: colors.primary }]}
                       >
                         <ThemedText
@@ -630,11 +668,12 @@ export function CompanionSanctuaryModal({
                       </Pressable>
                     )}
                   </View>
-                </Pressable>
-              </Pressable>
+                </View>
+              </View>
             </Modal>
           )}
         </SafeAreaView>
+        <SnackbarViewport hostId={modalHostId} hasBottomTabs={false} />
       </ThemedView>
     </Modal>
   );
@@ -678,8 +717,8 @@ const styles = StyleSheet.create({
     fontSize: Typography.fontSize.xs,
   },
   closeButton: {
-    width: 38,
-    height: 38,
+    width: 40,
+    height: 40,
     borderRadius: Radius.full,
     borderWidth: 1,
     alignItems: 'center',
@@ -750,8 +789,8 @@ const styles = StyleSheet.create({
     fontSize: Typography.fontSize['3xl'],
   },
   editNameBtn: {
-    minWidth: 34,
-    minHeight: 34,
+    minWidth: 38,
+    minHeight: 38,
     alignItems: 'center',
     justifyContent: 'center',
     padding: 6,
@@ -774,8 +813,8 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   saveNameBtn: {
-    width: 40,
-    height: 40,
+    width: 44,
+    height: 44,
     borderRadius: Radius.md,
     alignItems: 'center',
     justifyContent: 'center',
@@ -927,7 +966,7 @@ const styles = StyleSheet.create({
   },
   actionBtn: {
     flex: 1,
-    height: 42,
+    minHeight: 44,
     borderRadius: Radius.lg,
     alignItems: 'center',
     justifyContent: 'center',

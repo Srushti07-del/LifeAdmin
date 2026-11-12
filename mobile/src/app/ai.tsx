@@ -22,16 +22,18 @@ import {
   Alert,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useRouter, useLocalSearchParams } from 'expo-router';
+import { useLocalSearchParams } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
 import { useAppTheme } from '@/context/ThemeContext';
+import { useAuth } from '@/context/AuthContext';
+import { useSnackbar } from '@/context/SnackbarContext';
+import { normalizeCurrencyCode } from '@/utils/currency';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import { SegmentedControl, getButtonForegroundColor } from '@/components/ui';
+import { HeaderBackButton, SegmentedControl, getButtonForegroundColor } from '@/components/ui';
 import { Colors } from '@/constants/colors';
 import { Typography } from '@/constants/typography';
 import { Spacing, Radius } from '@/constants/spacing';
-import { createShadow } from '@/constants/shadows';
 import {
   aiService,
   ChatMessage,
@@ -51,10 +53,12 @@ import {
 type AITab = 'chat' | 'plan' | 'detect';
 
 export default function AIAssistantScreen() {
-  const router = useRouter();
   const { colors, isDark } = useAppTheme();
+  const { user } = useAuth();
+  const { showSnackbar } = useSnackbar();
   const insets = useSafeAreaInsets();
   const searchParams = useLocalSearchParams<{ tab?: string }>();
+  const preferredCurrency = normalizeCurrencyCode(user?.preferredCurrency);
 
   // Active screen segment
   const [activeTab, setActiveTab] = useState<AITab>(
@@ -155,7 +159,7 @@ export default function AIAssistantScreen() {
     setIsActionSubmitting(true);
 
     try {
-      const res = await aiService.executeAction(modifiedAction);
+      const res = await aiService.executeAction(modifiedAction, preferredCurrency);
       setIsActionModalOpen(false);
       setReviewAction(null);
 
@@ -173,16 +177,18 @@ export default function AIAssistantScreen() {
         },
       ]);
 
-      Alert.alert(
-        'Item Created',
-        `"${actionTitle}" has been saved to your ${actionType}s.`
-      );
+      showSnackbar({
+        variant: 'success',
+        title: 'Item Created',
+        message: `"${actionTitle}" has been saved to your ${actionType}s.`,
+      });
     } catch (err: any) {
       console.error('Failed to execute AI action:', err);
-      Alert.alert(
-        'Creation Failed',
-        err?.message || 'Could not save the item. No data was changed.'
-      );
+      showSnackbar({
+        variant: 'error',
+        title: 'Creation Failed',
+        message: err?.message || 'Could not save the item. No data was changed.',
+      });
     } finally {
       setIsActionSubmitting(false);
     }
@@ -202,7 +208,7 @@ export default function AIAssistantScreen() {
           onPress: async () => {
             setIsActionSubmitting(true);
             try {
-              const res = await aiService.acceptSuggestions(items);
+              const res = await aiService.acceptSuggestions(items, preferredCurrency);
               const count = res.results?.length ?? items.length;
 
               setMessages((prev) => [
@@ -215,16 +221,18 @@ export default function AIAssistantScreen() {
                 },
               ]);
 
-              Alert.alert(
-                'Items Created',
-                `Successfully created ${count} item(s) from suggestions.`
-              );
+              showSnackbar({
+                variant: 'success',
+                title: 'Items Created',
+                message: `Successfully created ${count} item(s) from suggestions.`,
+              });
             } catch (err: any) {
               console.error('Bulk accept failed:', err);
-              Alert.alert(
-                'Creation Failed',
-                err?.message || 'Failed to create suggestions.'
-              );
+              showSnackbar({
+                variant: 'error',
+                title: 'Creation Failed',
+                message: err?.message || 'Failed to create suggestions.',
+              });
             } finally {
               setIsActionSubmitting(false);
             }
@@ -243,10 +251,11 @@ export default function AIAssistantScreen() {
       setPlanResult(res);
     } catch (err: any) {
       console.error('Goal plan generation error:', err);
-      Alert.alert(
-        'Planning Error',
-        err?.message || 'Could not generate action plan. Please try again.'
-      );
+      showSnackbar({
+        variant: 'error',
+        title: 'Planning Error',
+        message: err?.message || 'Could not generate action plan. Please try again.',
+      });
     } finally {
       setIsPlanLoading(false);
     }
@@ -261,10 +270,11 @@ export default function AIAssistantScreen() {
       setDetectResult(res);
     } catch (err: any) {
       console.error('Detect responsibilities error:', err);
-      Alert.alert(
-        'Extraction Error',
-        err?.message || 'Could not parse text for responsibilities.'
-      );
+      showSnackbar({
+        variant: 'error',
+        title: 'Extraction Error',
+        message: err?.message || 'Could not parse text for responsibilities.',
+      });
     } finally {
       setIsDetectLoading(false);
     }
@@ -302,7 +312,11 @@ export default function AIAssistantScreen() {
       setMessages(formattedMsgs);
       scrollToBottom(false);
     } catch (err: any) {
-      Alert.alert('Load Failed', err?.message || 'Could not load conversation history.');
+      showSnackbar({
+        variant: 'error',
+        title: 'Load Failed',
+        message: err?.message || 'Could not load conversation history.',
+      });
     } finally {
       setIsChatLoading(false);
     }
@@ -322,27 +336,7 @@ export default function AIAssistantScreen() {
         {/* Screen Header */}
         <View style={[styles.header, { borderBottomColor: colors.border }]}>
           <View style={styles.headerLeft}>
-            <Pressable
-              onPress={() => router.back()}
-              hitSlop={10}
-              style={({ pressed }) => [
-                styles.iconButton,
-                {
-                  backgroundColor: isDark ? colors.surface : colors.surfaceSecondary,
-                  borderColor: colors.border,
-                  borderWidth: isDark ? 1 : 0,
-                },
-                pressed && { opacity: 0.7 },
-              ]}
-              accessibilityRole="button"
-              accessibilityLabel="Go back"
-            >
-              <SymbolView
-                name={{ ios: 'chevron.backward', android: 'arrow_back' }}
-                size={18}
-                tintColor={colors.text}
-              />
-            </Pressable>
+            <HeaderBackButton fallbackHref="/" />
 
             <View style={styles.titleCol}>
               <View style={styles.titleRow}>
@@ -492,7 +486,6 @@ export default function AIAssistantScreen() {
                           onPress={() => handleSendMessage(prompt)}
                           style={({ pressed }) => [
                             styles.promptChip,
-                            createShadow(isDark, 'xs'),
                             {
                               backgroundColor: colors.surface,
                               borderColor: colors.border,
@@ -525,6 +518,7 @@ export default function AIAssistantScreen() {
                   key={msg.id}
                   message={msg}
                   onReviewAction={handleOpenReview}
+                  preferredCurrency={preferredCurrency}
                 />
               ))}
 
@@ -697,6 +691,7 @@ export default function AIAssistantScreen() {
               onReviewTask={handleOpenReview}
               onAcceptAllTasks={handleAcceptAll}
               isActionBusy={isActionSubmitting}
+              preferredCurrency={preferredCurrency}
             />
           </KeyboardAvoidingView>
         )}
@@ -715,6 +710,7 @@ export default function AIAssistantScreen() {
               onReviewItem={handleOpenReview}
               onAcceptAllItems={handleAcceptAll}
               isActionBusy={isActionSubmitting}
+              preferredCurrency={preferredCurrency}
             />
           </KeyboardAvoidingView>
         )}
@@ -729,6 +725,7 @@ export default function AIAssistantScreen() {
           action={reviewAction}
           onConfirm={handleConfirmAction}
           isSubmitting={isActionSubmitting}
+          preferredCurrency={preferredCurrency}
         />
 
         {/* Conversations History Modal Sheet */}
@@ -765,13 +762,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: Spacing.three,
     flex: 1,
-  },
-  iconButton: {
-    width: 38,
-    height: 38,
-    borderRadius: Radius.full,
-    alignItems: 'center',
-    justifyContent: 'center',
   },
   titleCol: {
     flex: 1,

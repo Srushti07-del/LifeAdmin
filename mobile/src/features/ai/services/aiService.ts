@@ -6,7 +6,12 @@
 
 import { apiClient } from '@/services/apiClient';
 import { Endpoints } from '@/services/endpoints';
-import { AIChatRequestOptions, buildAIChatPayload } from './aiCalculations';
+import { tryNormalizeCurrencyCode } from '../../../utils/currency';
+import {
+  AIChatRequestOptions,
+  buildAIChatPayload,
+  normalizeProposedActionCurrency,
+} from './aiCalculations';
 import {
   ProposedAction,
   ConversationSummary,
@@ -44,7 +49,7 @@ export class AIService {
     const rawActions = res.proposedActions || res.suggestions || [];
     const sanitizedActions: ProposedAction[] = rawActions.map((a) => ({
       ...a,
-      currency: a.currency || 'INR',
+      currency: a.currency ? (tryNormalizeCurrencyCode(a.currency) ?? undefined) : undefined,
       requiresConfirmation: true,
     }));
 
@@ -95,6 +100,7 @@ export class AIService {
       plan: res.plan || `Plan for "${goal}"`,
       tasks: (res.tasks || []).map((t) => ({
         ...t,
+        currency: t.currency ? (tryNormalizeCurrencyCode(t.currency) ?? undefined) : undefined,
         requiresConfirmation: true,
       })),
       source: res.source,
@@ -113,6 +119,7 @@ export class AIService {
       summary: res.summary || `Extracted ${res.detectedItems?.length || 0} suggestion(s).`,
       detectedItems: (res.detectedItems || []).map((item) => ({
         ...item,
+        currency: item.currency ? (tryNormalizeCurrencyCode(item.currency) ?? undefined) : undefined,
         requiresConfirmation: true,
       })),
       source: res.source,
@@ -123,10 +130,14 @@ export class AIService {
    * Creates a single confirmed item after explicit user review
    * Never called automatically without explicit confirmation.
    */
-  public async executeAction(action: ProposedAction): Promise<ActionExecuteResponse> {
+  public async executeAction(
+    action: ProposedAction,
+    preferredCurrency?: string
+  ): Promise<ActionExecuteResponse> {
+    const normalizedAction = normalizeProposedActionCurrency(action, preferredCurrency);
     const res = await apiClient.post<ActionExecuteResponse>(Endpoints.ai.executeAction, {
       confirmed: true,
-      action,
+      action: normalizedAction,
     });
 
     return res;
@@ -135,12 +146,18 @@ export class AIService {
   /**
    * Creates multiple confirmed items in batch after explicit user review
    */
-  public async acceptSuggestions(items: ProposedAction[]): Promise<AcceptSuggestionsResponse> {
+  public async acceptSuggestions(
+    items: ProposedAction[],
+    preferredCurrency?: string
+  ): Promise<AcceptSuggestionsResponse> {
+    const normalizedItems = items.map((item) =>
+      normalizeProposedActionCurrency(item, preferredCurrency)
+    );
     const res = await apiClient.post<AcceptSuggestionsResponse>(
       Endpoints.ai.acceptSuggestions,
       {
         confirmed: true,
-        items,
+        items: normalizedItems,
       }
     );
 

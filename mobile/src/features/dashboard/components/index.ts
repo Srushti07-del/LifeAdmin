@@ -4,6 +4,7 @@
 
 export * from './DashboardHeader';
 export * from './StatsOverview';
+export * from './UrgencyTriageModal';
 export * from './NeedsAttentionSection';
 export * from './QuickActionsSection';
 export * from './UpcomingTimelineSection';

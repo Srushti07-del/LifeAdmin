@@ -9,6 +9,7 @@ import { SymbolView } from 'expo-symbols';
 import { useAppTheme } from '@/context/ThemeContext';
 import { ThemedText } from '@/components/themed-text';
 import { Button, getButtonForegroundColor } from '@/components/ui';
+import { Colors } from '@/constants/colors';
 import { Typography } from '@/constants/typography';
 import { Spacing, Radius } from '@/constants/spacing';
 
@@ -29,8 +30,8 @@ export function WelcomeStep({ onNext }: WelcomeStepProps) {
         style={[
           styles.heroEmblem,
           {
-            backgroundColor: isDark ? 'rgba(22, 143, 145, 0.18)' : '#E6F4FE',
-            borderColor: isDark ? 'rgba(22, 143, 145, 0.4)' : '#BAE6FD',
+            backgroundColor: colors.primarySoft,
+            borderColor: colors.primary,
           },
         ]}
       >
@@ -64,7 +65,7 @@ export function WelcomeStep({ onNext }: WelcomeStepProps) {
           <View
             style={[
               styles.iconWrapper,
-              { backgroundColor: isDark ? 'rgba(22, 143, 145, 0.2)' : '#DDF1EF' },
+              { backgroundColor: colors.primarySoft },
             ]}
           >
             <SymbolView
@@ -95,13 +96,13 @@ export function WelcomeStep({ onNext }: WelcomeStepProps) {
           <View
             style={[
               styles.iconWrapper,
-              { backgroundColor: isDark ? 'rgba(56, 189, 248, 0.2)' : '#E0F2FE' },
+              { backgroundColor: isDark ? Colors.urgency.upcoming.darkBg : Colors.urgency.upcoming.lightBg },
             ]}
           >
             <SymbolView
               name={{ ios: 'square.grid.2x2.fill', android: 'dashboard', web: 'dashboard' } as any}
               size={20}
-              tintColor="#0284C7"
+              tintColor={Colors.status.info}
             />
           </View>
           <View style={styles.valueCardText}>
@@ -126,13 +127,13 @@ export function WelcomeStep({ onNext }: WelcomeStepProps) {
           <View
             style={[
               styles.iconWrapper,
-              { backgroundColor: isDark ? 'rgba(16, 185, 129, 0.2)' : '#D1FAE5' },
+              { backgroundColor: isDark ? Colors.urgency.completed.darkBg : Colors.urgency.completed.lightBg },
             ]}
           >
             <SymbolView
               name={{ ios: 'heart.fill', android: 'favorite', web: 'favorite' } as any}
               size={20}
-              tintColor="#10B981"
+              tintColor={Colors.urgency.completed.accent}
             />
           </View>
           <View style={styles.valueCardText}>
@@ -183,11 +184,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: Spacing.four,
-    shadowColor: '#168F91',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 10,
-    elevation: 4,
   },
   title: {
     fontSize: Typography.fontSize['3xl'],

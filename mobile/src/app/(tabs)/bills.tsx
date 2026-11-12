@@ -16,26 +16,28 @@ import {
   RefreshControl,
   ActivityIndicator,
   Pressable,
-  Alert,
   useWindowDimensions,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
 import { useAppTheme } from '@/context/ThemeContext';
 import { useAuth } from '@/context/AuthContext';
+import { useSnackbar } from '@/context/SnackbarContext';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import {
   SearchInput,
   FilterBar,
   FilterItem,
-  Button,
   EmptyState,
+  FloatingActionButton,
   getButtonForegroundColor,
 } from '@/components/ui';
 import { Typography } from '@/constants/typography';
 import { Spacing, Radius } from '@/constants/spacing';
-import { BottomTabInset } from '@/constants/theme';
+import { useFabBottomPadding } from '@/hooks/use-safe-bottom-padding';
+import { parseBillFilterParam } from '@/utils/routeFilters';
 import {
   CurrencyCode,
   DEFAULT_CURRENCY,
@@ -54,6 +56,7 @@ import {
   BillFormModal,
   BillDetailsModal,
 } from '@/features/bills';
+import { canUndoBillStatusToggle } from '@/utils/undoActions';
 
 const CATEGORIES = ['All', 'Finance', 'Home', 'Personal', 'Work', 'Health', 'Education'];
 
@@ -72,7 +75,11 @@ const SORT_OPTIONS: SortOption[] = [
 export default function BillsScreen() {
   const { colors, isDark } = useAppTheme();
   const { user } = useAuth();
+  const { showSnackbar } = useSnackbar();
   const { width } = useWindowDimensions();
+  const router = useRouter();
+  const params = useLocalSearchParams<{ filter?: string | string[] }>();
+  const bottomPadding = useFabBottomPadding(Spacing.nine, true);
   const primaryFg = getButtonForegroundColor('primary', colors, isDark);
 
   // Data state
@@ -89,6 +96,15 @@ export default function BillsScreen() {
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [activeSort, setActiveSort] = useState<BillSortKey>('dueDate');
   const [showSortPicker, setShowSortPicker] = useState<boolean>(false);
+
+  useEffect(() => {
+    const parsedFilter = parseBillFilterParam(params.filter);
+    if (!parsedFilter) return;
+    setActiveFilter(parsedFilter);
+    if (typeof (router as any).setParams === 'function') {
+      (router as any).setParams({ filter: undefined });
+    }
+  }, [params.filter, router]);
 
   const numColumns = layoutMode === 'list' ? 1 : width >= 768 ? 3 : width >= 360 ? 2 : 1;
 
@@ -168,8 +184,9 @@ export default function BillsScreen() {
   );
 
   // Toggle Mark as Paid / Unpaid
-  const handleTogglePaid = async (bill: Bill) => {
+  const handleTogglePaid = async (bill: Bill, isUndo = false) => {
     const isPaid = bill.paymentStatus === 'paid' || bill.status === 'paid';
+    const billLabel = bill.name || bill.title || 'Bill';
     setActionLoadingBillId(bill._id);
 
     try {
@@ -180,19 +197,70 @@ export default function BillsScreen() {
         if (selectedBillForDetails?._id === bill._id) {
           setSelectedBillForDetails(updated);
         }
+
+        if (isUndo) {
+          showSnackbar({
+            variant: 'info',
+            title: 'Action Undone',
+            message: `"${billLabel}" restored to unpaid.`,
+            duration: 2800,
+          });
+        } else {
+          showSnackbar({
+            variant: 'info',
+            title: 'Marked Unpaid',
+            message: `"${billLabel}" moved back to unpaid.`,
+            action: canUndoBillStatusToggle(bill)
+              ? {
+                  label: 'Undo',
+                  accessibilityLabel: `Undo marking ${billLabel} unpaid`,
+                  onPress: () => void handleTogglePaid(updated, true),
+                }
+              : undefined,
+          });
+        }
       } else {
         const res = await billService.markBillPaid(bill._id);
         const updated = res.bill;
+        const nextOccurrence = res.nextOccurrence;
         setBills((prev) => prev.map((b) => (b._id === bill._id ? updated : b)));
         if (selectedBillForDetails?._id === bill._id) {
           setSelectedBillForDetails(updated);
         }
+        if (nextOccurrence) {
+          await loadData(true);
+        }
+
+        if (isUndo) {
+          showSnackbar({
+            variant: 'info',
+            title: 'Action Undone',
+            message: `"${billLabel}" marked paid again.`,
+            duration: 2800,
+          });
+        } else {
+          showSnackbar({
+            variant: 'success',
+            title: nextOccurrence ? 'Bill Paid & Next Scheduled' : 'Bill Paid',
+            message: nextOccurrence
+              ? `Payment for "${billLabel}" recorded and next cycle scheduled.`
+              : `Payment for "${billLabel}" recorded.`,
+            action: canUndoBillStatusToggle(bill, nextOccurrence)
+              ? {
+                  label: 'Undo',
+                  accessibilityLabel: `Undo payment for ${billLabel}`,
+                  onPress: () => void handleTogglePaid(updated, true),
+                }
+              : undefined,
+          });
+        }
       }
     } catch (err: any) {
-      Alert.alert(
-        'Action Failed',
-        err?.message || 'Could not update bill payment status. Please try again.'
-      );
+      showSnackbar({
+        variant: 'error',
+        title: 'Action Failed',
+        message: err?.message || 'Could not update bill payment status. Please try again.',
+      });
     } finally {
       setActionLoadingBillId(null);
     }
@@ -207,19 +275,36 @@ export default function BillsScreen() {
         setSelectedBillForDetails(res.bill);
       }
       setEditingBill(null);
+      showSnackbar({
+        variant: 'success',
+        title: 'Bill Updated',
+        message: `"${res.bill.name || res.bill.title || 'Bill'}" saved.`,
+      });
     } else {
       const res = await billService.createBill(billData);
       setBills((prev) => [res.bill, ...prev]);
+      showSnackbar({
+        variant: 'success',
+        title: 'Bill Added',
+        message: `"${res.bill.name || res.bill.title || 'Bill'}" created.`,
+      });
     }
   };
 
   // Delete Bill
   const handleDeleteBill = async (billId: string) => {
+    const existing = bills.find((b) => b._id === billId);
+    const billLabel = existing?.name || existing?.title || 'Bill';
     await billService.deleteBill(billId);
     setBills((prev) => prev.filter((b) => b._id !== billId));
     if (selectedBillForDetails?._id === billId) {
       setSelectedBillForDetails(null);
     }
+    showSnackbar({
+      variant: 'info',
+      title: 'Bill Deleted',
+      message: `"${billLabel}" removed.`,
+    });
   };
 
   // Open Form in Create Mode
@@ -258,21 +343,6 @@ export default function BillsScreen() {
               </ThemedText>
             </View>
           </View>
-
-          <Button
-            variant="primary"
-            size="sm"
-            onPress={handleOpenCreateModal}
-            icon={
-              <SymbolView
-                name={{ ios: 'plus', android: 'add', web: 'add' }}
-                size={16}
-                tintColor={primaryFg}
-              />
-            }
-          >
-            Add Bill
-          </Button>
         </View>
 
         {/* Scrollable Content */}
@@ -280,7 +350,7 @@ export default function BillsScreen() {
           style={styles.scrollArea}
           contentContainerStyle={[
             styles.scrollContent,
-            { paddingBottom: BottomTabInset + Spacing.six },
+            { paddingBottom: bottomPadding },
           ]}
           showsVerticalScrollIndicator={false}
           refreshControl={
@@ -378,6 +448,7 @@ export default function BillsScreen() {
                         setActiveSort(opt.key);
                         setShowSortPicker(false);
                       }}
+                      hitSlop={{ top: 6, bottom: 6, left: 2, right: 2 }}
                       style={[
                         styles.sortOptionChip,
                         {
@@ -567,6 +638,15 @@ export default function BillsScreen() {
             </View>
           )}
         </ScrollView>
+
+        {!isLoading && !error && bills.length > 0 && (
+          <FloatingActionButton
+            label="Add Bill"
+            accessibilityLabel="Add new bill"
+            onPress={handleOpenCreateModal}
+            isTabScreen
+          />
+        )}
       </SafeAreaView>
 
       {/* Create & Edit Modal Sheet */}
@@ -662,7 +742,7 @@ const styles = StyleSheet.create({
   },
   sortTrayTitle: {
     fontSize: Typography.fontSize.xs,
-    fontWeight: Typography.fontWeight.semibold,
+    fontFamily: Typography.fontFamilies.sansSemiBold,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
   },
@@ -672,6 +752,8 @@ const styles = StyleSheet.create({
     gap: Spacing.two,
   },
   sortOptionChip: {
+    minHeight: 36,
+    justifyContent: 'center',
     paddingHorizontal: Spacing.three,
     paddingVertical: 6,
     borderRadius: Radius.full,
@@ -688,6 +770,8 @@ const styles = StyleSheet.create({
     paddingVertical: Spacing.one,
   },
   categoryChip: {
+    minHeight: 36,
+    justifyContent: 'center',
     paddingHorizontal: Spacing.three,
     paddingVertical: 6,
     borderRadius: Radius.full,

@@ -17,8 +17,8 @@ import { ThemedText } from '@/components/themed-text';
 import { Button, Input, getButtonForegroundColor } from '@/components/ui';
 import { Typography } from '@/constants/typography';
 import { Spacing, Radius } from '@/constants/spacing';
-import { createShadow } from '@/constants/shadows';
 import { BottomTabInset } from '@/constants/theme';
+import { CurrencyCode, DEFAULT_CURRENCY } from '@/utils/currency';
 import { DetectResponse, ProposedAction } from '../types';
 import {
   SAMPLE_TEXT_SNIPPETS,
@@ -34,6 +34,7 @@ interface ResponsibilityDetectorViewProps {
   onReviewItem: (item: ProposedAction) => void;
   onAcceptAllItems: (items: ProposedAction[]) => Promise<void>;
   isActionBusy: boolean;
+  preferredCurrency?: CurrencyCode;
 }
 
 export function ResponsibilityDetectorView({
@@ -43,6 +44,7 @@ export function ResponsibilityDetectorView({
   onReviewItem,
   onAcceptAllItems,
   isActionBusy,
+  preferredCurrency = DEFAULT_CURRENCY,
 }: ResponsibilityDetectorViewProps) {
   const { colors, isDark } = useAppTheme();
 
@@ -70,7 +72,6 @@ export function ResponsibilityDetectorView({
       <View
         style={[
           styles.card,
-          createShadow(isDark, 'card'),
           {
             backgroundColor: colors.surface,
             borderColor: colors.border,
@@ -166,7 +167,6 @@ export function ResponsibilityDetectorView({
       <View
         style={[
           styles.card,
-          createShadow(isDark, 'card'),
           {
             backgroundColor: colors.surface,
             borderColor: colors.border,
@@ -222,7 +222,7 @@ export function ResponsibilityDetectorView({
                 {detectResult.detectedItems.map((item, idx) => {
                   const badge = getActionTypeBadge(item.type, isDark);
                   const icon = getActionTypeIcon(item.type);
-                  const subtitle = formatActionSubtitle(item);
+                  const subtitle = formatActionSubtitle(item, preferredCurrency);
 
                   return (
                     <View

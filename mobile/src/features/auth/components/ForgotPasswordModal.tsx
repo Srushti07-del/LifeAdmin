@@ -83,10 +83,10 @@ export function ForgotPasswordModal({
             ]}
           >
             <ThemedText style={[styles.bullet, { color: colors.text }]}>
-              • <ThemedText style={{ fontWeight: '600' }}>Self-hosted instance:</ThemedText> Reset your password in your MongoDB cluster or contact your administrator.
+              • <ThemedText style={{ fontFamily: Typography.fontFamilies.sansSemiBold }}>Self-hosted instance:</ThemedText> Reset your password in your MongoDB cluster or contact your administrator.
             </ThemedText>
             <ThemedText style={[styles.bullet, { color: colors.text, marginTop: Spacing.two }]}>
-              • <ThemedText style={{ fontWeight: '600' }}>Immediate access:</ThemedText> You can create a new free account or explore all features in Guest Demo mode.
+              • <ThemedText style={{ fontFamily: Typography.fontFamilies.sansSemiBold }}>Immediate access:</ThemedText> You can create a new free account or explore all features in Guest Demo mode.
             </ThemedText>
           </View>
 
@@ -190,7 +190,7 @@ const styles = StyleSheet.create({
   },
   description: {
     fontSize: Typography.fontSize.sm,
-    fontWeight: Typography.fontWeight.normal,
+    fontFamily: Typography.fontFamilies.sans,
     textAlign: 'center',
     lineHeight: 20,
     marginBottom: Spacing.four,
@@ -231,7 +231,7 @@ const styles = StyleSheet.create({
   },
   secondaryBtnText: {
     fontSize: Typography.fontSize.sm,
-    fontWeight: Typography.fontWeight.semibold,
+    fontFamily: Typography.fontFamilies.sansSemiBold,
   },
   cancelBtn: {
     paddingVertical: Spacing.two,
@@ -239,6 +239,6 @@ const styles = StyleSheet.create({
   },
   cancelBtnText: {
     fontSize: Typography.fontSize.xs,
-    fontWeight: Typography.fontWeight.medium,
+    fontFamily: Typography.fontFamilies.sansMedium,
   },
 });

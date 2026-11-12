@@ -13,7 +13,6 @@ import {
 import { useAppTheme } from '@/context/ThemeContext';
 import { ThemedText } from '@/components/themed-text';
 import { Badge, UrgencyTag } from '@/components/ui';
-import { createShadow } from '@/constants/shadows';
 import { Radius, Spacing } from '@/constants/spacing';
 import { Typography } from '@/constants/typography';
 import { Task, TaskStatus } from '../types';
@@ -97,44 +96,47 @@ export function TaskBoardView({
             : 'neutral';
 
     return (
-      <Pressable
+      <View
         key={task._id}
-        onPress={() => onSelectTask(task)}
-        style={({ pressed }) => [
+        style={[
           styles.boardCard,
           {
             backgroundColor: colors.surface,
             borderColor: colors.border,
-            opacity: pressed ? 0.94 : 1,
           },
-          createShadow(isDark, 'xs'),
         ]}
-        accessibilityRole="button"
-        accessibilityLabel={`${task.title}, ${task.priority}`}
       >
-        <View style={styles.boardCardHeader}>
-          <Badge variant={priorityVariant} size="sm">
-            {task.priority.charAt(0).toUpperCase() + task.priority.slice(1)}
-          </Badge>
-          {task.category ? (
-            <ThemedText style={[styles.boardCategory, { color: colors.textMuted }]}>
-              {task.category}
-            </ThemedText>
-          ) : null}
-        </View>
-
-        <ThemedText
-          style={[
-            styles.boardTitle,
-            {
-              color: task.status === 'completed' ? colors.textSecondary : colors.text,
-              textDecorationLine: task.status === 'completed' ? 'line-through' : 'none',
-            },
-          ]}
-          numberOfLines={2}
+        <Pressable
+          onPress={() => onSelectTask(task)}
+          style={({ pressed }) => [{ gap: Spacing.two }, pressed && { opacity: 0.85 }]}
+          accessibilityRole="button"
+          accessibilityLabel={`${task.title}, ${task.priority}${urgency.tier !== 'none' ? `, ${urgency.label}` : ''}`}
+          accessibilityHint="Opens task details"
         >
-          {task.title}
-        </ThemedText>
+          <View style={styles.boardCardHeader}>
+            <Badge variant={priorityVariant} size="sm">
+              {task.priority.charAt(0).toUpperCase() + task.priority.slice(1)}
+            </Badge>
+            {task.category ? (
+              <ThemedText style={[styles.boardCategory, { color: colors.textMuted }]}>
+                {task.category}
+              </ThemedText>
+            ) : null}
+          </View>
+
+          <ThemedText
+            style={[
+              styles.boardTitle,
+              {
+                color: task.status === 'completed' ? colors.textSecondary : colors.text,
+                textDecorationLine: task.status === 'completed' ? 'line-through' : 'none',
+              },
+            ]}
+            numberOfLines={2}
+          >
+            {task.title}
+          </ThemedText>
+        </Pressable>
 
         <View style={styles.boardFooter}>
           {urgency.tier !== 'none' ? (
@@ -170,14 +172,21 @@ export function TaskBoardView({
               ]}
               accessibilityRole="button"
               accessibilityLabel={`${nextAction.label} ${task.title}`}
+              accessibilityHint="Updates task status"
+              accessibilityState={{ disabled: isBusy, busy: isBusy }}
             >
-              <ThemedText style={[styles.moveChipText, { color: colors.primary }]}>
+              <ThemedText
+                style={[
+                  styles.moveChipText,
+                  { color: isDark ? colors.text : colors.primaryDeep },
+                ]}
+              >
                 {isBusy ? 'Saving...' : nextAction.label}
               </ThemedText>
             </Pressable>
           ) : null}
         </View>
-      </Pressable>
+      </View>
     );
   };
 
@@ -251,6 +260,7 @@ export function TaskBoardView({
                 },
               ]}
               accessibilityRole="tab"
+              accessibilityLabel={`${col.label}, ${grouped[col.status].length} tasks`}
               accessibilityState={{ selected: isActive }}
             >
               <ThemedText

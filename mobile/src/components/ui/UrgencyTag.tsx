@@ -182,7 +182,6 @@ const styles = StyleSheet.create({
     fontFamily: Typography.fontFamilies.sansMedium,
     fontSize: Typography.fontSize.xs,
     lineHeight: 16,
-    fontWeight: '500',
   },
 });
 

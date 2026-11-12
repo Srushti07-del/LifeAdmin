@@ -49,9 +49,10 @@ const CURRENCY_SYMBOL_TO_ISO: Record<string, CurrencyCode> = {
   'S$': 'SGD',
 };
 
-export function normalizeCurrencyCode(code: string | undefined | null): CurrencyCode {
-  if (!code) return DEFAULT_CURRENCY;
+export function tryNormalizeCurrencyCode(code: string | undefined | null): CurrencyCode | null {
+  if (!code) return null;
   const trimmed = code.trim();
+  if (!trimmed) return null;
   const upper = trimmed.toUpperCase();
   const isoCodes = Object.keys(CURRENCIES) as CurrencyCode[];
   if (isoCodes.includes(upper as CurrencyCode)) {
@@ -60,7 +61,28 @@ export function normalizeCurrencyCode(code: string | undefined | null): Currency
   if (CURRENCY_SYMBOL_TO_ISO[trimmed]) {
     return CURRENCY_SYMBOL_TO_ISO[trimmed];
   }
-  return DEFAULT_CURRENCY;
+  return null;
+}
+
+export function normalizeCurrencyCode(code: string | undefined | null): CurrencyCode {
+  return tryNormalizeCurrencyCode(code) ?? DEFAULT_CURRENCY;
+}
+
+/**
+ * Resolves the canonical ISO currency code for an amount/record:
+ * 1) Explicit transaction/extracted currency if valid
+ * 2) User preferred currency if valid
+ * 3) Default 'INR'
+ */
+export function resolveTransactionCurrency(
+  explicitCurrency?: string | null,
+  preferredCurrency?: string | null
+): CurrencyCode {
+  return (
+    tryNormalizeCurrencyCode(explicitCurrency) ??
+    tryNormalizeCurrencyCode(preferredCurrency) ??
+    DEFAULT_CURRENCY
+  );
 }
 
 export function getCurrencyInfo(code?: string | null): CurrencyInfo {

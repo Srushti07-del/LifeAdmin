@@ -191,7 +191,6 @@ const styles = StyleSheet.create({
     fontFamily: Typography.fontFamilies.sansSemiBold,
     fontSize: Typography.fontSize.xs,
     lineHeight: 16,
-    fontWeight: '600',
     marginBottom: Spacing.one + 2,
   },
   inputContainer: {

@@ -8,7 +8,6 @@ import { StyleSheet, View } from 'react-native';
 import { SymbolView } from 'expo-symbols';
 import { useAppTheme } from '@/context/ThemeContext';
 import { ThemedText } from '@/components/themed-text';
-import { createShadow } from '@/constants/shadows';
 import { Radius, Spacing } from '@/constants/spacing';
 import { Typography } from '@/constants/typography';
 import { TaskSummaryMetrics } from '../types';
@@ -29,7 +28,6 @@ export function TaskSummaryCard({ metrics }: TaskSummaryCardProps) {
           backgroundColor: colors.surface,
           borderColor: colors.border,
         },
-        createShadow(isDark, 'card'),
       ]}
     >
       {/* Top Progress Row */}
