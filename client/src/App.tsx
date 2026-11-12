@@ -11,6 +11,8 @@ import AppointmentsPage from './pages/AppointmentsPage';
 import DocumentsPage from './pages/DocumentsPage';
 import RemindersPage from './pages/RemindersPage';
 import CalendarPage from './pages/CalendarPage';
+import TermsOfService from './pages/TermsOfService';
+import PrivacyPolicy from './pages/PrivacyPolicy';
 import ForgotPasswordPage from './pages/ForgotPasswordPage';
 import ResetPasswordPage from './pages/ResetPasswordPage';
 import AIAssistantPage from './pages/AIAssistantPage';
@@ -123,6 +125,10 @@ export default function App() {
               </OnboardingRequiredRoute>
             }
           />
+
+          {/* Legal Document Routes */}
+          <Route path="/terms" element={<TermsOfService />} />
+          <Route path="/privacy" element={<PrivacyPolicy />} />
 
           {/* Protected Application Routes */}
           <Route

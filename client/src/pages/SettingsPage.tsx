@@ -1,18 +1,16 @@
-﻿import { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import api from '../lib/api';
+import { Link } from 'react-router-dom';
 import {
   User,
   Settings,
   Sparkles,
-  Download,
   Trash2,
   CheckCircle2,
   Moon,
   Sun,
   Laptop,
-  Heart,
-  Shield,
   X,
   Plus,
   Search,
@@ -20,6 +18,14 @@ import {
   Bell,
   Target,
   Monitor,
+  Calendar,
+  RefreshCw,
+  AlertTriangle,
+  ArrowRight,
+  FileText,
+  LogOut,
+  Loader2,
+  ShieldCheck,
 } from 'lucide-react';
 import { CURRENCIES, DEFAULT_CURRENCY, getCurrencyInfo, type CurrencyCode } from '../lib/currency';
 
@@ -52,6 +58,27 @@ export default function SettingsPage() {
   const [emailReminderIntervals, setEmailReminderIntervals] = useState<number[]>(user?.emailReminderIntervals || [1440, 60, 0]);
   const [timezone, setTimezone] = useState(user?.timezone || 'UTC');
   const [loadingEmailStatus, setLoadingEmailStatus] = useState(false);
+
+  // Google Calendar connection state
+  const [googleCalendarStatus, setGoogleCalendarStatus] = useState<{
+    connected: boolean;
+    status?: string;
+    googleEmail?: string;
+    googleName?: string;
+    googlePicture?: string;
+    connectedAt?: Date;
+    lastSyncAt?: Date;
+    lastSyncStatus?: string;
+    lastSyncError?: string;
+    selectedCalendarId?: string;
+    selectedCalendarName?: string;
+  } | null>(null);
+  const [loadingGoogleStatus, setLoadingGoogleStatus] = useState(false);
+  const [googleCalendars, setGoogleCalendars] = useState<Array<{ id: string; name: string; timezone?: string | null; primary: boolean; accessRole: string }>>([]);
+  const [selectedGoogleCalendar, setSelectedGoogleCalendar] = useState<string>('');
+  const [googleSyncLoading, setGoogleSyncLoading] = useState(false);
+  const [googleSyncError, setGoogleSyncError] = useState<string | null>(null);
+  const [googleSyncSuccess, setGoogleSyncSuccess] = useState(false);
 
   const INTERVAL_OPTIONS = [
     { minutes: 1440, label: '1 day before' },
@@ -93,6 +120,7 @@ export default function SettingsPage() {
       setTimezone(user.timezone || 'UTC');
     }
     fetchEmailStatus();
+    fetchGoogleCalendarStatus();
   }, [user]);
 
   const fetchEmailStatus = async () => {
@@ -107,6 +135,85 @@ export default function SettingsPage() {
       console.error('Fetch email status error:', err);
     } finally {
       setLoadingEmailStatus(false);
+    }
+  };
+
+  const fetchGoogleCalendarStatus = async () => {
+    setLoadingGoogleStatus(true);
+    try {
+      const res = await api.get('/google-calendar/status');
+      setGoogleCalendarStatus(res.data || { connected: false });
+      if (res.data?.connected) {
+        setSelectedGoogleCalendar(res.data.selectedCalendarId || '');
+        // Fetch available calendars
+        try {
+          const calRes = await api.get('/google-calendar/calendars');
+          setGoogleCalendars(calRes.data.calendars || []);
+        } catch (calErr) {
+          console.error('Fetch Google calendars error:', calErr);
+        }
+      }
+    } catch (err) {
+      console.error('Fetch Google calendar status error:', err);
+    } finally {
+      setLoadingGoogleStatus(false);
+    }
+  };
+
+  const handleConnectGoogleCalendar = async () => {
+    try {
+      const res = await api.get('/google-calendar/auth-url');
+      // Redirect to Google OAuth authorization
+      window.location.href = res.data.authUrl;
+    } catch (err: any) {
+      console.error('Connect Google Calendar error:', err);
+    }
+  };
+
+  const handleDisconnectGoogleCalendar = async () => {
+    if (!window.confirm('Disconnect Google Calendar? Your LifeAdmin records will be preserved, but sync will stop.')) return;
+    try {
+      await api.post('/google-calendar/disconnect');
+      setGoogleCalendarStatus({ connected: false });
+      setGoogleCalendars([]);
+      setSelectedGoogleCalendar('');
+      triggerSuccessBanner();
+    } catch (err: any) {
+      console.error('Disconnect Google Calendar error:', err);
+    }
+  };
+
+  const handleSelectGoogleCalendar = async (calendarId: string) => {
+    try {
+      const cal = googleCalendars.find((c) => c.id === calendarId);
+      await api.post('/google-calendar/select-calendar', {
+        calendarId,
+        calendarName: cal?.name,
+        calendarTimezone: cal?.timezone || undefined,
+      });
+      setSelectedGoogleCalendar(calendarId);
+      setGoogleCalendarStatus((prev) => prev ? { ...prev, selectedCalendarId: calendarId, selectedCalendarName: cal?.name } : prev);
+      triggerSuccessBanner();
+    } catch (err: any) {
+      console.error('Select Google calendar error:', err);
+    }
+  };
+
+  const handleSyncNow = async () => {
+    setGoogleSyncLoading(true);
+    setGoogleSyncError(null);
+    setGoogleSyncSuccess(false);
+    try {
+      await api.post('/google-calendar/sync');
+      await fetchGoogleCalendarStatus();
+      setGoogleSyncSuccess(true);
+      setTimeout(() => setGoogleSyncSuccess(false), 3000);
+    } catch (err: any) {
+      const msg = err?.response?.data?.message || err?.message || 'Sync failed. Please try again.';
+      setGoogleSyncError(msg);
+      console.error('Manual sync error:', err);
+    } finally {
+      setGoogleSyncLoading(false);
     }
   };
 
@@ -167,21 +274,6 @@ export default function SettingsPage() {
     const updated = categories.filter((c) => c !== cat);
     setCategories(updated);
     handleSaveSettings({ categories: updated });
-  };
-
-  const handleExportData = async () => {
-    try {
-      const res = await api.get('/users/export', { responseType: 'blob' });
-      const url = window.URL.createObjectURL(new Blob([res.data]));
-      const link = document.createElement('a');
-      link.href = url;
-      link.setAttribute('download', `lifeadmin-backup-${new Date().toISOString().split('T')[0]}.json`);
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-    } catch (err) {
-      console.error('Export error:', err);
-    }
   };
 
   const handleDeleteAccount = async () => {
@@ -498,6 +590,184 @@ export default function SettingsPage() {
         </div>
       </section>
 
+      {/* Google Calendar Integration */}
+      <section className="bg-white dark:bg-surface-0 rounded-3xl p-6 sm:p-7 border border-surface-200 dark:border-surface-700 shadow-card space-y-4">
+        <div className="flex items-center gap-2.5 pb-3 border-b border-surface-100 dark:border-[#304247]">
+          <div className="w-8 h-8 rounded-xl bg-primary-50 dark:bg-primary-950/40 text-primary-600 dark:text-primary-400 flex items-center justify-center">
+            <Calendar size={18} />
+          </div>
+          <div>
+            <h2 className="text-base font-bold font-editorial text-surface-900 dark:text-surface-100">
+              Google Calendar Integration
+            </h2>
+            <p className="text-[11px] text-surface-600 dark:text-surface-300">
+              Sync LifeAdmin events, tasks, appointments, and bills with Google Calendar.
+            </p>
+          </div>
+        </div>
+
+        {/* Not connected state */}
+        {!googleCalendarStatus?.connected && (
+          <div className="space-y-3">
+            <div className="p-3.5 rounded-xl bg-surface-50 dark:bg-surface-800/40 border border-surface-200 dark:border-surface-700">
+              <div className="flex items-start gap-3">
+                <div className="flex-shrink-0">
+                  <div className="w-6 h-6 rounded-full bg-primary-100 dark:bg-primary-900/30 flex items-center justify-center text-primary-600 dark:text-primary-400">
+                    <Calendar size={14} />
+                  </div>
+                </div>
+                <div className="flex-1">
+                  <p className="text-xs font-semibold text-surface-800 dark:text-surface-200">Not connected</p>
+                  <p className="text-[10px] text-surface-500 dark:text-surface-400">
+                    Connect your Google account to sync events, tasks, appointments, and bills between LifeAdmin and Google Calendar.
+                  </p>
+                </div>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={handleConnectGoogleCalendar}
+              disabled={loadingGoogleStatus}
+              className="w-full px-5 py-2.5 rounded-xl bg-primary-600 hover:bg-primary-700 active:scale-[0.98] disabled:opacity-60 text-white text-xs font-medium flex items-center justify-center gap-2 transition-all shadow-sm"
+            >
+              {loadingGoogleStatus ? (
+                <span className="flex items-center gap-2">
+                  <Loader2 size={16} className="animate-spin" />
+                  Connecting...
+                </span>
+              ) : (
+                <>
+                  <Calendar size={16} />
+                  <span>Connect Google Calendar</span>
+                </>
+              )}
+            </button>
+          </div>
+        )}
+
+        {/* Connected state */}
+        {googleCalendarStatus?.connected && (
+          <div className="space-y-4">
+            <div className="flex items-start gap-3 p-3.5 rounded-xl bg-surface-50 dark:bg-surface-800/40 border border-surface-200 dark:border-surface-700">
+              <div className="flex-shrink-0">
+                <div className="w-6 h-6 rounded-full bg-emerald-50 dark:bg-emerald-950/40 flex items-center justify-center text-emerald-600 dark:text-emerald-400">
+                  <CheckCircle2 size={14} />
+                </div>
+              </div>
+              <div className="flex-1">
+                <p className="text-xs font-semibold text-surface-800 dark:text-surface-200">Connected to Google Calendar</p>
+                <p className="text-[10px] text-surface-500 dark:text-surface-400">
+                  {googleCalendarStatus.googleName || googleCalendarStatus.googleEmail}
+                </p>
+              </div>
+            </div>
+
+            {/* Calendar selection */}
+            <div className="border border-surface-200 dark:border-surface-700 rounded-2xl p-4">
+              <div className="mb-3">
+                <label className="block text-xs font-semibold text-surface-800 dark:text-surface-200 mb-1.5">
+                  Sync with Google Calendar
+                </label>
+              </div>
+              {googleCalendars.length > 0 ? (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  {googleCalendars.map((cal) => (
+                    <button
+                      key={cal.id}
+                      type="button"
+                      onClick={() => handleSelectGoogleCalendar(cal.id)}
+                      className={`flex items-center gap-2 p-3 rounded-xl border transition-all cursor-pointer ${
+                        selectedGoogleCalendar === cal.id
+                          ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/30 text-primary-800 dark:text-primary-200'
+                          : 'border-surface-200 dark:border-surface-700 text-surface-600 dark:text-surface-400 hover:bg-surface-50 dark:hover:bg-surface-800'
+                      }`}
+                    >
+                      <div className="w-5 h-5 rounded-full flex-shrink-0 {cal.primary ? 'bg-primary-500' : 'bg-surface-200 dark:bg-surface-700'}"/>
+                      <span className="text-xs font-medium text-surface-900 dark:text-surface-100 truncate">
+                        {cal.name} {cal.primary && <span className="text-[10px] text-primary-600 dark:text-primary-400 ml-1">(primary)</span>}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-[10px] text-surface-500 dark:text-surface-400 text-center py-4">
+                  No calendars found.
+                </p>
+              )}
+            </div>
+
+            {/* Sync status */}
+            <div className="border border-surface-200 dark:border-surface-700 rounded-2xl p-4">
+              <div className="flex items-center justify-between mb-3">
+                <div>
+                  <p className="text-xs font-semibold text-surface-800 dark:text-surface-200">Sync status</p>
+                  <p className="text-[10px] text-surface-500 dark:text-surface-400">
+                    {googleCalendarStatus.lastSyncStatus ? `Last sync: ${googleCalendarStatus.lastSyncStatus}` : 'Never synced'}
+                    {googleCalendarStatus.lastSyncAt && (
+                      <span className="ml-2 text-[10px] text-surface-400">• {new Date(googleCalendarStatus.lastSyncAt).toLocaleString()}</span>
+                    )}
+                  </p>
+                </div>
+                {googleCalendarStatus.lastSyncError && (
+                  <div className="flex items-center gap-1 p-1.5 rounded-lg bg-rose-50 border border-rose-200 text-rose-700 text-[10px]">
+                    <AlertTriangle size={12} />
+                    <span>{googleCalendarStatus.lastSyncError}</span>
+                  </div>
+                )}
+              </div>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={handleSyncNow}
+                  disabled={googleSyncLoading}
+                  className={`flex-1 px-4 py-2.5 rounded-xl text-xs font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed ${
+                    googleSyncLoading
+                      ? 'border border-surface-200 dark:border-surface-700 text-surface-500 dark:text-surface-400'
+                      : 'bg-primary-600 hover:bg-primary-700 text-white shadow-sm'
+                  }`}
+                >
+                  {googleSyncLoading ? (
+                    <Loader2 size={14} className="animate-spin" />
+                  ) : (
+                    <RefreshCw size={14} />
+                  )}
+                  <span>Sync Now</span>
+                </button>
+              </div>
+              {googleSyncSuccess && (
+                <p className="mt-2 text-[10px] text-emerald-600 dark:text-emerald-400 font-semibold flex items-center gap-1.5">
+                  <CheckCircle2 size={12} /> Synced successfully
+                </p>
+              )}
+              {googleSyncError && (
+                <div className="mt-2 p-3 rounded-lg border border-rose-200 bg-rose-50 text-rose-700 text-xs flex items-start gap-2">
+                  <AlertTriangle size={12} />
+                  <div className="flex-1">
+                    {googleSyncError}
+                    <button
+                      type="button"
+                      onClick={() => setGoogleSyncError(null)}
+                      className="ml-2 underline underline-offset-4 hover:text-rose-900/80"
+                    >
+                      Dismiss
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Disconnect */}
+            <button
+              type="button"
+              onClick={handleDisconnectGoogleCalendar}
+              className="w-full px-4 py-2.5 rounded-xl border border-rose-200 dark:border-rose-700/50 text-rose-600 dark:text-rose-400 text-xs font-medium hover:bg-rose-50 dark:hover:bg-rose-950/30 transition-colors"
+            >
+              <LogOut size={14} /> Disconnect Google Calendar
+            </button>
+          </div>
+        )}
+      </section>
+
       {/* Categories Management */}
       <section className="bg-white dark:bg-surface-0 rounded-3xl p-6 sm:p-7 border border-surface-200 dark:border-surface-700 shadow-card space-y-4">
         <div className="flex items-center gap-2.5 pb-3 border-b border-surface-100 dark:border-[#304247]">
@@ -637,53 +907,69 @@ export default function SettingsPage() {
         </p>
       </section>
 
-      {/* 100% Free Product Promise */}
-      <section className="bg-gradient-to-br from-primary-50/40 via-white to-teal-50/40 dark:from-surface-0 dark:via-surface-0 dark:to-surface-800/40 rounded-3xl p-6 sm:p-7 border border-primary-200/60 dark:border-surface-700 shadow-card space-y-3">
-        <div className="flex items-center gap-2.5">
-          <div className="w-8 h-8 rounded-xl bg-primary-100 dark:bg-primary-900/40 text-primary-600 dark:text-primary-400 flex items-center justify-center">
-            <Heart size={18} />
-          </div>
-          <div>
-            <h2 className="text-base font-bold font-editorial text-surface-900 dark:text-surface-100">
-              LifeAdmin Universal Access Promise
-            </h2>
-            <p className="text-[11px] text-surface-600 dark:text-surface-300">100% Free Software · No Paywalls · Unlimited Productivity</p>
-          </div>
-        </div>
-        <p className="text-xs text-surface-700 dark:text-surface-200 leading-relaxed">
-          LifeAdmin is designed as a completely free personal life management system for everyone. All modules — including tasks, calendar aggregation, document vault, bills tracking, LifeBuddy companions, and AI assistance — are unlocked without subscription fees.
-        </p>
-      </section>
-
-      {/* Data Portability & Account Controls */}
+      {/* Terms & Conditions */}
       <section className="bg-white dark:bg-surface-0 rounded-3xl p-6 sm:p-7 border border-surface-200 dark:border-surface-700 shadow-card space-y-4">
         <div className="flex items-center gap-2.5 pb-3 border-b border-surface-100 dark:border-[#304247]">
           <div className="w-8 h-8 rounded-xl bg-surface-100 dark:bg-surface-800 text-surface-600 dark:text-surface-300 flex items-center justify-center">
-            <Shield size={18} />
+            <FileText size={18} />
           </div>
           <div>
             <h2 className="text-base font-bold font-editorial text-surface-900 dark:text-surface-100">
-              Data Portability & Privacy
+              Terms &amp; Conditions
             </h2>
-            <p className="text-[11px] text-surface-600 dark:text-surface-300">Download your personal data or close your account</p>
+            <p className="text-[11px] text-surface-600 dark:text-surface-300">
+              Review the terms and policies that govern your use of LifeAdmin.
+            </p>
           </div>
         </div>
 
-        <div className="flex flex-col sm:flex-row gap-3 pt-1">
-          <button
-            onClick={handleExportData}
-            className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl border border-surface-200 dark:border-surface-700 hover:bg-surface-100 dark:hover:bg-surface-800 text-xs font-semibold text-surface-800 dark:text-surface-100 transition-colors"
+        <div className="space-y-1">
+          <Link
+            to="/terms"
+            className="flex items-center justify-between gap-3 px-4 py-3 rounded-xl border border-surface-200 dark:border-surface-700 hover:bg-surface-50 dark:hover:bg-surface-800 text-surface-700 dark:text-surface-200 transition-colors"
           >
-            <Download size={14} /> Export Backup (.json)
-          </button>
-
-          <button
-            onClick={handleDeleteAccount}
-            className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl border border-rose-200 dark:border-rose-900/40 hover:bg-rose-50 dark:hover:bg-rose-950/30 text-xs font-semibold text-rose-600 dark:text-rose-400 transition-colors"
+            <div className="flex items-center gap-2">
+              <FileText size={14} className="text-surface-400" />
+              <span className="text-xs font-medium">Terms of Service</span>
+            </div>
+            <ArrowRight size={14} className="text-surface-400 shrink-0" />
+          </Link>
+          <Link
+            to="/privacy"
+            className="flex items-center justify-between gap-3 px-4 py-3 rounded-xl border border-surface-200 dark:border-surface-700 hover:bg-surface-50 dark:hover:bg-surface-800 text-surface-700 dark:text-surface-200 transition-colors"
           >
-            <Trash2 size={14} /> Delete Account
-          </button>
+            <div className="flex items-center gap-2">
+              <ShieldCheck size={14} className="text-surface-400" />
+              <span className="text-xs font-medium">Privacy Policy</span>
+            </div>
+            <ArrowRight size={14} className="text-surface-400 shrink-0" />
+          </Link>
         </div>
+      </section>
+
+      {/* Danger Zone */}
+      <section className="bg-white dark:bg-surface-0 rounded-3xl p-6 sm:p-7 border border-surface-200 dark:border-surface-700 shadow-card space-y-4">
+        <div className="flex items-center gap-2.5 pb-3 border-b border-surface-100 dark:border-[#304247]">
+          <div className="w-8 h-8 rounded-xl bg-rose-50 dark:bg-rose-950/40 text-rose-600 dark:text-rose-400 flex items-center justify-center">
+            <Trash2 size={18} />
+          </div>
+          <div>
+            <h2 className="text-base font-bold font-editorial text-surface-900 dark:text-surface-100">
+              Danger Zone
+            </h2>
+            <p className="text-[11px] text-surface-600 dark:text-surface-300">
+              Permanent actions that cannot be undone.
+            </p>
+          </div>
+        </div>
+
+        <button
+          type="button"
+          onClick={handleDeleteAccount}
+          className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl border border-rose-200 dark:border-rose-900/40 hover:bg-rose-50 dark:hover:bg-rose-950/30 text-xs font-semibold text-rose-600 dark:text-rose-400 transition-colors"
+        >
+          <Trash2 size={14} /> Delete Account
+        </button>
       </section>
     </div>
   );

@@ -1,4 +1,6 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
+import { Link } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import api from '../../lib/api';
 import { COMPANIONS, saveCompanionStorage } from '../../lib/companions';
@@ -50,6 +52,18 @@ export default function OnboardingModal({ isOpen, onComplete }: OnboardingModalP
 
   // Step 5: Dashboard Preset
   const [dashboardPreset, setDashboardPreset] = useState<'standard' | 'focus' | 'finance'>('standard');
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const html = document.documentElement;
+    const body = document.body;
+    html.style.overflow = 'hidden';
+    body.style.overflow = 'hidden';
+    return () => {
+      html.style.overflow = '';
+      body.style.overflow = '';
+    };
+  }, [isOpen]);
 
   if (!isOpen) return null;
 
@@ -104,15 +118,15 @@ export default function OnboardingModal({ isOpen, onComplete }: OnboardingModalP
     }
   };
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6">
+  return createPortal(
+    <div className="fixed inset-0 w-screen h-[100dvh] z-50 flex items-center justify-center p-4">
       {/* Backdrop */}
       <div className="fixed inset-0 bg-surface-950/60 backdrop-blur-sm animate-fade-in" />
 
       {/* Modal Card */}
-      <div className="relative w-full max-w-xl bg-white dark:bg-surface-0 rounded-3xl border border-surface-200 dark:border-surface-700 p-6 sm:p-8 shadow-modal z-10 animate-scale-in flex flex-col min-h-0 max-h-[calc(100dvh-2rem-env(safe-area-inset-top)-env(safe-area-inset-bottom))] my-2 sm:my-6">
+      <div className="relative w-[min(520px,calc(100vw-32px))] h-[min(520px,calc(100dvh-32px))] aspect-[1/1] max-w-full max-h-[calc(100dvh-32px)] bg-white dark:bg-surface-0 rounded-3xl border border-surface-200 dark:border-surface-700 p-6 shadow-modal z-10 animate-scale-in flex flex-col overflow-hidden">
         {/* Progress Dots (fixed at top, not scrollable) */}
-        <div className="flex items-center justify-between pb-6 border-b border-surface-100 dark:border-surface-800 mb-6 shrink-0">
+        <div className="flex items-center justify-between pb-4 border-b border-surface-100 dark:border-surface-800 mb-4 shrink-0">
           <div className="flex items-center gap-1.5">
             {[1, 2, 3, 4, 5, 6].map((i) => (
               <div
@@ -136,35 +150,48 @@ export default function OnboardingModal({ isOpen, onComplete }: OnboardingModalP
         </div>
 
         {/* Scrollable Content Area */}
-        <div className="flex-1 min-h-0 overflow-y-auto">
+        <div className="flex-1 min-h-0 overflow-y-auto flex flex-col items-center justify-center px-4">
           {/* Step 1: Welcome */}
           {step === 1 && (
-            <div className="text-center py-4 space-y-4 animate-fade-in">
-              <div className="w-16 h-16 mx-auto rounded-3xl bg-primary-50 dark:bg-primary-950/40 text-primary-600 dark:text-primary-400 flex items-center justify-center shadow-xs">
+            <div className="text-center animate-fade-in w-full max-w-[360px]">
+              <div className="w-16 h-16 mx-auto mb-5 rounded-3xl bg-primary-50 dark:bg-primary-950/40 text-primary-600 dark:text-primary-400 flex items-center justify-center shadow-xs">
                 <Sparkles size={32} />
               </div>
               <div>
-                <h2 className="text-2xl font-bold font-editorial text-surface-900 dark:text-surface-100">
+                <h2 className="text-2xl font-bold font-editorial text-surface-900 dark:text-surface-100 mb-3">
                   Welcome to LifeAdmin
                 </h2>
-                <p className="text-sm text-surface-500 dark:text-surface-200 mt-2 max-w-md mx-auto leading-relaxed">
+                <p className="text-sm text-surface-500 dark:text-surface-200 mb-8 max-w-[360px] mx-auto leading-relaxed">
                   Your life, organised. Your mind, uncluttered. Let&apos;s take one minute to tailor your workspace so you immediately know what needs attention next.
                 </p>
               </div>
-              <div className="pt-4">
-                <button
-                  onClick={() => setStep(2)}
-                  className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-primary-500 hover:bg-primary-600 text-white font-medium text-sm transition-all shadow-sm"
+              <button
+                onClick={() => setStep(2)}
+                className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-primary-500 hover:bg-primary-600 text-white font-medium text-sm transition-all shadow-sm"
+              >
+                Let&apos;s begin <ArrowRight size={16} />
+              </button>
+              <div className="mt-10 flex items-center justify-center gap-4 text-[10px] text-surface-400 dark:text-surface-500">
+                <Link
+                  to="/terms"
+                  className="hover:text-primary-600 dark:hover:text-primary-400 transition-colors"
                 >
-                  Let&apos;s begin <ArrowRight size={16} />
-                </button>
+                  Terms &amp; Conditions
+                </Link>
+                <span className="w-px h-px bg-surface-200 dark:bg-surface-700" />
+                <Link
+                  to="/privacy"
+                  className="hover:text-primary-600 dark:hover:text-primary-400 transition-colors"
+                >
+                  Privacy Policy
+                </Link>
               </div>
             </div>
           )}
 
           {/* Step 2: Personal Preferences */}
           {step === 2 && (
-            <div className="space-y-5 animate-fade-in">
+            <div className="space-y-5 animate-fade-in w-full max-w-[360px]">
               <div>
                 <h3 className="text-xl font-bold font-editorial text-surface-900 dark:text-surface-100">
                   Notification & Reminder Pace
@@ -231,7 +258,7 @@ export default function OnboardingModal({ isOpen, onComplete }: OnboardingModalP
 
           {/* Step 3: Select Categories */}
           {step === 3 && (
-            <div className="space-y-5 animate-fade-in">
+            <div className="space-y-5 animate-fade-in w-full max-w-[360px]">
               <div>
                 <h3 className="text-xl font-bold font-editorial text-surface-900 dark:text-surface-100">
                   Select Your Key Domains
@@ -283,7 +310,7 @@ export default function OnboardingModal({ isOpen, onComplete }: OnboardingModalP
 
           {/* Step 4: Choose LifeBuddy Companion */}
           {step === 4 && (
-            <div className="space-y-5 animate-fade-in">
+            <div className="space-y-5 animate-fade-in w-full max-w-[360px]">
               <div>
                 <h3 className="text-xl font-bold font-editorial text-surface-900 dark:text-surface-100">
                   Choose Your LifeBuddy Companion
@@ -351,7 +378,7 @@ export default function OnboardingModal({ isOpen, onComplete }: OnboardingModalP
 
           {/* Step 5: Dashboard Layout Preset */}
           {step === 5 && (
-            <div className="space-y-5 animate-fade-in">
+            <div className="space-y-5 animate-fade-in w-full max-w-[360px]">
               <div>
                 <h3 className="text-xl font-bold font-editorial text-surface-900 dark:text-surface-100">
                   Choose Dashboard Layout
@@ -424,32 +451,31 @@ export default function OnboardingModal({ isOpen, onComplete }: OnboardingModalP
 
           {/* Step 6: Complete Setup */}
           {step === 6 && (
-            <div className="text-center py-6 space-y-4 animate-fade-in">
-              <div className="w-16 h-16 mx-auto rounded-3xl bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shadow-xs">
+            <div className="text-center animate-fade-in w-full max-w-[360px]">
+              <div className="w-16 h-16 mx-auto mb-5 rounded-3xl bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shadow-xs">
                 <CheckCircle2 size={36} />
               </div>
               <div>
-                <h2 className="text-2xl font-bold font-editorial text-surface-900 dark:text-surface-100">
+                <h2 className="text-2xl font-bold font-editorial text-surface-900 dark:text-surface-100 mb-3">
                   You&apos;re All Set!
                 </h2>
-                <p className="text-xs text-surface-500 dark:text-surface-200 mt-1 max-w-sm mx-auto leading-relaxed">
+                <p className="text-xs text-surface-500 dark:text-surface-200 mb-8 max-w-[360px] mx-auto leading-relaxed">
                   Your workspace is ready. {companionName} is delighted to meet you and will accompany your journey towards an uncluttered mind.
                 </p>
               </div>
-              <div className="pt-4">
-                <button
-                  onClick={handleFinish}
-                  disabled={saving}
-                  className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-primary-500 hover:bg-primary-600 text-white font-medium text-xs transition-all shadow-sm"
-                >
-                  {saving ? 'Saving...' : 'Enter LifeAdmin Dashboard'} <ArrowRight size={16} />
-                </button>
-              </div>
+              <button
+                onClick={handleFinish}
+                disabled={saving}
+                className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-primary-500 hover:bg-primary-600 text-white font-medium text-xs transition-all shadow-sm"
+              >
+                {saving ? 'Saving...' : 'Enter LifeAdmin Dashboard'} <ArrowRight size={16} />
+              </button>
             </div>
           )}
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
 

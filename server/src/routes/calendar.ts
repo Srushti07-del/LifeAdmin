@@ -8,10 +8,16 @@ import Appointment from '../models/Appointment';
 import Reminder from '../models/Reminder';
 import DocumentModel from '../models/Document';
 import { authenticate, enforceOnboarding } from '../middleware/auth';
+import { enqueueRecordSync } from '../services/googleCalendarSync';
 
 const router = Router();
 router.use(authenticate);
 router.use(enforceOnboarding);
+
+// Helper: auto-sync a manual calendar event to Google Calendar (persists retry state on failure)
+function syncCalendarEventToGoogle(userId: mongoose.Types.ObjectId, operation: 'create' | 'update' | 'delete', sourceId: mongoose.Types.ObjectId) {
+  return enqueueRecordSync(userId, 'calendar_event', sourceId, operation);
+}
 
 // GET /api/calendar/events — Unified calendar feed across all LifeAdmin modules
 router.get('/events', async (req: Request, res: Response): Promise<void> => {
@@ -187,6 +193,10 @@ router.post(
       });
 
       await event.save();
+
+      // Auto-sync to Google Calendar if connected
+      void syncCalendarEventToGoogle(req.user!._id, 'create', event._id);
+
       res.status(201).json({ message: 'Event created successfully', event });
     } catch (error) {
       console.error('Create calendar event error:', error);
@@ -222,6 +232,9 @@ router.put(['/events/:id', '/:id'], async (req: Request, res: Response): Promise
       { new: true, runValidators: true }
     );
 
+    // Auto-sync to Google Calendar if connected
+    void syncCalendarEventToGoogle(req.user!._id, 'update', existingEvent._id);
+
     res.json({ message: 'Event updated successfully', event });
   } catch (error) {
     console.error('Update calendar event error:', error);
@@ -250,6 +263,10 @@ router.delete(['/events/:id', '/:id'], async (req: Request, res: Response): Prom
     }
 
     await CalendarEvent.findByIdAndDelete(id);
+
+    // Auto-sync to Google Calendar if connected
+    void syncCalendarEventToGoogle(req.user!._id, 'delete', existingEvent._id);
+
     res.json({ message: 'Event deleted successfully' });
   } catch (error) {
     console.error('Delete calendar event error:', error);

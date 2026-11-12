@@ -10,7 +10,6 @@ import {
   CalendarClock,
   Bell,
   Sparkles,
-  Bot,
   Settings,
   Plus,
   LogOut,
@@ -25,7 +24,6 @@ import NotificationCenter from './NotificationCenter';
 interface SidebarProps {
   collapsed: boolean;
   onToggleCollapse: () => void;
-  onOpenAI?: () => void;
 }
 
 const navItems = [
@@ -37,10 +35,9 @@ const navItems = [
   { path: '/appointments', label: 'Appointments', icon: CalendarClock },
   { path: '/reminders', label: 'Reminders', icon: Bell },
   { path: '/lifebuddy', label: 'LifeBuddy', icon: Sparkles },
-  { path: '/ai', label: 'AI Assistant', icon: Bot },
 ];
 
-export default function Sidebar({ collapsed, onToggleCollapse, onOpenAI }: SidebarProps) {
+export default function Sidebar({ collapsed, onToggleCollapse }: SidebarProps) {
   const { user, logout, setTheme } = useAuth();
   const navigate = useNavigate();
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -90,15 +87,6 @@ export default function Sidebar({ collapsed, onToggleCollapse, onOpenAI }: Sideb
 
         <div className="flex items-center gap-1 sm:gap-2">
           <NotificationCenter onNavigate={() => setMobileOpen(false)} />
-          <button
-            type="button"
-            onClick={onOpenAI}
-            className="p-2 rounded-xl text-primary-700 dark:text-primary-300 hover:bg-primary-50 dark:hover:bg-[#243438]/70 transition-colors"
-            aria-label="Open AI Assistant"
-            title="AI Assistant"
-          >
-            <Bot size={18} />
-          </button>
           <button
             onClick={toggleTheme}
             className="p-2 rounded-xl text-surface-700 dark:text-surface-200 hover:bg-surface-100 dark:hover:bg-surface-800 transition-colors"
@@ -218,12 +206,12 @@ export default function Sidebar({ collapsed, onToggleCollapse, onOpenAI }: Sideb
         <div className="p-3 border-t border-surface-200 dark:border-[#304247] space-y-1">
           {!collapsed && (
             <div className="px-1 pb-1">
-              <NotificationCenter />
+              <NotificationCenter label="Reminders" />
             </div>
           )}
           {collapsed && (
             <div className="flex justify-center pb-1">
-              <NotificationCenter />
+              <NotificationCenter label="Reminders" collapsed />
             </div>
           )}
           {/* Theme switch */}
@@ -272,9 +260,6 @@ export default function Sidebar({ collapsed, onToggleCollapse, onOpenAI }: Sideb
                     {user?.name || 'User'}
                   </p>
                 </div>
-                <p className="text-[10px] text-surface-600 dark:text-surface-300 truncate font-medium">
-                  {user?.email}
-                </p>
               </div>
             )}
             {!collapsed && (

@@ -3,12 +3,23 @@ import { body, query, validationResult } from 'express-validator';
 import mongoose from 'mongoose';
 import Task from '../models/Task';
 import { authenticate, enforceOnboarding } from '../middleware/auth';
+import { enqueueRecordSync } from '../services/googleCalendarSync';
 
 const router = Router();
 
 // All task routes require authentication
 router.use(authenticate);
 router.use(enforceOnboarding);
+
+// Helper: auto-sync a task to Google Calendar (persists retry state on failure)
+function syncTaskToGoogle(
+  userId: string,
+  sourceType: 'task',
+  sourceId: mongoose.Types.ObjectId,
+  operation: 'create' | 'update' | 'delete'
+) {
+  return enqueueRecordSync(userId, sourceType, sourceId, operation);
+}
 
 // GET /api/tasks — List tasks with filtering
 router.get('/', async (req: Request, res: Response): Promise<void> => {
@@ -110,6 +121,9 @@ router.post(
         userId: req.user!._id,
       });
 
+      // Auto-sync to Google Calendar if connected
+      void syncTaskToGoogle(req.user!._id.toString(), 'task', task._id, 'create');
+
       res.status(201).json({ message: 'Task created', task });
     } catch (error) {
       console.error('Create task error:', error);
@@ -155,6 +169,9 @@ router.put('/:id', async (req: Request, res: Response): Promise<void> => {
       { new: true, runValidators: true }
     );
 
+    // Auto-sync to Google Calendar if connected
+    void syncTaskToGoogle(req.user!._id.toString(), 'task', new mongoose.Types.ObjectId(id), 'update');
+
     res.json({ message: 'Task updated', task });
   } catch (error) {
     console.error('Update task error:', error);
@@ -183,6 +200,10 @@ router.delete('/:id', async (req: Request, res: Response): Promise<void> => {
     }
 
     await Task.findByIdAndDelete(id);
+
+    // Auto-sync to Google Calendar if connected
+    void syncTaskToGoogle(req.user!._id.toString(), 'task', existingTask._id, 'delete');
+
     res.json({ message: 'Task deleted' });
   } catch (error) {
     console.error('Delete task error:', error);

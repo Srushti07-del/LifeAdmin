@@ -2,10 +2,8 @@
 import { Outlet } from 'react-router-dom';
 import Sidebar from './Sidebar';
 import MobileBottomNav from './MobileBottomNav';
-import FloatingAIAssistant from './FloatingAIAssistant';
 
 export default function AppLayout() {
-  const [aiOpen, setAiOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(() => {
     return localStorage.getItem('lifeadmin_sidebar_collapsed') === 'true';
   });
@@ -19,7 +17,7 @@ export default function AppLayout() {
   return (
     <div className="min-h-screen bg-app text-main transition-colors duration-200">
       {/* Navigation Shell */}
-      <Sidebar collapsed={collapsed} onToggleCollapse={toggleCollapse} onOpenAI={() => setAiOpen(true)} />
+      <Sidebar collapsed={collapsed} onToggleCollapse={toggleCollapse} />
 
       {/* Main Content Area */}
       <main
@@ -34,9 +32,6 @@ export default function AppLayout() {
 
       {/* Mobile Bottom Navigation */}
       <MobileBottomNav />
-
-      {/* Floating AI Assistant Drawer (mobile entry in top header) */}
-      <FloatingAIAssistant isOpen={aiOpen} onOpenChange={setAiOpen} hideMobileTrigger />
     </div>
   );
 }

@@ -18,7 +18,6 @@ import {
   Plus,
   Receipt,
   CheckSquare,
-  Bell,
   Loader2,
   TrendingUp,
   SlidersHorizontal,
@@ -28,6 +27,8 @@ import {
   Eye,
   EyeOff,
   RotateCcw,
+  AlertTriangle,
+  Lightbulb,
 } from 'lucide-react';
 
 interface NeedsAttentionItem {
@@ -49,6 +50,8 @@ interface UpcomingItem {
   subtitle: string;
   date: string;
   time?: string;
+  amount?: number;
+  currency?: string;
 }
 
 interface DashboardData {
@@ -69,7 +72,7 @@ export type WidgetId =
   | 'schedule'
   | 'tasks'
   | 'bills'
-  | 'reminders';
+  | 'ai_briefing';
 
 interface WidgetConfig {
   id: WidgetId;
@@ -83,13 +86,13 @@ const DEFAULT_WIDGETS: WidgetConfig[] = [
   { id: 'tasks', label: 'Upcoming Tasks', visible: true },
   { id: 'bills', label: 'Upcoming Bills & Expenses', visible: true },
   { id: 'schedule', label: 'Today & Upcoming Schedule', visible: true },
-  { id: 'reminders', label: 'Active Reminders', visible: true },
+  { id: 'ai_briefing', label: 'AI Briefing', visible: true },
 ];
 
 const PRESETS: Record<string, WidgetId[]> = {
-  standard: ['needs_attention', 'lifebuddy', 'tasks', 'bills', 'schedule', 'reminders'],
-  focus: ['needs_attention', 'tasks', 'schedule', 'reminders', 'lifebuddy', 'bills'],
-  finance: ['needs_attention', 'bills', 'tasks', 'schedule', 'lifebuddy', 'reminders'],
+  standard: ['needs_attention', 'lifebuddy', 'tasks', 'bills', 'schedule', 'ai_briefing'],
+  focus: ['needs_attention', 'tasks', 'schedule', 'ai_briefing', 'lifebuddy', 'bills'],
+  finance: ['needs_attention', 'bills', 'tasks', 'schedule', 'ai_briefing', 'lifebuddy'],
 };
 
 export default function DashboardPage() {
@@ -98,6 +101,16 @@ export default function DashboardPage() {
   const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+
+  // AI Briefing state (next 7 days: tasks, bills, appointments, reminders)
+  const [briefing, setBriefing] = useState<{
+    overview: string;
+    priorities: string[];
+    insight: string | null;
+    rangeLabel: string;
+    isEmpty: boolean;
+  } | null>(null);
+  const [briefingLoading, setBriefingLoading] = useState(false);
 
   // Onboarding trigger
   const [showOnboarding, setShowOnboarding] = useState(false);
@@ -147,6 +160,10 @@ export default function DashboardPage() {
   }, []);
 
   useEffect(() => {
+    if (data) buildBriefing();
+  }, [data]);
+
+  useEffect(() => {
     if (user?.companion) {
       setCompanionState(user.companion);
     }
@@ -183,6 +200,106 @@ export default function DashboardPage() {
       reminder: '/reminders',
     };
     navigate(routes[type] || '/dashboard');
+  };
+
+  // Builds a concise, narrative AI briefing of the next 7 days from real dashboard data.
+  // Covers tasks, bills & payments, appointments, and reminders.
+  const buildBriefing = () => {
+    if (!data) return;
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const in7Days = new Date(today);
+    in7Days.setDate(in7Days.getDate() + 7);
+
+    const dayDiff = (dateStr: string) => {
+      const d = new Date(dateStr);
+      return Math.round((d.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+    };
+
+    const relevant = (data.upcoming || []).filter((u) => {
+      if (!['task', 'bill', 'appointment', 'reminder'].includes(u.type)) return false;
+      const diff = dayDiff(u.date);
+      return diff >= 0 && diff <= 7;
+    });
+
+    const tasks = relevant.filter((i) => i.type === 'task');
+    const bills = relevant.filter((i) => i.type === 'bill');
+    const appointments = relevant.filter((i) => i.type === 'appointment');
+    const reminders = relevant.filter((i) => i.type === 'reminder');
+
+    const overdue = (data.needsAttention || []).filter((i) => i.urgency === 'overdue');
+    const urgent = (data.needsAttention || []).filter((i) => i.urgency === 'urgent');
+
+    const total = tasks.length + bills.length + appointments.length + reminders.length;
+    const rangeLabel = `${today.toLocaleDateString('en-IN', { month: 'short', day: 'numeric' })} – ${in7Days.toLocaleDateString('en-IN', { month: 'short', day: 'numeric', year: 'numeric' })}`;
+
+    let overview = '';
+    let priorities: string[] = [];
+    let insight: string | null = null;
+
+    if (total === 0 && overdue.length === 0 && urgent.length === 0) {
+      overview = `It's a quiet week ahead (${rangeLabel}). You have no tasks, bills, appointments, or reminders scheduled — a good time to catch up or plan forward.`;
+    } else {
+      // Weekly overview paragraph
+      const parts: string[] = [];
+      if (tasks.length) parts.push(`${tasks.length} task${tasks.length > 1 ? 's' : ''}`);
+      if (bills.length) parts.push(`${bills.length} bill${bills.length > 1 ? 's' : ''}`);
+      if (appointments.length) parts.push(`${appointments.length} appointment${appointments.length > 1 ? 's' : ''}`);
+      if (reminders.length) parts.push(`${reminders.length} reminder${reminders.length > 1 ? 's' : ''}`);
+
+      overview = `Over the next 7 days (${rangeLabel}), you have ${parts.join(', ')}.`;
+
+      const soon = relevant.filter((i) => {
+        const diff = dayDiff(i.date);
+        return diff >= 0 && diff <= 2;
+      });
+      if (soon.length > 0) {
+        overview += ` ${soon.length} of these are due within the next 2 days.`;
+      }
+
+      // Important priorities (1-3 actionable points)
+      if (overdue.length > 0) {
+        priorities.push(`${overdue.length} overdue item${overdue.length > 1 ? 's' : ''} need attention today`);
+      }
+      if (urgent.length > 0) {
+        priorities.push(`${urgent.length} urgent item${urgent.length > 1 ? 's' : ''} scheduled this week`);
+      }
+      const soonTasks = tasks.filter((t) => dayDiff(t.date) >= 0 && dayDiff(t.date) <= 2);
+      const soonBills = bills.filter((b) => dayDiff(b.date) >= 0 && dayDiff(b.date) <= 2);
+      if (soonTasks.length > 0 && priorities.length < 3) {
+        priorities.push(`${soonTasks.length} task${soonTasks.length > 1 ? 's' : ''} due within 2 days`);
+      }
+      if (soonBills.length > 0 && priorities.length < 3) {
+        priorities.push(`${soonBills.length} bill${soonBills.length > 1 ? 's' : ''} due within 2 days`);
+      }
+      if (appointments.length > 0 && priorities.length < 3) {
+        priorities.push(`${appointments.length} appointment${appointments.length > 1 ? 's' : ''} this week`);
+      }
+      priorities = priorities.slice(0, 3);
+
+      // Helpful insight
+      if (total > 0) {
+        const hasSameDayAppt = appointments.some((a, i) =>
+          appointments.some((b, j) => i !== j && new Date(a.date).toDateString() === new Date(b.date).toDateString())
+        );
+        if (hasSameDayAppt) {
+          insight = 'Multiple appointments fall on the same day — consider spacing them out.';
+        } else if (soonBills.length > 0) {
+          insight = 'A few bills are due soon — scheduling payments now can help avoid late fees.';
+        } else if (tasks.length > 5) {
+          insight = 'Several tasks are lined up this week — tackle the most urgent ones first.';
+        }
+      }
+    }
+
+    setBriefing({ overview, priorities, insight, rangeLabel, isEmpty: total === 0 && overdue.length === 0 && urgent.length === 0 });
+  };
+
+  const regenerateBriefing = async () => {
+    setBriefingLoading(true);
+    await new Promise((r) => setTimeout(r, 500));
+    buildBriefing();
+    setBriefingLoading(false);
   };
 
   // Customization methods
@@ -403,7 +520,7 @@ export default function DashboardPage() {
                   <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-rose-50 dark:bg-rose-950/60 text-rose-700 dark:text-rose-300 border border-rose-200/70 dark:border-rose-800/60">
                     {data.needsAttention.length} urgent
                   </span>
-                )}
+          )}
               </div>
 
               {data && data.needsAttention.length > 0 ? (
@@ -593,6 +710,95 @@ export default function DashboardPage() {
 
         {/* Right / Secondary Column */}
         <div className="space-y-6">
+          {/* AI BRIEFING WIDGET */}
+          {widgets.find((w) => w.id === 'ai_briefing')?.visible && (
+            <div className="bg-white dark:bg-surface-0 rounded-3xl p-6 border border-surface-200 dark:border-surface-700 shadow-card">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 pb-4 border-b border-surface-200 dark:border-surface-700 mb-6 min-w-0">
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className="flex-shrink-0 w-9 h-9 rounded-xl bg-primary-50 dark:bg-primary-950/50 text-primary-700 dark:text-primary-300 border border-primary-200/60 dark:border-primary-800/60 flex items-center justify-center">
+                    <Sparkles size={18} />
+                  </div>
+                  <div className="min-w-0">
+                    <h2 className="text-lg font-normal font-editorial text-surface-900 dark:text-surface-100 truncate">
+                      AI Briefing
+                    </h2>
+                    <p className="text-xs text-surface-600 dark:text-surface-400 leading-relaxed">
+                      Your next 7 days at a glance • {briefing?.rangeLabel ?? ''}
+                    </p>
+                  </div>
+                </div>
+                <button
+                  onClick={regenerateBriefing}
+                  disabled={briefingLoading}
+                  className="flex-shrink-0 text-xs text-primary-600 dark:text-primary-400 font-semibold flex items-center gap-1 hover:underline transition-colors whitespace-nowrap"
+                >
+                  {briefingLoading ? <Loader2 size={12} className="animate-spin" /> : <RotateCcw size={14} />}
+                  <span>Regenerate</span>
+                </button>
+              </div>
+
+              {briefing ? (
+                <>
+                  <p className="text-sm text-surface-600 dark:text-surface-400 mb-6 leading-relaxed">
+                    {briefing.overview}
+                  </p>
+
+                  {briefing.priorities.length > 0 && (
+                    <div className="space-y-3 mb-6">
+                      <h3 className="text-xs font-semibold uppercase tracking-wider text-surface-700 dark:text-surface-300 mb-3">
+                        Important priorities
+                      </h3>
+                      {briefing.priorities.map((priority, i) => (
+                        <div
+                          key={i}
+                          className="flex items-start gap-3 p-3 rounded-xl bg-surface-50 dark:bg-surface-800/40 border border-surface-200 dark:border-surface-700"
+                        >
+                          <div className="flex-shrink-0 mt-[2px] text-surface-400 dark:text-surface-600">
+                            <AlertTriangle size={14} />
+                          </div>
+                          <p className="text-xs text-surface-700 dark:text-surface-300 leading-relaxed">
+                            {priority}
+                          </p>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {briefing.insight && (
+                    <div className="p-3.5 rounded-xl bg-primary-50 dark:bg-primary-500/10 border border-primary-200 dark:border-primary-500/20">
+                      <div className="flex items-start gap-2.5">
+                        <div className="flex-shrink-0 mt-[2px] text-primary-600 dark:text-primary-400">
+                          <Lightbulb size={14} />
+                        </div>
+                        <p className="text-xs text-surface-700 dark:text-surface-300 leading-relaxed">
+                          {briefing.insight}
+                        </p>
+                      </div>
+                    </div>
+                  )}
+                </>
+              ) : (
+                <div className="flex flex-col items-center justify-center text-center py-10 bg-surface-50 dark:bg-surface-800/50 rounded-2xl border border-dashed border-surface-200 dark:border-surface-700">
+                  <div className="w-10 h-10 rounded-full bg-primary-50 dark:bg-primary-950/50 text-primary-600 dark:text-primary-300 flex items-center justify-center mb-3 shadow-xs">
+                    <Sparkles size={20} />
+                  </div>
+                  <h4 className="text-xs font-semibold text-surface-900 dark:text-surface-100 mb-1">
+                    Briefing ready when you are
+                  </h4>
+                  <p className="text-[10px] text-surface-500 dark:text-surface-400 max-w-xs mb-3">
+                    Generate a personalized summary of your tasks, bills & payments, appointments, and reminders for the next 7 days.
+                  </p>
+                  <button
+                    onClick={regenerateBriefing}
+                    className="text-xs text-primary-600 dark:text-primary-400 font-semibold hover:underline"
+                  >
+                    Generate briefing
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+
           {/* LIFEBUDDY WIDGET */}
           {widgets.find((w) => w.id === 'lifebuddy')?.visible && (
             <div className="bg-white dark:bg-surface-0 rounded-3xl p-6 border border-surface-200 dark:border-surface-700 shadow-card relative overflow-hidden">
@@ -688,29 +894,6 @@ export default function DashboardPage() {
                   No upcoming events in the next 30 days.
                 </div>
               )}
-            </div>
-          )}
-
-          {/* REMINDERS WIDGET */}
-          {widgets.find((w) => w.id === 'reminders')?.visible && (
-            <div className="bg-white dark:bg-surface-0 rounded-3xl p-6 border border-surface-200 dark:border-surface-700 shadow-card">
-              <div className="flex items-center justify-between pb-3 border-b border-surface-200 dark:border-surface-700 mb-3">
-                <div className="flex items-center gap-2">
-                  <Bell size={16} className="text-amber-500" />
-                  <h3 className="text-sm font-semibold text-surface-900 dark:text-surface-100">
-                    Reminders
-                  </h3>
-                </div>
-                <button
-                  onClick={() => navigate('/reminders')}
-                  className="text-xs text-primary-600 dark:text-primary-400 font-semibold hover:underline"
-                >
-                  View
-                </button>
-              </div>
-              <p className="text-xs text-surface-600 dark:text-surface-400 leading-relaxed">
-                {data?.stats.activeReminders || 0} active reminder alert{data?.stats.activeReminders === 1 ? '' : 's'} scheduled.
-              </p>
             </div>
           )}
         </div>
