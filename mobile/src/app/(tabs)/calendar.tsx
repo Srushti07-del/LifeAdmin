@@ -16,6 +16,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { SymbolView } from 'expo-symbols';
 import { useAppTheme } from '@/context/ThemeContext';
+import { useAuth } from '@/context/AuthContext';
 import { useSnackbar } from '@/context/SnackbarContext';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
@@ -23,8 +24,11 @@ import {
   SegmentedControl,
   EmptyState,
   FloatingActionButton,
+  OfflineBanner,
   getButtonForegroundColor,
 } from '@/components/ui';
+import { offlineCache } from '@/services/offlineCache';
+import { useNetwork } from '@/context/NetworkContext';
 import { Typography } from '@/constants/typography';
 import { Spacing, Radius } from '@/constants/spacing';
 import { useFabBottomPadding } from '@/hooks/use-safe-bottom-padding';
@@ -64,7 +68,9 @@ const FILTER_TYPES: { key: string; label: string; type?: CalendarItemType }[] = 
 
 export default function CalendarScreen() {
   const { colors, isDark } = useAppTheme();
+  const { user } = useAuth();
   const { showSnackbar } = useSnackbar();
+  const { isOnline, registerSyncTask, notifyActionRequiresNetwork } = useNetwork();
   const bottomPadding = useFabBottomPadding(Spacing.nine, true);
 
   // Navigation & View state
@@ -90,11 +96,40 @@ export default function CalendarScreen() {
     return getDateRangeForView(view, currentDate);
   }, [view, currentDate]);
 
+  // Background sync registration on network reconnection
+  useEffect(() => {
+    return registerSyncTask('calendar', async () => {
+      try {
+        const res = await calendarService.fetchEvents({
+          start: queryRange.start.toISOString(),
+          end: queryRange.end.toISOString(),
+        });
+        const fetched = res?.events || [];
+        setEvents(fetched);
+        const rangeKey = `calendar_${queryRange.start.toISOString().split('T')[0]}_${queryRange.end.toISOString().split('T')[0]}`;
+        await offlineCache.setCachedData(rangeKey, fetched, user?.id);
+      } catch (e) {
+        console.warn('[Calendar] Background sync failed:', e);
+      }
+    });
+  }, [registerSyncTask, queryRange.start, queryRange.end, user?.id]);
+
   // Load unified events from backend
   const loadEvents = useCallback(
     async (isSilent = false) => {
+      const rangeKey = `calendar_${queryRange.start.toISOString().split('T')[0]}_${queryRange.end.toISOString().split('T')[0]}`;
+
+      // 1. Immediately hydrate from cache if state is empty
+      if (events.length === 0) {
+        const cached = await offlineCache.getCachedData<CalendarEventItem[]>(rangeKey, user?.id);
+        if (cached?.data && cached.data.length > 0) {
+          setEvents(cached.data);
+          setIsLoading(false);
+        }
+      }
+
       try {
-        if (!isSilent) setIsLoading(true);
+        if (!isSilent && events.length === 0) setIsLoading(true);
         setError(null);
 
         const res = await calendarService.fetchEvents({
@@ -102,16 +137,23 @@ export default function CalendarScreen() {
           end: queryRange.end.toISOString(),
         });
 
-        setEvents(res?.events || []);
+        const fetched = res?.events || [];
+        setEvents(fetched);
+        await offlineCache.setCachedData(rangeKey, fetched, user?.id);
       } catch (err: any) {
         console.warn('Error loading calendar events:', err);
-        setError(err?.message || 'Failed to load schedule items. Please try again.');
+        const cached = await offlineCache.getCachedData<CalendarEventItem[]>(rangeKey, user?.id);
+        if (cached?.data && cached.data.length > 0) {
+          setEvents(cached.data);
+        } else if (events.length === 0) {
+          setError(err?.message || 'Failed to load schedule items. Please try again.');
+        }
       } finally {
         setIsLoading(false);
         setIsRefreshing(false);
       }
     },
-    [queryRange.start.getTime(), queryRange.end.getTime()]
+    [queryRange.start.getTime(), queryRange.end.getTime(), events.length, user?.id]
   );
 
   useEffect(() => {
@@ -162,6 +204,10 @@ export default function CalendarScreen() {
 
   // Save Event (Create or Update)
   const handleSaveEvent = async (formData: Partial<EventFormData>) => {
+    if (!isOnline) {
+      notifyActionRequiresNetwork(editingItem ? 'update event' : 'create event');
+      return;
+    }
     if (editingItem && editingItem.isOriginalEvent) {
       const res = await calendarService.updateEvent(editingItem.id, formData);
       setEvents((prev) =>
@@ -188,6 +234,10 @@ export default function CalendarScreen() {
 
   // Delete Event
   const handleDeleteEvent = async (item: CalendarEventItem) => {
+    if (!isOnline) {
+      notifyActionRequiresNetwork('delete event');
+      return;
+    }
     await calendarService.deleteEvent(item.id);
     setEvents((prev) => prev.filter((e) => e.id !== item.id));
     if (selectedDetailItem?.id === item.id) {
@@ -216,6 +266,8 @@ export default function CalendarScreen() {
             </ThemedText>
           </View>
         </View>
+
+        <OfflineBanner onRetry={() => loadEvents(false)} />
 
         {/* View Switcher & Navigation Controls Card */}
         <View

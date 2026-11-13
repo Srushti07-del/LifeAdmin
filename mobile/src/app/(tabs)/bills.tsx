@@ -34,8 +34,11 @@ import {
   FilterItem,
   EmptyState,
   FloatingActionButton,
+  OfflineBanner,
   getButtonForegroundColor,
 } from '@/components/ui';
+import { offlineCache } from '@/services/offlineCache';
+import { useNetwork } from '@/context/NetworkContext';
 import { Typography } from '@/constants/typography';
 import { Spacing, Radius } from '@/constants/spacing';
 import { useFabBottomPadding } from '@/hooks/use-safe-bottom-padding';
@@ -110,6 +113,8 @@ export default function BillsScreen() {
 
   const numColumns = layoutMode === 'list' ? 1 : width >= 768 ? 3 : width >= 360 ? 2 : 1;
 
+  const { isOnline, registerSyncTask, notifyActionRequiresNetwork } = useNetwork();
+
   // Modal states
   const [isFormOpen, setIsFormOpen] = useState<boolean>(false);
   const [editingBill, setEditingBill] = useState<Bill | null>(null);
@@ -120,10 +125,49 @@ export default function BillsScreen() {
   const preferredCurrency = normalizeCurrencyCode(user?.preferredCurrency || DEFAULT_CURRENCY);
   const currencyMeta = CURRENCIES[preferredCurrency];
 
+  // Background sync registration on network reconnection
+  useEffect(() => {
+    return registerSyncTask('bills', async () => {
+      try {
+        const [billsResponse, ratesResponse] = await Promise.allSettled([
+          billService.fetchBills({ limit: 300 }),
+          billService.fetchRates(),
+        ]);
+        if (billsResponse.status === 'fulfilled') {
+          const fetchedBills = billsResponse.value?.bills || [];
+          setBills(fetchedBills);
+          await offlineCache.setCachedData('bills', fetchedBills, user?.id);
+        }
+        if (ratesResponse.status === 'fulfilled') {
+          const fetchedRates = ratesResponse.value?.rates || {};
+          setRates(fetchedRates);
+          await offlineCache.setCachedData('rates', fetchedRates, user?.id);
+        }
+      } catch (e) {
+        console.warn('[Bills] Background sync failed:', e);
+      }
+    });
+  }, [registerSyncTask, user?.id]);
+
   // Load bills and currency exchange rates
   const loadData = useCallback(async (isSilent = false) => {
+    // 1. Immediately hydrate from persistent cache if state is empty
+    if (bills.length === 0) {
+      const [cachedBills, cachedRates] = await Promise.all([
+        offlineCache.getCachedData<Bill[]>('bills', user?.id),
+        offlineCache.getCachedData<Record<string, number>>('rates', user?.id),
+      ]);
+      if (cachedBills?.data && cachedBills.data.length > 0) {
+        setBills(cachedBills.data);
+        setIsLoading(false);
+      }
+      if (cachedRates?.data) {
+        setRates(cachedRates.data);
+      }
+    }
+
     try {
-      if (!isSilent) setIsLoading(true);
+      if (!isSilent && bills.length === 0) setIsLoading(true);
       setError(null);
 
       const [billsResponse, ratesResponse] = await Promise.allSettled([
@@ -134,21 +178,29 @@ export default function BillsScreen() {
       if (billsResponse.status === 'fulfilled') {
         const fetchedBills = billsResponse.value?.bills || [];
         setBills(fetchedBills);
+        await offlineCache.setCachedData('bills', fetchedBills, user?.id);
       } else {
         throw new Error('Failed to load bills.');
       }
 
       if (ratesResponse.status === 'fulfilled') {
-        setRates(ratesResponse.value?.rates || {});
+        const fetchedRates = ratesResponse.value?.rates || {};
+        setRates(fetchedRates);
+        await offlineCache.setCachedData('rates', fetchedRates, user?.id);
       }
     } catch (err: any) {
       console.warn('Error loading bills:', err);
-      setError(err?.message || 'Unable to connect to server. Please try again.');
+      const cached = await offlineCache.getCachedData<Bill[]>('bills', user?.id);
+      if (cached?.data && cached.data.length > 0) {
+        setBills(cached.data);
+      } else if (bills.length === 0) {
+        setError(err?.message || 'Unable to connect to server. Please try again.');
+      }
     } finally {
       setIsLoading(false);
       setIsRefreshing(false);
     }
-  }, []);
+  }, [bills.length, user?.id]);
 
   useEffect(() => {
     loadData();
@@ -187,6 +239,10 @@ export default function BillsScreen() {
 
   // Toggle Mark as Paid / Unpaid
   const handleTogglePaid = async (bill: Bill, isUndo = false) => {
+    if (!isOnline) {
+      notifyActionRequiresNetwork('update bill payment');
+      return;
+    }
     const isPaid = bill.paymentStatus === 'paid' || bill.status === 'paid';
     const billLabel = bill.name || bill.title || 'Bill';
     setActionLoadingBillId(bill._id);
@@ -270,6 +326,10 @@ export default function BillsScreen() {
 
   // Submit Create or Edit form
   const handleFormSubmit = async (billData: Partial<Bill>) => {
+    if (!isOnline) {
+      notifyActionRequiresNetwork(editingBill ? 'update bill' : 'create bill');
+      return;
+    }
     if (editingBill) {
       const res = await billService.updateBill(editingBill._id, billData);
       setBills((prev) => prev.map((b) => (b._id === editingBill._id ? res.bill : b)));
@@ -295,6 +355,10 @@ export default function BillsScreen() {
 
   // Delete Bill
   const handleDeleteBill = async (billId: string) => {
+    if (!isOnline) {
+      notifyActionRequiresNetwork('delete bill');
+      return;
+    }
     const existing = bills.find((b) => b._id === billId);
     const billLabel = existing?.name || existing?.title || 'Bill';
     await billService.deleteBill(billId);
@@ -354,6 +418,8 @@ export default function BillsScreen() {
 
   const renderHeader = (
     <View style={styles.headerContainer}>
+      <OfflineBanner onRetry={() => loadData(false)} />
+
       {/* Summary Dashboard Card */}
       <BillSummaryCard totals={totals} preferredCurrency={preferredCurrency} />
 

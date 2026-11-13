@@ -44,8 +44,11 @@ import {
   EmptyState,
   FloatingActionButton,
   HeaderBackButton,
+  OfflineBanner,
   getButtonForegroundColor,
 } from "@/components/ui";
+import { offlineCache } from "@/services/offlineCache";
+import { useNetwork } from "@/context/NetworkContext";
 import { Colors } from "@/constants/colors";
 import { Typography } from "@/constants/typography";
 import { Spacing, Radius } from "@/constants/spacing";
@@ -101,6 +104,7 @@ export default function RemindersScreen() {
   const { colors, isDark } = useAppTheme();
   const { user } = useAuth();
   const { showSnackbar } = useSnackbar();
+  const { isOnline, registerSyncTask, notifyActionRequiresNetwork } = useNetwork();
   const router = useRouter();
   const bottomPadding = useFabBottomPadding(Spacing.six, false);
   const currentUserId = user?.id || "default_user";
@@ -110,6 +114,21 @@ export default function RemindersScreen() {
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Background sync registration on network reconnection
+  useEffect(() => {
+    return registerSyncTask('reminders', async () => {
+      try {
+        const res = await reminderService.fetchReminders({ limit: 300 });
+        const list = res?.reminders || [];
+        setReminders(list);
+        await offlineCache.setCachedData('reminders', list, user?.id);
+        await notificationService.reconcileUserReminders(list, currentUserId);
+      } catch (e) {
+        console.warn('[Reminders] Background sync failed:', e);
+      }
+    });
+  }, [registerSyncTask, user?.id, currentUserId]);
 
   // Permission state (distinguishes notification display vs Android exact alarms)
   const [permissions, setPermissions] = useState<ReminderPermissionStatus>({
@@ -209,27 +228,42 @@ export default function RemindersScreen() {
   // Fetch reminders and reconcile device notifications
   const loadReminders = useCallback(
     async (isSilent = false) => {
+      // 1. Immediately hydrate from cache if state is empty
+      if (reminders.length === 0) {
+        const cached = await offlineCache.getCachedData<Reminder[]>('reminders', user?.id);
+        if (cached?.data && cached.data.length > 0) {
+          setReminders(cached.data);
+          setIsLoading(false);
+        }
+      }
+
       try {
-        if (!isSilent) setIsLoading(true);
+        if (!isSilent && reminders.length === 0) setIsLoading(true);
         setError(null);
 
         const res = await reminderService.fetchReminders({ limit: 300 });
         const list = res?.reminders || [];
         setReminders(list);
+        await offlineCache.setCachedData('reminders', list, user?.id);
 
         // Reconcile local device alerts with backend state
         await notificationService.reconcileUserReminders(list, currentUserId);
       } catch (err: any) {
         console.warn("Error loading reminders:", err);
-        setError(
-          err?.message || "Unable to connect to server. Please try again.",
-        );
+        const cached = await offlineCache.getCachedData<Reminder[]>('reminders', user?.id);
+        if (cached?.data && cached.data.length > 0) {
+          setReminders(cached.data);
+        } else if (reminders.length === 0) {
+          setError(
+            err?.message || "Unable to connect to server. Please try again.",
+          );
+        }
       } finally {
         setIsLoading(false);
         setIsRefreshing(false);
       }
     },
-    [currentUserId],
+    [reminders.length, user?.id, currentUserId],
   );
 
   useEffect(() => {
@@ -283,6 +317,10 @@ export default function RemindersScreen() {
 
   // Create or Update submit handler
   const handleFormSubmit = async (data: Partial<ReminderFormData>) => {
+    if (!isOnline) {
+      notifyActionRequiresNetwork(editingReminder ? 'update reminder' : 'create reminder');
+      return;
+    }
     if (editingReminder) {
       const { reminder: updated } = await reminderService.updateReminder(
         editingReminder._id,
@@ -320,6 +358,10 @@ export default function RemindersScreen() {
 
   // Toggle complete / reopen
   const handleToggleComplete = async (reminder: Reminder, isUndo = false) => {
+    if (!isOnline) {
+      notifyActionRequiresNetwork('update reminder status');
+      return;
+    }
     const wasCompleted = reminder.status === "completed";
     try {
       if (wasCompleted) {
@@ -420,6 +462,10 @@ export default function RemindersScreen() {
 
   // Delete handler
   const handleDeleteReminder = async (id: string) => {
+    if (!isOnline) {
+      notifyActionRequiresNetwork('delete reminder');
+      return;
+    }
     const deletedTitle = reminders.find((r) => r._id === id)?.title;
     try {
       await reminderService.deleteReminder(id);
@@ -576,6 +622,7 @@ export default function RemindersScreen() {
 
   const renderHeader = (
     <View style={styles.headerContainer}>
+      <OfflineBanner onRetry={() => loadReminders(false)} />
       {/* Header */}
       <View style={styles.header}>
         <HeaderBackButton fallbackHref="/more" />

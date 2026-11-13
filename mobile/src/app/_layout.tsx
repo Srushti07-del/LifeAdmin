@@ -27,6 +27,7 @@ import { shouldOffsetSnackbarForBottomTabs } from '@/utils/navigationLayout';
 import { ThemeProvider as AppThemeProvider, useAppTheme } from '@/context/ThemeContext';
 import { AuthProvider, useAuth } from '@/context/AuthContext';
 import { SnackbarProvider } from '@/context/SnackbarContext';
+import { NetworkProvider } from '@/context/NetworkContext';
 import { AuthNavigator } from '@/features/auth/components/AuthNavigator';
 import { AuthLoadingScreen } from '@/features/auth/screens/AuthLoadingScreen';
 import { usePasswordResetDeepLink } from '@/features/auth';
@@ -213,7 +214,9 @@ export default function RootLayout() {
     <AppThemeProvider>
       <SnackbarProvider>
         <AuthProvider>
-          <RootNavigator />
+          <NetworkProvider>
+            <RootNavigator />
+          </NetworkProvider>
         </AuthProvider>
       </SnackbarProvider>
     </AppThemeProvider>

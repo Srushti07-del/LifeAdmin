@@ -1,4 +1,4 @@
-﻿import { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import api from '../lib/api';
 import {
@@ -539,6 +539,9 @@ export default function SettingsPage() {
             onKeyDown={(e) => {
               if (e.key === 'Enter') {
                 e.preventDefault();
+                if (e.nativeEvent.isComposing || e.keyCode === 229) {
+                  return;
+                }
                 handleAddCategory();
               }
             }}

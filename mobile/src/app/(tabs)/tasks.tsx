@@ -22,6 +22,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
 import { useAppTheme } from '@/context/ThemeContext';
+import { useAuth } from '@/context/AuthContext';
 import { useSnackbar } from '@/context/SnackbarContext';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
@@ -31,9 +32,12 @@ import {
   FilterBar,
   FilterItem,
   FloatingActionButton,
+  OfflineBanner,
   SearchInput,
   SegmentedControl,
 } from '@/components/ui';
+import { offlineCache } from '@/services/offlineCache';
+import { useNetwork } from '@/context/NetworkContext';
 import { Colors } from '@/constants/colors';
 import { Radius, Spacing } from '@/constants/spacing';
 import { Typography } from '@/constants/typography';
@@ -68,6 +72,8 @@ const SORT_CYCLE: TaskSortOption[] = ['dueDate', 'priority', 'recent'];
 
 export default function TasksScreen() {
   const { colors, isDark } = useAppTheme();
+  const { user } = useAuth();
+  const { isOnline, registerSyncTask, notifyActionRequiresNetwork } = useNetwork();
   const { showSnackbar } = useSnackbar();
   const router = useRouter();
   const params = useLocalSearchParams<{ filter?: string | string[] }>();
@@ -99,20 +105,52 @@ export default function TasksScreen() {
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const [updatingTaskId, setUpdatingTaskId] = useState<string | null>(null);
 
+  // Background sync registration on network reconnection
+  useEffect(() => {
+    return registerSyncTask('tasks', async () => {
+      try {
+        const res = await taskService.fetchTasks({ limit: 200, sort: 'dueDate' });
+        if (res?.tasks) {
+          setTasks(res.tasks);
+          await offlineCache.setCachedData('tasks', res.tasks, user?.id);
+        }
+      } catch (e) {
+        console.warn('[Tasks] Background sync failed:', e);
+      }
+    });
+  }, [registerSyncTask, user?.id]);
+
   const loadTasks = useCallback(async (silent = false) => {
+    // 1. Immediately hydrate from persistent cache if in-memory list is empty
+    if (tasks.length === 0) {
+      const cached = await offlineCache.getCachedData<Task[]>('tasks', user?.id);
+      if (cached?.data && cached.data.length > 0) {
+        setTasks(cached.data);
+        setIsLoading(false);
+      }
+    }
+
     try {
-      if (!silent) setIsLoading(true);
+      if (!silent && tasks.length === 0) setIsLoading(true);
       setError(null);
       const res = await taskService.fetchTasks({ limit: 200, sort: 'dueDate' });
-      setTasks(res?.tasks || []);
+      const fetchedTasks = res?.tasks || [];
+      setTasks(fetchedTasks);
+      await offlineCache.setCachedData('tasks', fetchedTasks, user?.id);
     } catch (err: any) {
       console.warn('Error loading tasks:', err);
-      setError(err?.message || 'Unable to load tasks right now.');
+      // If we have cached tasks in memory or storage, preserve them and suppress fatal error screen
+      const cached = await offlineCache.getCachedData<Task[]>('tasks', user?.id);
+      if (cached?.data && cached.data.length > 0) {
+        setTasks(cached.data);
+      } else if (tasks.length === 0) {
+        setError(err?.message || 'Unable to load tasks right now.');
+      }
     } finally {
       setIsLoading(false);
       setIsRefreshing(false);
     }
-  }, []);
+  }, [tasks.length, user?.id]);
 
   useFocusEffect(
     useCallback(() => {
@@ -165,6 +203,10 @@ export default function TasksScreen() {
   };
 
   const handleChangeStatus = async (task: Task, nextStatus: TaskStatus, isUndo = false) => {
+    if (!isOnline) {
+      notifyActionRequiresNetwork('update task status');
+      return;
+    }
     const previousStatus = task.status;
     setUpdatingTaskId(task._id);
     // Optimistic update for responsive native feel
@@ -225,6 +267,10 @@ export default function TasksScreen() {
   };
 
   const handleSaveTask = async (payload: Partial<Task>) => {
+    if (!isOnline) {
+      notifyActionRequiresNetwork(editingTask ? 'update this task' : 'create tasks');
+      return;
+    }
     if (editingTask) {
       const res = await taskService.updateTask(editingTask._id, payload);
       if (res?.task) {
@@ -255,6 +301,10 @@ export default function TasksScreen() {
   };
 
   const handleDeleteTask = async (id: string) => {
+    if (!isOnline) {
+      notifyActionRequiresNetwork('delete tasks');
+      return;
+    }
     const deletedTitle = tasks.find((t) => t._id === id)?.title;
     try {
       await taskService.deleteTask(id);
@@ -349,6 +399,8 @@ export default function TasksScreen() {
           </ThemedText>
         </View>
       </View>
+
+      <OfflineBanner onRetry={() => loadTasks(false)} />
 
       {/* View Switcher (List / Board) */}
       <SegmentedControl

@@ -22,6 +22,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
 import { useAppTheme } from '@/context/ThemeContext';
+import { useAuth } from '@/context/AuthContext';
 import { useSnackbar } from '@/context/SnackbarContext';
 import { useFabBottomPadding } from '@/hooks/use-safe-bottom-padding';
 import { parseAppointmentFilterParam } from '@/utils/routeFilters';
@@ -34,8 +35,11 @@ import {
   EmptyState,
   FloatingActionButton,
   HeaderBackButton,
+  OfflineBanner,
   getButtonForegroundColor,
 } from '@/components/ui';
+import { offlineCache } from '@/services/offlineCache';
+import { useNetwork } from '@/context/NetworkContext';
 import { Typography } from '@/constants/typography';
 import { Spacing, Radius } from '@/constants/spacing';
 import {
@@ -67,7 +71,9 @@ const SORT_OPTIONS: SortOption[] = [
 
 export default function AppointmentsScreen() {
   const { colors, isDark } = useAppTheme();
+  const { user } = useAuth();
   const { showSnackbar } = useSnackbar();
+  const { isOnline, registerSyncTask, notifyActionRequiresNetwork } = useNetwork();
   const router = useRouter();
   const params = useLocalSearchParams<{ filter?: string | string[] }>();
   const bottomPadding = useFabBottomPadding(Spacing.six, false);
@@ -77,6 +83,20 @@ export default function AppointmentsScreen() {
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Background sync registration on network reconnection
+  useEffect(() => {
+    return registerSyncTask('appointments', async () => {
+      try {
+        const res = await appointmentService.fetchAppointments({ limit: 200 });
+        const fetched = res?.appointments || [];
+        setAppointments(fetched);
+        await offlineCache.setCachedData('appointments', fetched, user?.id);
+      } catch (e) {
+        console.warn('[Appointments] Background sync failed:', e);
+      }
+    });
+  }, [registerSyncTask, user?.id]);
 
   // Filter & Search state
   const [activeFilter, setActiveFilter] = useState<AppointmentFilterKey>('all');
@@ -102,20 +122,36 @@ export default function AppointmentsScreen() {
 
   // Fetch appointments from server
   const loadAppointments = useCallback(async (isSilent = false) => {
+    // 1. Immediately hydrate from cache if state is empty
+    if (appointments.length === 0) {
+      const cached = await offlineCache.getCachedData<Appointment[]>('appointments', user?.id);
+      if (cached?.data && cached.data.length > 0) {
+        setAppointments(cached.data);
+        setIsLoading(false);
+      }
+    }
+
     try {
-      if (!isSilent) setIsLoading(true);
+      if (!isSilent && appointments.length === 0) setIsLoading(true);
       setError(null);
 
       const res = await appointmentService.fetchAppointments({ limit: 200 });
-      setAppointments(res?.appointments || []);
+      const fetched = res?.appointments || [];
+      setAppointments(fetched);
+      await offlineCache.setCachedData('appointments', fetched, user?.id);
     } catch (err: any) {
       console.warn('Error loading appointments:', err);
-      setError(err?.message || 'Unable to connect to server. Please try again.');
+      const cached = await offlineCache.getCachedData<Appointment[]>('appointments', user?.id);
+      if (cached?.data && cached.data.length > 0) {
+        setAppointments(cached.data);
+      } else if (appointments.length === 0) {
+        setError(err?.message || 'Unable to connect to server. Please try again.');
+      }
     } finally {
       setIsLoading(false);
       setIsRefreshing(false);
     }
-  }, []);
+  }, [appointments.length, user?.id]);
 
   useEffect(() => {
     loadAppointments();
@@ -154,6 +190,10 @@ export default function AppointmentsScreen() {
 
   // Submit Create or Edit form
   const handleFormSubmit = async (formData: Partial<AppointmentFormData>) => {
+    if (!isOnline) {
+      notifyActionRequiresNetwork(editingAppointment ? 'update appointment' : 'create appointment');
+      return;
+    }
     if (editingAppointment) {
       const res = await appointmentService.updateAppointment(
         editingAppointment._id,
@@ -184,6 +224,10 @@ export default function AppointmentsScreen() {
 
   // Delete appointment
   const handleDeleteAppointment = async (appointmentId: string) => {
+    if (!isOnline) {
+      notifyActionRequiresNetwork('delete appointment');
+      return;
+    }
     const existingTitle = appointments.find((a) => a._id === appointmentId)?.title;
     await appointmentService.deleteAppointment(appointmentId);
     setAppointments((prev) => prev.filter((a) => a._id !== appointmentId));
@@ -233,6 +277,8 @@ export default function AppointmentsScreen() {
 
   const renderHeader = (
     <View style={styles.headerContainer}>
+      <OfflineBanner onRetry={() => loadAppointments(false)} />
+
       {/* Summary Dashboard Card */}
       <AppointmentSummaryCard totals={totals} />
 

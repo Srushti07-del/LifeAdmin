@@ -36,8 +36,11 @@ import {
   EmptyState,
   FloatingActionButton,
   HeaderBackButton,
+  OfflineBanner,
   getButtonForegroundColor,
 } from '@/components/ui';
+import { offlineCache } from '@/services/offlineCache';
+import { useNetwork } from '@/context/NetworkContext';
 import { Colors } from '@/constants/colors';
 import { Typography } from '@/constants/typography';
 import { Spacing, Radius } from '@/constants/spacing';
@@ -85,6 +88,7 @@ export default function DocumentsScreen() {
   const { colors, isDark } = useAppTheme();
   const { user } = useAuth();
   const { showSnackbar } = useSnackbar();
+  const { isOnline, registerSyncTask, notifyActionRequiresNetwork } = useNetwork();
   const bottomPadding = useFabBottomPadding(Spacing.six, false);
   const preferredCurrency = useMemo(
     () => normalizeCurrencyCode(user?.preferredCurrency),
@@ -96,6 +100,20 @@ export default function DocumentsScreen() {
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Background sync registration on network reconnection
+  useEffect(() => {
+    return registerSyncTask('documents', async () => {
+      try {
+        const res = await documentService.fetchDocuments({ limit: 200 });
+        const fetchedDocs = res?.documents || [];
+        setDocuments(fetchedDocs);
+        await offlineCache.setCachedData('documents', fetchedDocs, user?.id);
+      } catch (e) {
+        console.warn('[Documents] Background sync failed:', e);
+      }
+    });
+  }, [registerSyncTask, user?.id]);
 
   // Filter & Search state
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
@@ -117,20 +135,36 @@ export default function DocumentsScreen() {
 
   // Fetch documents from server
   const loadDocuments = useCallback(async (isSilent = false) => {
+    // 1. Immediately hydrate from cache if state is empty
+    if (documents.length === 0) {
+      const cached = await offlineCache.getCachedData<DocumentItem[]>('documents', user?.id);
+      if (cached?.data && cached.data.length > 0) {
+        setDocuments(cached.data);
+        setIsLoading(false);
+      }
+    }
+
     try {
-      if (!isSilent) setIsLoading(true);
+      if (!isSilent && documents.length === 0) setIsLoading(true);
       setError(null);
 
       const res = await documentService.fetchDocuments({ limit: 200 });
-      setDocuments(res?.documents || []);
+      const fetchedDocs = res?.documents || [];
+      setDocuments(fetchedDocs);
+      await offlineCache.setCachedData('documents', fetchedDocs, user?.id);
     } catch (err: any) {
       console.warn('Error loading documents:', err);
-      setError(err?.message || 'Unable to connect to server. Please try again.');
+      const cached = await offlineCache.getCachedData<DocumentItem[]>('documents', user?.id);
+      if (cached?.data && cached.data.length > 0) {
+        setDocuments(cached.data);
+      } else if (documents.length === 0) {
+        setError(err?.message || 'Unable to connect to server. Please try again.');
+      }
     } finally {
       setIsLoading(false);
       setIsRefreshing(false);
     }
-  }, []);
+  }, [documents.length, user?.id]);
 
   useEffect(() => {
     loadDocuments();
@@ -153,6 +187,10 @@ export default function DocumentsScreen() {
 
   // Upload handler
   const handleUploadDocument = async (params: UploadDocumentParams) => {
+    if (!isOnline) {
+      notifyActionRequiresNetwork('upload document');
+      return;
+    }
     const newDoc = await documentService.uploadDocument(params);
     setDocuments((prev) => [newDoc, ...prev]);
     showSnackbar({
@@ -164,6 +202,10 @@ export default function DocumentsScreen() {
 
   // Edit metadata handler
   const handleSaveEdit = async (id: string, updates: EditDocumentParams) => {
+    if (!isOnline) {
+      notifyActionRequiresNetwork('edit document');
+      return;
+    }
     const updated = await documentService.updateDocument(id, updates);
     setDocuments((prev) => prev.map((d) => (d._id === id ? updated : d)));
     if (selectedDocForDetails?._id === id) {
@@ -178,6 +220,10 @@ export default function DocumentsScreen() {
 
   // Delete handler
   const handleDeleteDocument = async (id: string) => {
+    if (!isOnline) {
+      notifyActionRequiresNetwork('delete document');
+      return;
+    }
     const docName = documents.find((d) => d._id === id)?.originalName;
     try {
       await documentService.deleteDocument(id);
@@ -218,6 +264,10 @@ export default function DocumentsScreen() {
 
   // Open file in browser / viewer
   const handleOpenFile = async (doc: DocumentItem) => {
+    if (!isOnline) {
+      notifyActionRequiresNetwork('view document');
+      return;
+    }
     try {
       const downloadUrl = documentService.getAuthenticatedDownloadUrl(doc._id);
       await WebBrowser.openBrowserAsync(downloadUrl);
@@ -251,6 +301,10 @@ export default function DocumentsScreen() {
     docId: string,
     params: CreateEntityFromDocParams
   ) => {
+    if (!isOnline) {
+      notifyActionRequiresNetwork('convert document');
+      return;
+    }
     const res = await documentService.createEntityFromDocument(docId, params);
     // Update document aiConfirmed flag
     if (res?.document) {
@@ -284,6 +338,7 @@ export default function DocumentsScreen() {
 
   const renderHeader = (
     <View style={styles.headerContainer}>
+      <OfflineBanner onRetry={() => loadDocuments(false)} />
       {/* Header */}
       <View style={styles.header}>
         <HeaderBackButton fallbackHref="/more" />
