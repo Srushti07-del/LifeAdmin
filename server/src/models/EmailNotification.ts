@@ -30,6 +30,9 @@ export interface IEmailNotification extends Document {
   // Idempotency: prevents duplicate emails for the same event + reminder interval
   dedupeKey: string;
 
+  // Next retry timestamp for exponential backoff (null = no retry pending)
+  nextRetryAt?: Date;
+
   createdAt: Date;
   updatedAt: Date;
 }
@@ -70,6 +73,9 @@ const emailNotificationSchema = new Schema<IEmailNotification>(
     maxRetries: { type: Number, default: 3 },
     errorMessage: { type: String, trim: true },
     sentAt: { type: Date },
+
+    // Next retry timestamp for exponential backoff (null = no retry pending)
+    nextRetryAt: { type: Date },
 
     dedupeKey: { type: String, trim: true, required: true, index: true },
   },

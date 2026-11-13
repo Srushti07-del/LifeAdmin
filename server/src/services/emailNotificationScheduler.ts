@@ -1,6 +1,7 @@
 import EmailNotification, { IEmailNotification } from '../models/EmailNotification';
 import User from '../models/User';
 import { sendNotificationEmail, isEmailConfigured } from './notificationEmail';
+import { getEmailBaseUrl } from './url';
 import config from '../config';
 
 const POLL_MS = 60 * 1000; // Poll every minute
@@ -100,11 +101,35 @@ export async function processPendingEmailNotifications(now = new Date()): Promis
   let skipped = 0;
   let scanned = 0;
 
+  const BASE_BACKOFF_MS = 60 * 1000; // 1 minute
+  const MAX_BACKOFF_MS = 4 * 60 * 60 * 1000; // 4 hours
+
+  function backoffMs(retryCount: number): number {
+    return Math.min(BASE_BACKOFF_MS * Math.pow(2, retryCount), MAX_BACKOFF_MS);
+  }
+
+  function isPermanentFailure(err: any): boolean {
+    const msg = (err?.message || '').toLowerCase();
+    return (
+      msg.includes('invalid email') ||
+      msg.includes('email address is not verified') ||
+      msg.includes('mailbox unavailable') ||
+      msg.includes('user unknown') ||
+      msg.includes('550') ||
+      msg.includes('5.1.1')
+    );
+  }
+
   try {
-    // Scan pending email notifications due now or earlier
+    // Scan pending email notifications due now or earlier, respecting nextRetryAt backoff
     const pending = await EmailNotification.find({
       status: 'pending',
       scheduledFor: { $lte: now },
+      $or: [
+        { nextRetryAt: { $exists: false } },
+        { nextRetryAt: null },
+        { nextRetryAt: { $lte: now } },
+      ],
     })
       .sort({ scheduledFor: 1 })
       .limit(BATCH_SIZE)
@@ -149,13 +174,12 @@ export async function processPendingEmailNotifications(now = new Date()): Promis
         // Respect quiet hours
         if (isInQuietHours(user, now)) {
           // Leave as pending; will be retried on next poll cycle
-          // Don't count as scanned failure — just skip this cycle
           skipped += 1;
           continue;
         }
 
         // Build the email action URL based on entity type
-        const baseUrl = config.appUrl || 'http://localhost:5173';
+        const baseUrl = getEmailBaseUrl({ nodeEnv: config.nodeEnv });
         const actionUrl = item.entityType
           ? `${baseUrl}/${item.entityType === 'task' ? 'tasks' : item.entityType === 'bill' ? 'bills' : item.entityType === 'appointment' ? 'appointments' : item.entityType === 'document' ? 'documents' : 'reminders'}`
           : baseUrl;
@@ -181,6 +205,7 @@ export async function processPendingEmailNotifications(now = new Date()): Promis
                 status: 'sent',
                 sentAt: now,
                 errorMessage: undefined,
+                nextRetryAt: null,
               },
               $inc: { retryCount: 1 },
             }
@@ -190,7 +215,8 @@ export async function processPendingEmailNotifications(now = new Date()): Promis
           const retryCount = (item.retryCount || 0) + 1;
           const maxRetries = item.maxRetries || 3;
 
-          if (retryCount >= maxRetries) {
+          if (isPermanentFailure(emailErr) || retryCount >= maxRetries) {
+            // Permanent failure or max retries exhausted — mark as failed
             await EmailNotification.updateOne(
               { _id: item._id },
               {
@@ -198,17 +224,18 @@ export async function processPendingEmailNotifications(now = new Date()): Promis
                   status: 'failed',
                   errorMessage: emailErr?.message || 'Unknown email delivery error',
                   retryCount,
+                  nextRetryAt: null,
                 },
               }
             );
             failed += 1;
           } else {
-            // Retry later — keep as pending, increment retry count
+            // Transient failure — retry with exponential backoff
+            const nextRetry = new Date(now.getTime() + backoffMs(retryCount));
             await EmailNotification.updateOne(
               { _id: item._id },
               {
-                $set: { retryCount },
-                $inc: { retryCount: 1 },
+                $set: { retryCount, nextRetryAt: nextRetry },
               }
             );
             failed += 1;

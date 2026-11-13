@@ -65,8 +65,18 @@ function formatLocalTime(date: Date, timezone: string): string {
   }
 }
 
-function dedupeKey(userId: mongoose.Types.ObjectId, entityId: mongoose.Types.ObjectId, type: string, offsetMinutes: number): string {
-  return `email:${userId}:${entityId}:${type}:${offsetMinutes}`;
+function formatDueDateTime(dueDate: Date): string {
+  const dt = new Date(dueDate);
+  const y = dt.getUTCFullYear();
+  const m = String(dt.getUTCMonth() + 1).padStart(2, '0');
+  const d = String(dt.getUTCDate()).padStart(2, '0');
+  const h = String(dt.getUTCHours()).padStart(2, '0');
+  const min = String(dt.getUTCMinutes()).padStart(2, '0');
+  return `${y}-${m}-${d}T${h}:${min}`;
+}
+
+function dedupeKey(userId: mongoose.Types.ObjectId, entityId: mongoose.Types.ObjectId, type: string, offsetMinutes: number, dueDate: Date): string {
+  return `email:${userId}:${entityId}:${type}:${offsetMinutes}:${formatDueDateTime(dueDate)}`;
 }
 
 /**
@@ -88,9 +98,9 @@ export async function generateEmailNotifications(now = new Date()): Promise<{
   }).lean();
 
   for (const user of users) {
+    const userId = user._id;
+    const timezone = user.timezone || 'UTC';
     try {
-      const userId = user._id;
-      const timezone = user.timezone || 'UTC';
       const intervals = Array.isArray(user.emailReminderIntervals)
         ? user.emailReminderIntervals.filter((n: number) => Number.isFinite(n))
         : [1440, 60, 0];
@@ -118,7 +128,7 @@ export async function generateEmailNotifications(now = new Date()): Promise<{
           const isOverdue = dueAt.getTime() < now.getTime();
 
           for (const offset of intervals) {
-            const key = dedupeKey(userId, task._id, 'task', offset);
+            const key = dedupeKey(userId, task._id, 'task', offset, dueAt);
             const existing = await EmailNotification.findOne({ dedupeKey: key });
             if (existing) continue; // Already scheduled/sent
 
@@ -161,7 +171,7 @@ export async function generateEmailNotifications(now = new Date()): Promise<{
           const isOverdue = bill.paymentStatus === 'overdue' || dueAt.getTime() < now.getTime();
 
           for (const offset of intervals) {
-            const key = dedupeKey(userId, bill._id, 'bill', offset);
+            const key = dedupeKey(userId, bill._id, 'bill', offset, dueAt);
             const existing = await EmailNotification.findOne({ dedupeKey: key });
             if (existing) continue;
 
@@ -203,7 +213,7 @@ export async function generateEmailNotifications(now = new Date()): Promise<{
           const isOverdue = dueAt.getTime() < now.getTime();
 
           for (const offset of intervals) {
-            const key = dedupeKey(userId, appointment._id, 'appointment', offset);
+            const key = dedupeKey(userId, appointment._id, 'appointment', offset, dueAt);
             const existing = await EmailNotification.findOne({ dedupeKey: key });
             if (existing) continue;
 
@@ -245,7 +255,7 @@ export async function generateEmailNotifications(now = new Date()): Promise<{
           const isOverdue = dueAt.getTime() < now.getTime();
 
           for (const offset of intervals) {
-            const key = dedupeKey(userId, reminder._id, 'reminder', offset);
+            const key = dedupeKey(userId, reminder._id, 'reminder', offset, dueAt);
             const existing = await EmailNotification.findOne({ dedupeKey: key });
             if (existing) continue;
 
@@ -276,9 +286,82 @@ export async function generateEmailNotifications(now = new Date()): Promise<{
       console.error(`Email notification generation error for user ${user._id}:`, userErr);
       skipped += 1;
     }
+
+    // Cancel pending notifications for entities that are no longer active
+    try {
+      await cancelStaleNotifications(user._id, timezone);
+    } catch (cleanupErr) {
+      console.error(`Stale notification cleanup error for user ${user._id}:`, cleanupErr);
+    }
   }
 
   return { created, scanned, skipped };
+}
+
+/**
+ * Cancel pending email notifications for entities that have been deleted,
+ * completed, paid, or dismissed. Preserves sent/failed/skipped history.
+ */
+async function cancelStaleNotifications(userId: mongoose.Types.ObjectId, timezone: string): Promise<void> {
+  const pending = await EmailNotification.find({ userId, status: 'pending' }).lean();
+
+  for (const item of pending) {
+    let active = false;
+
+    switch (item.entityType) {
+      case 'task': {
+        const t = await Task.findById(item.entityId).lean();
+        active = Boolean(t && t.status !== 'completed');
+        break;
+      }
+      case 'bill': {
+        const b = await Bill.findById(item.entityId).lean();
+        active = Boolean(b && b.paymentStatus !== 'paid');
+        break;
+      }
+      case 'appointment': {
+        const a = await Appointment.findById(item.entityId).lean();
+        active = Boolean(a);
+        break;
+      }
+      case 'reminder': {
+        const r = await Reminder.findById(item.entityId).lean();
+        active = Boolean(r && r.status !== 'completed' && r.status !== 'dismissed');
+        break;
+      }
+      case 'document': {
+        // Documents don't have recurring email notifications via this path.
+        active = true;
+        break;
+      }
+      default:
+        active = true;
+    }
+
+    if (!active) {
+      await EmailNotification.updateOne(
+        { _id: item._id },
+        { $set: { status: 'skipped', errorMessage: 'Entity no longer active' } }
+      );
+    }
+  }
+}
+
+export async function rescheduleEntityEmailNotifications(
+  userId: mongoose.Types.ObjectId,
+  entityId: mongoose.Types.ObjectId,
+  entityType: EmailEventSource
+): Promise<void> {
+  // Cancel all pending notifications for this entity (outdated schedule)
+  await EmailNotification.updateMany(
+    { userId, entityId, entityType, status: 'pending' },
+    { $set: { status: 'skipped', errorMessage: 'Entity rescheduled' } }
+  );
+
+  // Regenerate notifications for all users/entities (idempotent via dedupe keys).
+  // Pending notifications for this entity were just skipped, so new ones will be
+  // created for the updated schedule. Other entities are unaffected (existing dedupe keys).
+  await generateEmailNotifications();
 }
 
 export async function cleanupProcessedNotifications(): Promise<{ removed: number }> {

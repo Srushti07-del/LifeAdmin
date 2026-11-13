@@ -327,6 +327,7 @@ router.post('/chat', [body('message').notEmpty().withMessage('Message is require
 
     let replyText = '';
     let proposedActions: any[] = [];
+    let items: any[] = [];
     let source: 'ai' | 'fallback' = 'fallback';
 
     if (strictSevenDay) {
@@ -334,6 +335,33 @@ router.post('/chat', [body('message').notEmpty().withMessage('Message is require
         localDate,
         timezoneOffsetMinutes,
       });
+      items = [
+        ...scopedContext.scheduled.tasks.map((t: any) => ({
+          type: 'task',
+          title: t.title,
+          category: t.category,
+          date: t.dueDate,
+        })),
+        ...scopedContext.scheduled.bills.map((b: any) => ({
+          type: 'bill',
+          title: b.title,
+          amount: b.amount,
+          currency: b.currency,
+          date: b.dueDate,
+        })),
+        ...scopedContext.scheduled.appointments.map((a: any) => ({
+          type: 'appointment',
+          title: a.title,
+          date: a.date,
+          time: a.time,
+        })),
+        ...scopedContext.scheduled.reminders.map((r: any) => ({
+          type: 'reminder',
+          title: r.title,
+          date: r.dueDate,
+          time: r.dueTime,
+        })),
+      ].sort((a: any, b: any) => String(a.date).localeCompare(String(b.date)));
       if (geminiModel) {
         try {
           const result = await geminiModel.generateContent(
@@ -367,7 +395,7 @@ router.post('/chat', [body('message').notEmpty().withMessage('Message is require
 
     proposedActions = proposedActions.map((a) => ({ ...a, requiresConfirmation: true }));
     const saved = await saveInteraction(userId, conversationId, String(message).slice(0, 4000), replyText.slice(0, 8000));
-    res.json({ reply: replyText, proposedActions, suggestions: proposedActions, conversationId: String(saved._id), source });
+    res.json({ reply: replyText, items, proposedActions, suggestions: proposedActions, conversationId: String(saved._id), source });
   } catch (error) { console.error('AI Chat error:', error); res.status(500).json({ message: 'Failed to process AI chat request' }); }
 });
 

@@ -19,6 +19,7 @@ import AIAssistantPage from './pages/AIAssistantPage';
 import LifeBuddyPage from './pages/LifeBuddyPage';
 import SettingsPage from './pages/SettingsPage';
 import { Loader2 } from 'lucide-react';
+import { Toaster } from 'react-hot-toast';
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { token, user, loading } = useAuth();
@@ -88,6 +89,18 @@ export default function App() {
   return (
     <BrowserRouter>
       <AuthProvider>
+        <Toaster
+          position="top-right"
+          toastOptions={{
+            duration: 3000,
+            style: {
+              border: '1px solid border-surface-200 dark:border-surface-700',
+              padding: '12px 16px',
+              borderRadius: '12px',
+              fontSize: '12px',
+            },
+          }}
+        />
         <Routes>
           {/* Public Auth Routes */}
           <Route

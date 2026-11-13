@@ -4,6 +4,7 @@ import mongoose from 'mongoose';
 import Task from '../models/Task';
 import { authenticate, enforceOnboarding } from '../middleware/auth';
 import { enqueueRecordSync } from '../services/googleCalendarSync';
+import { rescheduleEntityEmailNotifications } from '../services/emailNotificationGenerator';
 
 const router = Router();
 
@@ -171,6 +172,9 @@ router.put('/:id', async (req: Request, res: Response): Promise<void> => {
 
     // Auto-sync to Google Calendar if connected
     void syncTaskToGoogle(req.user!._id.toString(), 'task', new mongoose.Types.ObjectId(id), 'update');
+
+    // Reschedule email notifications if the task's date/time changed
+    void rescheduleEntityEmailNotifications(req.user!._id, new mongoose.Types.ObjectId(id), 'task');
 
     res.json({ message: 'Task updated', task });
   } catch (error) {

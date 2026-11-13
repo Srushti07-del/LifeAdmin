@@ -5,6 +5,7 @@ import config from './config';
 import connectDB, { disconnectDB, sanitizeMongoError } from './config/database';
 import { startReminderScheduler, stopReminderScheduler } from './services/reminderScheduler';
 import { startEmailNotificationScheduler, stopEmailNotificationScheduler } from './services/emailNotificationScheduler';
+import { startEmailNotificationGenerationScheduler, stopEmailNotificationGenerationScheduler } from './services/emailNotificationGenerationScheduler';
 import { startGoogleCalendarScheduler, stopGoogleCalendarScheduler } from './services/googleCalendarScheduler';
 import { migrateStaleDocumentExtractions } from './utils/demoSeed';
 import { getPublicWebBaseUrl } from './services/passwordResetUrl';
@@ -47,6 +48,9 @@ export const gracefulShutdown = async (signal: string): Promise<void> => {
 
   // Stop email notification scheduler
   stopEmailNotificationScheduler();
+
+  // Stop email notification generation scheduler
+  stopEmailNotificationGenerationScheduler();
 
   // Stop Google Calendar scheduler
   stopGoogleCalendarScheduler();
@@ -119,6 +123,7 @@ export const startServer = async (): Promise<http.Server | void> => {
 
     startReminderScheduler();
     startEmailNotificationScheduler();
+    startEmailNotificationGenerationScheduler();
     startGoogleCalendarScheduler();
 
     const host = process.env.HOST || (config.nodeEnv === 'development' ? '0.0.0.0' : undefined);

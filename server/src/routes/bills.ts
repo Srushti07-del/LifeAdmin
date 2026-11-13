@@ -5,6 +5,7 @@ import Bill from '../models/Bill';
 import { authenticate, enforceOnboarding } from '../middleware/auth';
 import { handleBillRecurrence } from '../services/recurrence';
 import { enqueueRecordSync } from '../services/googleCalendarSync';
+import { rescheduleEntityEmailNotifications } from '../services/emailNotificationGenerator';
 
 const router = Router();
 router.use(authenticate);
@@ -168,6 +169,9 @@ router.put('/:id', async (req: Request, res: Response): Promise<void> => {
 
     // Auto-sync to Google Calendar if connected
     void syncBillToGoogle(req.user!._id, 'update', existingBill._id);
+
+    // Reschedule email notifications if the bill's due date changed
+    void rescheduleEntityEmailNotifications(req.user!._id, existingBill._id, 'bill');
 
     let nextOccurrence = null;
     if (bill && updateData.paymentStatus === 'paid' && existingBill.paymentStatus !== 'paid') {

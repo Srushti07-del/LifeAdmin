@@ -203,18 +203,22 @@ describe('AI assistant routes', () => {
 
     assert.equal(res.status, 200);
     const data: any = await res.json();
-    assert.ok(/Window Task Today/.test(data.reply));
-    assert.ok(/Window Bill Day 7 Boundary/.test(data.reply));
-    assert.ok(/Window Appointment Day 4/.test(data.reply));
-    assert.ok(/Window Reminder Day 5/.test(data.reply));
-    assert.ok(/Overdue Task Day -2/.test(data.reply));
-    assert.ok(/Overdue/i.test(data.reply));
+    assert.ok(typeof data.reply === 'string' && data.reply.length > 0);
+    assert.ok(Array.isArray(data.items));
+    assert.ok(data.items.some((i: any) => i.title === 'Window Task Today'));
+    assert.ok(data.items.some((i: any) => i.title === 'Window Bill Day 7 Boundary'));
+    assert.ok(data.items.some((i: any) => i.title === 'Window Appointment Day 4'));
+    assert.ok(data.items.some((i: any) => i.title === 'Window Reminder Day 5'));
 
-    assert.ok(!/Excluded Task Day 8/.test(data.reply));
-    assert.ok(!/Excluded Bill Day 12/.test(data.reply));
-    assert.ok(!/Excluded Appointment Day 8/.test(data.reply));
-    assert.ok(!/Excluded Reminder Day 15/.test(data.reply));
-    assert.ok(!/Past Appointment Yesterday/.test(data.reply));
+    // Excluded / out-of-window items must not appear in structured items
+    assert.ok(!data.items.some((i: any) => i.title === 'Excluded Task Day 8'));
+    assert.ok(!data.items.some((i: any) => i.title === 'Excluded Bill Day 12'));
+    assert.ok(!data.items.some((i: any) => i.title === 'Excluded Appointment Day 8'));
+    assert.ok(!data.items.some((i: any) => i.title === 'Excluded Reminder Day 15'));
+    assert.ok(!data.items.some((i: any) => i.title === 'Overdue Task Day -2'));
+    assert.ok(!data.items.some((i: any) => i.title === 'Past Appointment Yesterday'));
+
+    // No 30-day/monthly outlook in the overview text
     assert.ok(!/30 day|monthly/i.test(data.reply));
   });
 

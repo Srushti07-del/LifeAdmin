@@ -6,6 +6,7 @@ import Notification from '../models/Notification';
 import { authenticate, enforceOnboarding } from '../middleware/auth';
 import { calculateNextOccurrence } from '../services/recurrence';
 import { enqueueRecordSync } from '../services/googleCalendarSync';
+import { rescheduleEntityEmailNotifications } from '../services/emailNotificationGenerator';
 
 const router = Router();
 router.use(authenticate);
@@ -256,6 +257,9 @@ router.put('/:id', async (req: Request, res: Response): Promise<void> => {
 
     // Auto-sync to Google Calendar if connected
     void syncReminderToGoogle(req.user!._id, 'update', existingReminder._id);
+
+    // Reschedule email notifications if the reminder's date/time changed
+    void rescheduleEntityEmailNotifications(req.user!._id, existingReminder._id, 'reminder');
 
     let nextOccurrence = null;
     if (reminder && updateData.status === 'completed' && existingReminder.status !== 'completed') {

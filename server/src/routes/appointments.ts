@@ -4,6 +4,7 @@ import mongoose from 'mongoose';
 import Appointment from '../models/Appointment';
 import { authenticate, enforceOnboarding } from '../middleware/auth';
 import { enqueueRecordSync } from '../services/googleCalendarSync';
+import { rescheduleEntityEmailNotifications } from '../services/emailNotificationGenerator';
 
 const router = Router();
 router.use(authenticate);
@@ -136,6 +137,9 @@ router.put('/:id', async (req: Request, res: Response): Promise<void> => {
 
     // Auto-sync to Google Calendar if connected
     void syncAppointmentToGoogle(req.user!._id, 'update', existingAppointment._id);
+
+    // Reschedule email notifications if the appointment's date/time changed
+    void rescheduleEntityEmailNotifications(req.user!._id, existingAppointment._id, 'appointment');
 
     res.json({ message: 'Appointment updated', appointment });
   } catch (error) {

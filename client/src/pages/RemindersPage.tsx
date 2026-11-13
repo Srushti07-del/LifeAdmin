@@ -220,8 +220,8 @@ export default function RemindersPage() {
     <div className="space-y-6 animate-fade-in pb-12">
       <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 pb-3 border-b border-surface-100 dark:border-[#304247]">
         <div>
-          <h1 className="text-3xl font-bold font-editorial text-surface-900 dark:text-surface-100 tracking-tight">Smart Reminders</h1>
-          <p className="text-xs text-surface-500 dark:text-surface-400 mt-1">Scheduled cues and in-app alerts while LifeAdmin is running</p>
+          <h1 className="text-3xl font-bold font-editorial text-surface-900 dark:text-surface-100 tracking-tight">Reminders</h1>
+          <p className="text-xs text-surface-500 dark:text-surface-400 mt-1">Manage your scheduled reminders and recurring alerts.</p>
         </div>
         <button onClick={openCreate} id="new-reminder-button" className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-primary-500 hover:bg-primary-600 text-white text-xs font-semibold shadow-xs transition-all">
           <Plus size={16} /><span>New Reminder</span>

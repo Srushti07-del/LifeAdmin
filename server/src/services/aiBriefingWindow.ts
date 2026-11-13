@@ -420,77 +420,54 @@ export function buildStrictSevenDayGeminiPrompt(
   scoped: StrictSevenDayContext,
   message: string
 ): string {
-  return `You are LifeBuddy, the friendly in-app assistant for LifeAdmin.
+  const scheduledCount =
+    scoped.scheduled.tasks.length +
+    scoped.scheduled.bills.length +
+    scoped.scheduled.appointments.length +
+    scoped.scheduled.reminders.length;
+
+  return `Generate a concise 7-day briefing based on the user's scheduled data.
 STRICT 7-DAY BRIEFING WINDOW:
 - Current user local date: ${scoped.window.localDate}
-- Included future window: ${scoped.window.startDate} through ${scoped.window.endDate} ONLY (today + next 6 calendar days = 7 days total).
+- Included window: ${scoped.window.startDate} through ${scoped.window.endDate} ONLY (today + next 6 calendar days = 7 days total).
 - Do NOT invent items, dates, amounts, or statuses.
 - Do NOT mention 30-day forecasts, monthly outlooks, or anything scheduled after ${scoped.window.endDate}.
-- Keep overdue responsibilities clearly separate from upcoming items scheduled within ${scoped.window.startDate}..${scoped.window.endDate}.
+- Do NOT include overdue items, greetings, AI self-introductions, recommendations, motivational text, or any concluding filler.
+- Do NOT say "Hello", "I'm LifeBuddy", or introduce yourself.
+- Do NOT use markdown headings (###), bold section titles, bold text, or bullet lists.
+- Respond with plain text only — no markdown syntax of any kind.
 - Currency is INR unless specified otherwise.
+- Respond with ONLY ONE short natural-language sentence summarizing the user's upcoming 7 days based on the scheduled items below. Mention the counts where useful. If there are no scheduled items, say exactly: "Your schedule is clear for the next 7 days. No upcoming tasks, bills, appointments or reminders."
 
-Authenticated user 7-day data JSON:
+Authenticated user 7-day scheduled data JSON:
 ${JSON.stringify({
   window: scoped.window,
   summary: scoped.summary,
-  overdue: scoped.overdue,
   scheduledNext7Days: scoped.scheduled,
 })}
 
 User request:
-${message}
-
-Respond concisely in plain helpful text focused strictly on today through ${scoped.window.endDate}, plus any genuinely overdue items listed separately.`;
+${message}`;
 }
 
 export function buildStrictSevenDayFallbackReply(scoped: StrictSevenDayContext): string {
-  const { window: win, overdue, scheduled, summary } = scoped;
-  const sections: string[] = [];
+  const { window: win, scheduled, summary } = scoped;
+  const total =
+    scheduled.tasks.length +
+    scheduled.bills.length +
+    scheduled.appointments.length +
+    scheduled.reminders.length;
 
-  sections.push(
-    `**7-Day Daily Briefing (${formatHumanYMD(win.startDate)} – ${formatHumanYMD(win.endDate)})**`
-  );
-
-  const scheduledLines: string[] = [];
-  for (const t of scheduled.tasks.slice(0, 5)) {
-    const label = t.daysFromToday === 0 ? 'Today' : t.daysFromToday === 1 ? 'Tomorrow' : formatHumanYMD(t.dueDate);
-    scheduledLines.push(`- Task: ${t.title} (${t.priority}, ${label})`);
-  }
-  for (const b of scheduled.bills.slice(0, 5)) {
-    const label = b.daysFromToday === 0 ? 'Today' : b.daysFromToday === 1 ? 'Tomorrow' : formatHumanYMD(b.dueDate);
-    scheduledLines.push(`- Bill: ${b.title} — ${formatScopedMoney(b.amount, b.currency)} due ${label}`);
-  }
-  for (const a of scheduled.appointments.slice(0, 5)) {
-    const label = a.daysFromToday === 0 ? 'Today' : a.daysFromToday === 1 ? 'Tomorrow' : formatHumanYMD(a.date);
-    scheduledLines.push(`- Appointment: ${a.title} — ${label}${a.time ? ` at ${a.time}` : ''}`);
-  }
-  for (const r of scheduled.reminders.slice(0, 5)) {
-    const label = r.daysFromToday === 0 ? 'Today' : r.daysFromToday === 1 ? 'Tomorrow' : formatHumanYMD(r.dueDate);
-    scheduledLines.push(`- Reminder: ${r.title} — ${label}${r.dueTime ? ` at ${r.dueTime}` : ''}`);
+  if (total === 0) {
+    return 'Your schedule is clear for the next 7 days. No upcoming tasks, bills, appointments or reminders.';
   }
 
-  if (scheduledLines.length > 0) {
-    sections.push(`**Scheduled (Next 7 Calendar Days)**\n${scheduledLines.join('\n')}`);
-  } else {
-    sections.push(
-      `**Scheduled (Next 7 Calendar Days)**\nNo tasks, bills, appointments, or reminders scheduled between ${formatHumanYMD(win.startDate)} and ${formatHumanYMD(win.endDate)}.`
-    );
-  }
+  const parts: string[] = [];
+  if (scheduled.tasks.length) parts.push(`${scheduled.tasks.length} task${scheduled.tasks.length > 1 ? 's' : ''}`);
+  if (scheduled.bills.length) parts.push(`${scheduled.bills.length} bill${scheduled.bills.length > 1 ? 's' : ''}`);
+  if (scheduled.appointments.length) parts.push(`${scheduled.appointments.length} appointment${scheduled.appointments.length > 1 ? 's' : ''}`);
+  if (scheduled.reminders.length) parts.push(`${scheduled.reminders.length} reminder${scheduled.reminders.length > 1 ? 's' : ''}`);
 
-  if (summary.overdueCount > 0) {
-    const overdueLines: string[] = [];
-    for (const t of overdue.tasks.slice(0, 4)) {
-      overdueLines.push(`- Overdue task: ${t.title} (was due ${formatHumanYMD(t.dueDate)})`);
-    }
-    for (const b of overdue.bills.slice(0, 4)) {
-      overdueLines.push(`- Overdue bill: ${b.title} — ${formatScopedMoney(b.amount, b.currency)} (was due ${formatHumanYMD(b.dueDate)})`);
-    }
-    for (const r of overdue.reminders.slice(0, 3)) {
-      overdueLines.push(`- Overdue reminder: ${r.title} (was due ${formatHumanYMD(r.dueDate)})`);
-    }
-    sections.push(`**Overdue (Needs Attention Separately)**\n${overdueLines.join('\n')}`);
-  }
-
-  return sections.join('\n\n');
+  return `Over the next 7 days (${formatHumanYMD(win.startDate)} – ${formatHumanYMD(win.endDate)}), you have ${parts.join(', ')}.`;
 }
 

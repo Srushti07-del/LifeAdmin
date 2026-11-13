@@ -126,7 +126,7 @@ export default function SettingsPage() {
   const fetchEmailStatus = async () => {
     setLoadingEmailStatus(true);
     try {
-      const res = await api.get('/api/email-notifications/status');
+      const res = await api.get('/email-notifications/status');
       setEmailConfigured(res.data.emailConfigured);
       setNotificationsEnabled(res.data.emailNotificationsEnabled ?? notificationsEnabled);
       setEmailReminderIntervals(res.data.emailReminderIntervals || emailReminderIntervals);

@@ -11,6 +11,7 @@
  */
 
 import config from '../config';
+import { getPublicAppUrl } from './url';
 
 export interface PasswordResetUrlOptions {
   token: string;
@@ -31,55 +32,7 @@ export interface PasswordResetUrlOptions {
  * - Falls back to CLIENT_URL or http://localhost:5173 if unspecified.
  */
 export function getPublicWebBaseUrl(options?: { nodeEnv?: string; rawUrl?: string }): string {
-  const nodeEnv = options?.nodeEnv ?? config.nodeEnv;
-  const isProduction = nodeEnv === 'production';
-  const rawUrl = (
-    options?.rawUrl ??
-    (process.env.APP_URL || process.env.CLIENT_URL || (isProduction ? '' : 'http://localhost:5173'))
-  ).trim();
-
-  if (!rawUrl) {
-    if (isProduction) {
-      throw new Error(
-        'Production configuration error: APP_URL (or CLIENT_URL) must be set to the deployed public HTTPS domain (e.g. https://lifeadmin.app).'
-      );
-    }
-    return 'http://localhost:5173';
-  }
-
-  // Parse URL to validate format
-  let parsed: URL;
-  try {
-    parsed = new URL(rawUrl);
-  } catch {
-    throw new Error(`Invalid application URL: "${rawUrl}". Must be a valid absolute URL.`);
-  }
-
-  if (isProduction) {
-    // 1. Must use HTTPS
-    if (parsed.protocol !== 'https:') {
-      throw new Error(
-        `Production configuration error: Public application URL must use HTTPS in production (received "${parsed.protocol}").`
-      );
-    }
-
-    // 2. Reject localhost / loopback addresses
-    const hostname = parsed.hostname.toLowerCase();
-    if (
-      hostname === 'localhost' ||
-      hostname === '127.0.0.1' ||
-      hostname === '0.0.0.0' ||
-      hostname === '::1' ||
-      hostname.endsWith('.local')
-    ) {
-      throw new Error(
-        `Production configuration error: Public application URL cannot be localhost or loopback in production ("${hostname}"). Configure the actual deployed domain.`
-      );
-    }
-  }
-
-  // Strip trailing slashes for clean path concatenation
-  return rawUrl.replace(/\/+$/, '');
+  return getPublicAppUrl({ nodeEnv: options?.nodeEnv, rawUrl: options?.rawUrl });
 }
 
 /**

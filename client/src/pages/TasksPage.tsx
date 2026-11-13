@@ -29,6 +29,19 @@ interface Task {
   createdAt: string;
 }
 
+// Status sort priority: To Do → In Progress → Completed
+const STATUS_ORDER: Record<string, number> = { todo: 0, in_progress: 1, completed: 2 };
+
+function sortTasksByStatusThenDue(tasks: Task[]): Task[] {
+  return [...tasks].sort((a, b) => {
+    const sa = STATUS_ORDER[a.status] ?? 99;
+    const sb = STATUS_ORDER[b.status] ?? 99;
+    if (sa !== sb) return sa - sb;
+    // Preserve existing due-date ordering within each status group
+    return new Date(a.dueDate || 0).getTime() - new Date(b.dueDate || 0).getTime();
+  });
+}
+
 const priorityConfig = {
   low: { color: 'text-surface-600 dark:text-surface-200', bg: 'bg-surface-100 dark:bg-surface-800', border: 'border-surface-300 dark:border-surface-700', label: 'Low' },
   medium: { color: 'text-teal-700 dark:text-primary-200', bg: 'bg-teal-50 dark:bg-surface-800', border: 'border-teal-200 dark:border-surface-700', label: 'Medium' },
@@ -63,7 +76,7 @@ export default function TasksPage() {
       const params: Record<string, string> = { sort: 'dueDate' };
       if (statusFilter !== 'all') params.status = statusFilter;
       const res = await api.get('/tasks', { params });
-      setTasks(res.data.tasks);
+      setTasks(sortTasksByStatusThenDue(res.data.tasks));
     } catch (err) {
       console.error('Failed to fetch tasks:', err);
     } finally {

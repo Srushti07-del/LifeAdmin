@@ -470,9 +470,7 @@ export default function DocumentsPage() {
                               <CheckCircle2 size={12} />
                               Converted
                             </span>
-                          ) : (
-                            <span className="text-accent-500">Unconfirmed</span>
-                          )}
+                          ) : null}
                         </div>
 
                         {doc.aiExtracted?.provider && (

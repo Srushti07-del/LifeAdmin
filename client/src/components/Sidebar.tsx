@@ -206,12 +206,12 @@ export default function Sidebar({ collapsed, onToggleCollapse }: SidebarProps) {
         <div className="p-3 border-t border-surface-200 dark:border-[#304247] space-y-1">
           {!collapsed && (
             <div className="px-1 pb-1">
-              <NotificationCenter label="Reminders" />
+              <NotificationCenter label="Notifications" />
             </div>
           )}
           {collapsed && (
             <div className="flex justify-center pb-1">
-              <NotificationCenter label="Reminders" collapsed />
+              <NotificationCenter label="Notifications" collapsed />
             </div>
           )}
           {/* Theme switch */}
