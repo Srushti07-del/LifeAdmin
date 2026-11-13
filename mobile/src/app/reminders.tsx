@@ -20,6 +20,8 @@ import {
   View,
   StyleSheet,
   ScrollView,
+  SectionList,
+  Platform,
   RefreshControl,
   ActivityIndicator,
   Pressable,
@@ -85,6 +87,15 @@ const PRIORITIES: Array<{ key: string; label: string }> = [
   { key: "medium", label: "Medium" },
   { key: "low", label: "Low" },
 ];
+
+interface ReminderSection {
+  key: string;
+  title: string;
+  count: number;
+  indicatorColor: string;
+  textColor: string;
+  data: Reminder[];
+}
 
 export default function RemindersScreen() {
   const { colors, isDark } = useAppTheme();
@@ -447,415 +458,389 @@ export default function RemindersScreen() {
     );
   };
 
+  const reminderKeyExtractor = useCallback((item: Reminder) => item._id, []);
+
+  const renderReminderItem = useCallback(
+    ({ item }: { item: Reminder }) => (
+      <ReminderCard
+        reminder={item}
+        onPress={() => setSelectedReminderForDetails(item)}
+        onToggleComplete={() => handleToggleComplete(item)}
+        onEdit={() => {
+          setEditingReminder(item);
+          setIsFormOpen(true);
+        }}
+        onDelete={() => confirmDelete(item)}
+      />
+    ),
+    [handleToggleComplete, confirmDelete]
+  );
+
+  const renderSectionHeader = useCallback(
+    ({ section }: { section: ReminderSection }) => (
+      <View style={styles.sectionHeaderRow}>
+        <View
+          style={[
+            styles.sectionIndicator,
+            { backgroundColor: section.indicatorColor },
+          ]}
+        />
+        <ThemedText
+          style={[
+            styles.sectionHeading,
+            { color: section.textColor },
+          ]}
+        >
+          {section.title} ({section.count})
+        </ThemedText>
+      </View>
+    ),
+    []
+  );
+
+  const sections: ReminderSection[] = useMemo(() => {
+    if (isLoading || filteredReminders.length === 0) return [];
+    const list: ReminderSection[] = [];
+
+    if (
+      grouped.overdue.length > 0 &&
+      (filterSection === "all" || filterSection === "overdue")
+    ) {
+      list.push({
+        key: "overdue",
+        title: "Overdue",
+        count: grouped.overdue.length,
+        indicatorColor: Colors.urgency.critical.accent,
+        textColor: isDark
+          ? Colors.urgency.critical.darkText
+          : Colors.urgency.critical.lightText,
+        data: grouped.overdue,
+      });
+    }
+
+    if (
+      grouped.today.length > 0 &&
+      (filterSection === "all" || filterSection === "today")
+    ) {
+      list.push({
+        key: "today",
+        title: "Due Today",
+        count: grouped.today.length,
+        indicatorColor: colors.primary,
+        textColor: colors.primary,
+        data: grouped.today,
+      });
+    }
+
+    if (
+      grouped.upcoming.length > 0 &&
+      (filterSection === "all" || filterSection === "upcoming")
+    ) {
+      list.push({
+        key: "upcoming",
+        title: "Upcoming",
+        count: grouped.upcoming.length,
+        indicatorColor: Colors.urgency.upcoming.accent,
+        textColor: isDark
+          ? Colors.urgency.upcoming.darkText
+          : Colors.urgency.upcoming.lightText,
+        data: grouped.upcoming,
+      });
+    }
+
+    if (
+      grouped.completed.length > 0 &&
+      (filterSection === "all" || filterSection === "completed")
+    ) {
+      list.push({
+        key: "completed",
+        title: "Completed",
+        count: grouped.completed.length,
+        indicatorColor: Colors.urgency.completed.accent,
+        textColor: isDark
+          ? Colors.urgency.completed.darkText
+          : Colors.urgency.completed.lightText,
+        data: grouped.completed,
+      });
+    }
+
+    return list;
+  }, [
+    isLoading,
+    filteredReminders.length,
+    grouped,
+    filterSection,
+    isDark,
+    colors.primary,
+  ]);
+
+  const renderHeader = (
+    <View style={styles.headerContainer}>
+      {/* Header */}
+      <View style={styles.header}>
+        <HeaderBackButton fallbackHref="/more" />
+        <View style={styles.headerTitles}>
+          <ThemedText style={[styles.title, { color: colors.text }]}>
+            Smart Reminders
+          </ThemedText>
+          <ThemedText
+            style={[styles.subtitle, { color: colors.textSecondary }]}
+          >
+            Time-sensitive cues and native background notifications
+          </ThemedText>
+        </View>
+      </View>
+
+      {/* Permission Banner (Notification Display or Android Exact Alarm) */}
+      {activeBanner && (
+        <NotificationPermissionBanner
+          type={activeBanner}
+          onEnable={
+            activeBanner === "notifications"
+              ? handleRequestNotificationPermission
+              : handleRequestExactAlarmPermission
+          }
+          onDismiss={() =>
+            setDismissedBanners((prev) => ({ ...prev, [activeBanner]: true }))
+          }
+        />
+      )}
+
+      {/* Aggregate Summary Card */}
+      <ReminderSummaryCard
+        totals={totals}
+        activeFilter={filterSection}
+        onSelectFilter={setFilterSection}
+      />
+
+      {/* Search Bar & Sort Toggle */}
+      <View style={styles.searchRow}>
+        <View style={styles.searchInputWrap}>
+          <SearchInput
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+            placeholder="Search reminders by title, notes, or category..."
+          />
+        </View>
+
+        <Pressable
+          onPress={() =>
+            setSortOrder((prev) =>
+              prev === "dueDate" ? "-dueDate" : "dueDate",
+            )
+          }
+          hitSlop={4}
+          accessibilityRole="button"
+          accessibilityLabel={
+            sortOrder === "dueDate"
+              ? "Sort order: Soonest first"
+              : "Sort order: Latest first"
+          }
+          style={[
+            styles.sortBtn,
+            {
+              backgroundColor:
+                sortOrder === "-dueDate"
+                  ? colors.primarySoft
+                  : colors.surface,
+              borderColor:
+                sortOrder === "-dueDate" ? colors.primary : colors.border,
+            },
+          ]}
+        >
+          <SymbolView
+            name={{ ios: "arrow.up.arrow.down", android: "sort" }}
+            size={18}
+            tintColor={
+              sortOrder === "-dueDate" ? colors.primary : colors.text
+            }
+          />
+        </Pressable>
+      </View>
+
+      {/* Category Pills Bar */}
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={styles.categoryPillsScroll}
+      >
+        {CATEGORIES.map((cat) => {
+          const isSelected = selectedCategory === cat;
+          const selectedFg = getButtonForegroundColor(
+            "primary",
+            colors,
+            isDark,
+          );
+          return (
+            <Pressable
+              key={cat}
+              onPress={() => setSelectedCategory(cat)}
+              hitSlop={6}
+              style={[
+                styles.categoryPill,
+                {
+                  backgroundColor: isSelected
+                    ? colors.primary
+                    : colors.surface,
+                  borderColor: isSelected ? colors.primary : colors.border,
+                },
+              ]}
+            >
+              <ThemedText
+                style={[
+                  styles.categoryPillText,
+                  { color: isSelected ? selectedFg : colors.textSecondary },
+                ]}
+              >
+                {cat}
+              </ThemedText>
+            </Pressable>
+          );
+        })}
+      </ScrollView>
+
+      {/* Error Banner */}
+      {error && (
+        <View
+          style={[
+            styles.errorBox,
+            {
+              backgroundColor: isDark
+                ? Colors.urgency.critical.darkBg
+                : Colors.urgency.critical.lightBg,
+              borderColor: Colors.urgency.critical.accent,
+            },
+          ]}
+        >
+          <ThemedText
+            style={[
+              styles.errorText,
+              {
+                color: isDark
+                  ? Colors.urgency.critical.darkText
+                  : Colors.urgency.critical.lightText,
+              },
+            ]}
+          >
+            {error}
+          </ThemedText>
+          <Button variant="outline" size="sm" onPress={() => loadReminders()}>
+            Retry
+          </Button>
+        </View>
+      )}
+
+      {/* Content States */}
+      {isLoading && !isRefreshing ? (
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color={colors.primary} />
+          <ThemedText
+            style={[styles.loadingText, { color: colors.textSecondary }]}
+          >
+            Loading active reminders...
+          </ThemedText>
+        </View>
+      ) : filteredReminders.length === 0 ? (
+        <EmptyState
+          title={
+            searchQuery ||
+            selectedCategory !== "All" ||
+            filterSection !== "all"
+              ? "No matching reminders"
+              : "No reminders yet"
+          }
+          description={
+            searchQuery ||
+            selectedCategory !== "All" ||
+            filterSection !== "all"
+              ? "Try adjusting your search query, priority filter, or category."
+              : "Stay ahead of your everyday obligations. Schedule native alerts for calls, bills, meds, and meetings."
+          }
+          actionLabel={
+            searchQuery ||
+            selectedCategory !== "All" ||
+            filterSection !== "all"
+              ? "Clear Filters"
+              : "Set First Reminder"
+          }
+          onAction={
+            searchQuery ||
+            selectedCategory !== "All" ||
+            filterSection !== "all"
+              ? () => {
+                  setSearchQuery("");
+                  setSelectedCategory("All");
+                  setSelectedPriority("all");
+                  setFilterSection("all");
+                }
+              : () => {
+                  setEditingReminder(null);
+                  setIsFormOpen(true);
+                }
+          }
+          icon={
+            <SymbolView
+              name={{
+                ios:
+                  searchQuery ||
+                  selectedCategory !== "All" ||
+                  filterSection !== "all"
+                    ? "magnifyingglass"
+                    : "bell.badge",
+                android:
+                  searchQuery ||
+                  selectedCategory !== "All" ||
+                  filterSection !== "all"
+                    ? "search_off"
+                    : "notifications_none",
+                web:
+                  searchQuery ||
+                  selectedCategory !== "All" ||
+                  filterSection !== "all"
+                    ? "search_off"
+                    : "notifications_none",
+              }}
+              size={28}
+              tintColor={colors.primary}
+            />
+          }
+        />
+      ) : null}
+    </View>
+  );
+
   return (
     <ThemedView style={styles.screen}>
       <SafeAreaView
         edges={["top", "left", "right"]}
         style={styles.screen}
       >
-        <ScrollView
-          showsVerticalScrollIndicator={false}
+        <SectionList
+          sections={sections}
+          renderItem={renderReminderItem}
+          renderSectionHeader={renderSectionHeader}
+          keyExtractor={reminderKeyExtractor}
+          stickySectionHeadersEnabled={false}
+          ListHeaderComponent={renderHeader}
           contentContainerStyle={[
             styles.scrollContent,
             { paddingBottom: bottomPadding },
           ]}
-        refreshControl={
-          <RefreshControl
-            refreshing={isRefreshing}
-            onRefresh={handleRefresh}
-            tintColor={colors.primary}
-            colors={[colors.primary]}
-          />
-        }
-      >
-        {/* Header */}
-        <View style={styles.header}>
-          <HeaderBackButton fallbackHref="/more" />
-          <View style={styles.headerTitles}>
-            <ThemedText style={[styles.title, { color: colors.text }]}>
-              Smart Reminders
-            </ThemedText>
-            <ThemedText
-              style={[styles.subtitle, { color: colors.textSecondary }]}
-            >
-              Time-sensitive cues and native background notifications
-            </ThemedText>
-          </View>
-        </View>
-
-        {/* Permission Banner (Notification Display or Android Exact Alarm) */}
-        {activeBanner && (
-          <NotificationPermissionBanner
-            type={activeBanner}
-            onEnable={
-              activeBanner === "notifications"
-                ? handleRequestNotificationPermission
-                : handleRequestExactAlarmPermission
-            }
-            onDismiss={() =>
-              setDismissedBanners((prev) => ({ ...prev, [activeBanner]: true }))
-            }
-          />
-        )}
-
-        {/* Aggregate Summary Card */}
-        <ReminderSummaryCard
-          totals={totals}
-          activeFilter={filterSection}
-          onSelectFilter={setFilterSection}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+          initialNumToRender={10}
+          maxToRenderPerBatch={10}
+          windowSize={5}
+          removeClippedSubviews={Platform.OS === 'android'}
+          refreshControl={
+            <RefreshControl
+              refreshing={isRefreshing}
+              onRefresh={handleRefresh}
+              tintColor={colors.primary}
+              colors={[colors.primary]}
+            />
+          }
         />
-
-        {/* Search Bar & Sort Toggle */}
-        <View style={styles.searchRow}>
-          <View style={styles.searchInputWrap}>
-            <SearchInput
-              value={searchQuery}
-              onChangeText={setSearchQuery}
-              placeholder="Search reminders by title, notes, or category..."
-            />
-          </View>
-
-          <Pressable
-            onPress={() =>
-              setSortOrder((prev) =>
-                prev === "dueDate" ? "-dueDate" : "dueDate",
-              )
-            }
-            hitSlop={4}
-            accessibilityRole="button"
-            accessibilityLabel={
-              sortOrder === "dueDate"
-                ? "Sort order: Soonest first"
-                : "Sort order: Latest first"
-            }
-            style={[
-              styles.sortBtn,
-              {
-                backgroundColor:
-                  sortOrder === "-dueDate"
-                    ? colors.primarySoft
-                    : colors.surface,
-                borderColor:
-                  sortOrder === "-dueDate" ? colors.primary : colors.border,
-              },
-            ]}
-          >
-            <SymbolView
-              name={{ ios: "arrow.up.arrow.down", android: "sort" }}
-              size={18}
-              tintColor={
-                sortOrder === "-dueDate" ? colors.primary : colors.text
-              }
-            />
-          </Pressable>
-        </View>
-
-        {/* Category Pills Bar */}
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.categoryPillsScroll}
-        >
-          {CATEGORIES.map((cat) => {
-            const isSelected = selectedCategory === cat;
-            const selectedFg = getButtonForegroundColor(
-              "primary",
-              colors,
-              isDark,
-            );
-            return (
-              <Pressable
-                key={cat}
-                onPress={() => setSelectedCategory(cat)}
-                hitSlop={6}
-                style={[
-                  styles.categoryPill,
-                  {
-                    backgroundColor: isSelected
-                      ? colors.primary
-                      : colors.surface,
-                    borderColor: isSelected ? colors.primary : colors.border,
-                  },
-                ]}
-              >
-                <ThemedText
-                  style={[
-                    styles.categoryPillText,
-                    { color: isSelected ? selectedFg : colors.textSecondary },
-                  ]}
-                >
-                  {cat}
-                </ThemedText>
-              </Pressable>
-            );
-          })}
-        </ScrollView>
-
-        {/* Error Banner */}
-        {error && (
-          <View
-            style={[
-              styles.errorBox,
-              {
-                backgroundColor: isDark
-                  ? Colors.urgency.critical.darkBg
-                  : Colors.urgency.critical.lightBg,
-                borderColor: Colors.urgency.critical.accent,
-              },
-            ]}
-          >
-            <ThemedText
-              style={[
-                styles.errorText,
-                {
-                  color: isDark
-                    ? Colors.urgency.critical.darkText
-                    : Colors.urgency.critical.lightText,
-                },
-              ]}
-            >
-              {error}
-            </ThemedText>
-            <Button variant="outline" size="sm" onPress={() => loadReminders()}>
-              Retry
-            </Button>
-          </View>
-        )}
-
-        {/* Content States */}
-        {isLoading && !isRefreshing ? (
-          <View style={styles.loadingContainer}>
-            <ActivityIndicator size="large" color={colors.primary} />
-            <ThemedText
-              style={[styles.loadingText, { color: colors.textSecondary }]}
-            >
-              Loading active reminders...
-            </ThemedText>
-          </View>
-        ) : filteredReminders.length === 0 ? (
-          <EmptyState
-            title={
-              searchQuery ||
-              selectedCategory !== "All" ||
-              filterSection !== "all"
-                ? "No matching reminders"
-                : "No reminders yet"
-            }
-            description={
-              searchQuery ||
-              selectedCategory !== "All" ||
-              filterSection !== "all"
-                ? "Try adjusting your search query, priority filter, or category."
-                : "Stay ahead of your everyday obligations. Schedule native alerts for calls, bills, meds, and meetings."
-            }
-            actionLabel={
-              searchQuery ||
-              selectedCategory !== "All" ||
-              filterSection !== "all"
-                ? "Clear Filters"
-                : "Set First Reminder"
-            }
-            onAction={
-              searchQuery ||
-              selectedCategory !== "All" ||
-              filterSection !== "all"
-                ? () => {
-                    setSearchQuery("");
-                    setSelectedCategory("All");
-                    setSelectedPriority("all");
-                    setFilterSection("all");
-                  }
-                : () => {
-                    setEditingReminder(null);
-                    setIsFormOpen(true);
-                  }
-            }
-            icon={
-              <SymbolView
-                name={{
-                  ios:
-                    searchQuery ||
-                    selectedCategory !== "All" ||
-                    filterSection !== "all"
-                      ? "magnifyingglass"
-                      : "bell.badge",
-                  android:
-                    searchQuery ||
-                    selectedCategory !== "All" ||
-                    filterSection !== "all"
-                      ? "search_off"
-                      : "notifications_none",
-                  web:
-                    searchQuery ||
-                    selectedCategory !== "All" ||
-                    filterSection !== "all"
-                      ? "search_off"
-                      : "notifications_none",
-                }}
-                size={28}
-                tintColor={colors.primary}
-              />
-            }
-          />
-        ) : (
-          /* Timeline Sections */
-          <View style={styles.timelineContainer}>
-            {/* 1. Overdue Section */}
-            {grouped.overdue.length > 0 &&
-              (filterSection === "all" || filterSection === "overdue") && (
-                <View style={styles.sectionWrap}>
-                  <View style={styles.sectionHeaderRow}>
-                    <View
-                      style={[
-                        styles.sectionIndicator,
-                        { backgroundColor: Colors.urgency.critical.accent },
-                      ]}
-                    />
-                    <ThemedText
-                      style={[
-                        styles.sectionHeading,
-                        {
-                          color: isDark
-                            ? Colors.urgency.critical.darkText
-                            : Colors.urgency.critical.lightText,
-                        },
-                      ]}
-                    >
-                      Overdue ({grouped.overdue.length})
-                    </ThemedText>
-                  </View>
-                  {grouped.overdue.map((r) => (
-                    <ReminderCard
-                      key={r._id}
-                      reminder={r}
-                      onPress={() => setSelectedReminderForDetails(r)}
-                      onToggleComplete={() => handleToggleComplete(r)}
-                      onEdit={() => {
-                        setEditingReminder(r);
-                        setIsFormOpen(true);
-                      }}
-                      onDelete={() => confirmDelete(r)}
-                    />
-                  ))}
-                </View>
-              )}
-
-            {/* 2. Today Section */}
-            {grouped.today.length > 0 &&
-              (filterSection === "all" || filterSection === "today") && (
-                <View style={styles.sectionWrap}>
-                  <View style={styles.sectionHeaderRow}>
-                    <View
-                      style={[
-                        styles.sectionIndicator,
-                        { backgroundColor: colors.primary },
-                      ]}
-                    />
-                    <ThemedText
-                      style={[styles.sectionHeading, { color: colors.primary }]}
-                    >
-                      Due Today ({grouped.today.length})
-                    </ThemedText>
-                  </View>
-                  {grouped.today.map((r) => (
-                    <ReminderCard
-                      key={r._id}
-                      reminder={r}
-                      onPress={() => setSelectedReminderForDetails(r)}
-                      onToggleComplete={() => handleToggleComplete(r)}
-                      onEdit={() => {
-                        setEditingReminder(r);
-                        setIsFormOpen(true);
-                      }}
-                      onDelete={() => confirmDelete(r)}
-                    />
-                  ))}
-                </View>
-              )}
-
-            {/* 3. Upcoming Section */}
-            {grouped.upcoming.length > 0 &&
-              (filterSection === "all" || filterSection === "upcoming") && (
-                <View style={styles.sectionWrap}>
-                  <View style={styles.sectionHeaderRow}>
-                    <View
-                      style={[
-                        styles.sectionIndicator,
-                        { backgroundColor: Colors.urgency.upcoming.accent },
-                      ]}
-                    />
-                    <ThemedText
-                      style={[
-                        styles.sectionHeading,
-                        {
-                          color: isDark
-                            ? Colors.urgency.upcoming.darkText
-                            : Colors.urgency.upcoming.lightText,
-                        },
-                      ]}
-                    >
-                      Upcoming ({grouped.upcoming.length})
-                    </ThemedText>
-                  </View>
-                  {grouped.upcoming.map((r) => (
-                    <ReminderCard
-                      key={r._id}
-                      reminder={r}
-                      onPress={() => setSelectedReminderForDetails(r)}
-                      onToggleComplete={() => handleToggleComplete(r)}
-                      onEdit={() => {
-                        setEditingReminder(r);
-                        setIsFormOpen(true);
-                      }}
-                      onDelete={() => confirmDelete(r)}
-                    />
-                  ))}
-                </View>
-              )}
-
-            {/* 4. Completed Section */}
-            {grouped.completed.length > 0 &&
-              (filterSection === "all" || filterSection === "completed") && (
-                <View style={styles.sectionWrap}>
-                  <View style={styles.sectionHeaderRow}>
-                    <View
-                      style={[
-                        styles.sectionIndicator,
-                        { backgroundColor: Colors.urgency.completed.accent },
-                      ]}
-                    />
-                    <ThemedText
-                      style={[
-                        styles.sectionHeading,
-                        {
-                          color: isDark
-                            ? Colors.urgency.completed.darkText
-                            : Colors.urgency.completed.lightText,
-                        },
-                      ]}
-                    >
-                      Completed ({grouped.completed.length})
-                    </ThemedText>
-                  </View>
-                  {grouped.completed.map((r) => (
-                    <ReminderCard
-                      key={r._id}
-                      reminder={r}
-                      onPress={() => setSelectedReminderForDetails(r)}
-                      onToggleComplete={() => handleToggleComplete(r)}
-                      onEdit={() => {
-                        setEditingReminder(r);
-                        setIsFormOpen(true);
-                      }}
-                      onDelete={() => confirmDelete(r)}
-                    />
-                  ))}
-                </View>
-              )}
-          </View>
-        )}
-      </ScrollView>
-
       <FloatingActionButton
         label="New Alert"
         accessibilityLabel="Create reminder"
@@ -898,6 +883,9 @@ export default function RemindersScreen() {
 const styles = StyleSheet.create({
   screen: {
     flex: 1,
+  },
+  headerContainer: {
+    marginBottom: Spacing.two,
   },
   scrollContent: {
     paddingHorizontal: Spacing.four,

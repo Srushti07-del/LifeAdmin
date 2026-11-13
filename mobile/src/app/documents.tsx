@@ -13,6 +13,8 @@ import {
   View,
   StyleSheet,
   ScrollView,
+  FlatList,
+  Platform,
   RefreshControl,
   ActivityIndicator,
   Pressable,
@@ -263,264 +265,280 @@ export default function DocumentsScreen() {
     });
   };
 
+  const docKeyExtractor = useCallback((item: DocumentItem) => item._id, []);
+
+  const renderDocItem = useCallback(
+    ({ item }: { item: DocumentItem }) => (
+      <DocumentCard
+        document={item}
+        preferredCurrency={preferredCurrency}
+        onPress={() => setSelectedDocForDetails(item)}
+        onOpen={() => handleOpenFile(item)}
+        onConvert={() => handleOpenConversion(item, 'task')}
+        onEdit={() => setEditingDoc(item)}
+        onDelete={() => confirmDelete(item)}
+      />
+    ),
+    [preferredCurrency, handleOpenFile, handleOpenConversion, confirmDelete]
+  );
+
+  const renderHeader = (
+    <View style={styles.headerContainer}>
+      {/* Header */}
+      <View style={styles.header}>
+        <HeaderBackButton fallbackHref="/more" />
+        <View style={styles.headerTitles}>
+          <ThemedText style={[styles.title, { color: colors.text }]}>
+            Documents Vault
+          </ThemedText>
+          <ThemedText style={[styles.subtitle, { color: colors.textSecondary }]}>
+            Secure file repository with AI deadline extraction
+          </ThemedText>
+        </View>
+      </View>
+
+      {/* Aggregate Summary Card */}
+      <DocumentSummaryCard totals={totals} />
+
+      {/* Search and Sort Row */}
+      <View style={styles.searchRow}>
+        <View style={styles.searchInputWrap}>
+          <SearchInput
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+            placeholder="Search by name, provider, type, notes..."
+            accessibilityLabel="Search documents"
+          />
+        </View>
+
+        <Pressable
+          onPress={() => setShowSortPicker((prev) => !prev)}
+          hitSlop={4}
+          accessibilityRole="button"
+          accessibilityLabel="Sort documents"
+          accessibilityHint="Shows or hides document sort options"
+          accessibilityState={{ expanded: showSortPicker }}
+          style={[
+            styles.sortBtn,
+            {
+              backgroundColor: showSortPicker ? colors.primary : colors.surface,
+              borderColor: showSortPicker ? colors.primary : colors.border,
+            },
+          ]}
+        >
+          <SymbolView
+            name={{ ios: 'arrow.up.arrow.down', android: 'sort' }}
+            size={18}
+            tintColor={
+              showSortPicker
+                ? getButtonForegroundColor('primary', colors, isDark)
+                : colors.text
+            }
+          />
+        </Pressable>
+      </View>
+
+      {/* Collapsible Sort Options Tray */}
+      {showSortPicker && (
+        <ThemedView
+          style={[
+            styles.sortTray,
+            {
+              backgroundColor: isDark ? colors.surface : colors.surfaceSecondary,
+              borderColor: colors.border,
+            },
+          ]}
+        >
+          <ThemedText style={[styles.sortTrayTitle, { color: colors.textSecondary }]}>
+            SORT DOCUMENTS BY
+          </ThemedText>
+          <View style={styles.sortChips}>
+            {SORT_OPTIONS.map((opt) => {
+              const isSelected = activeSort === opt.key;
+              const selectedFg = getButtonForegroundColor('primary', colors, isDark);
+              return (
+                <Pressable
+                  key={opt.key}
+                  onPress={() => {
+                    setActiveSort(opt.key);
+                    setShowSortPicker(false);
+                  }}
+                  hitSlop={6}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Sort by ${opt.label}`}
+                  accessibilityState={{ selected: activeSort === opt.key }}
+                  style={[
+                    styles.sortChip,
+                    {
+                      backgroundColor: isSelected
+                        ? colors.primary
+                        : isDark
+                        ? colors.surfaceElevated
+                        : colors.surface,
+                      borderColor: isSelected ? colors.primary : colors.border,
+                    },
+                  ]}
+                >
+                  <ThemedText
+                    style={[
+                      styles.sortChipText,
+                      { color: isSelected ? selectedFg : colors.text },
+                    ]}
+                  >
+                    {opt.label}
+                  </ThemedText>
+                </Pressable>
+              );
+            })}
+          </View>
+        </ThemedView>
+      )}
+
+      {/* Category Pills Bar */}
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={styles.categoryPillsScroll}
+      >
+        {CATEGORIES.map((cat) => {
+          const isSelected = selectedCategory === cat;
+          const selectedFg = getButtonForegroundColor('primary', colors, isDark);
+          return (
+            <Pressable
+              key={cat}
+              onPress={() => setSelectedCategory(cat)}
+              hitSlop={6}
+              accessibilityRole="button"
+              accessibilityLabel={cat === 'All' ? 'All document categories' : `${cat} category`}
+              accessibilityState={{ selected: selectedCategory === cat }}
+              style={[
+                styles.categoryPill,
+                {
+                  backgroundColor: isSelected ? colors.primary : colors.surface,
+                  borderColor: isSelected ? colors.primary : colors.border,
+                },
+              ]}
+            >
+              <ThemedText
+                style={[
+                  styles.categoryPillText,
+                  { color: isSelected ? selectedFg : colors.textSecondary },
+                ]}
+              >
+                {cat}
+              </ThemedText>
+            </Pressable>
+          );
+        })}
+      </ScrollView>
+
+      {/* Error Banner */}
+      {error && (
+        <View
+          style={[
+            styles.errorBox,
+            {
+              backgroundColor: isDark
+                ? Colors.urgency.critical.darkBg
+                : Colors.urgency.critical.lightBg,
+              borderColor: Colors.urgency.critical.accent,
+            },
+          ]}
+        >
+          <ThemedText
+            style={[
+              styles.errorText,
+              {
+                color: isDark
+                  ? Colors.urgency.critical.darkText
+                  : Colors.urgency.critical.lightText,
+              },
+            ]}
+          >
+            {error}
+          </ThemedText>
+          <Button
+            variant="outline"
+            size="sm"
+            onPress={() => loadDocuments()}
+          >
+            Retry
+          </Button>
+        </View>
+      )}
+
+      {/* Content States */}
+      {isLoading && !isRefreshing ? (
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color={colors.primary} />
+          <ThemedText style={[styles.loadingText, { color: colors.textSecondary }]}>
+            Opening Document Vault...
+          </ThemedText>
+        </View>
+      ) : filteredDocuments.length === 0 ? (
+        <EmptyState
+          title={
+            searchQuery || selectedCategory !== 'All'
+              ? 'No matching documents'
+              : 'No documents yet'
+          }
+          description={
+            searchQuery || selectedCategory !== 'All'
+              ? 'Try adjusting your search criteria or category filter.'
+              : 'Upload insurance policies, lease agreements, receipts, or medical records. LifeAdmin will extract critical deadlines and charges automatically.'
+          }
+          actionLabel={searchQuery || selectedCategory !== 'All' ? 'Clear Filters' : 'Upload First Document'}
+          onAction={
+            searchQuery || selectedCategory !== 'All'
+              ? () => {
+                  setSearchQuery('');
+                  setSelectedCategory('All');
+                }
+              : () => setIsUploadModalOpen(true)}
+          icon={
+            <SymbolView
+              name={{
+                ios: searchQuery || selectedCategory !== 'All' ? 'magnifyingglass' : 'folder',
+                android: searchQuery || selectedCategory !== 'All' ? 'search_off' : 'folder_open',
+                web: searchQuery || selectedCategory !== 'All' ? 'search_off' : 'folder_open',
+              }}
+              size={28}
+              tintColor={colors.primary}
+            />
+          }
+        />
+      ) : null}
+    </View>
+  );
+
   return (
     <ThemedView style={styles.screen}>
       <SafeAreaView
         edges={['top', 'left', 'right']}
         style={styles.screen}
       >
-        <ScrollView
-          showsVerticalScrollIndicator={false}
+        <FlatList
+          data={isLoading || filteredDocuments.length === 0 ? [] : filteredDocuments}
+          renderItem={renderDocItem}
+          keyExtractor={docKeyExtractor}
+          ItemSeparatorComponent={() => <View style={{ height: Spacing.three }} />}
+          ListHeaderComponent={renderHeader}
           contentContainerStyle={[styles.scrollContent, { paddingBottom: bottomPadding }]}
-        refreshControl={
-          <RefreshControl
-            refreshing={isRefreshing}
-            onRefresh={handleRefresh}
-            tintColor={colors.primary}
-            colors={[colors.primary]}
-          />
-        }
-      >
-        {/* Header */}
-        <View style={styles.header}>
-          <HeaderBackButton fallbackHref="/more" />
-          <View style={styles.headerTitles}>
-            <ThemedText style={[styles.title, { color: colors.text }]}>
-              Documents Vault
-            </ThemedText>
-            <ThemedText style={[styles.subtitle, { color: colors.textSecondary }]}>
-              Secure file repository with AI deadline extraction
-            </ThemedText>
-          </View>
-        </View>
-
-        {/* Aggregate Summary Card */}
-        <DocumentSummaryCard totals={totals} />
-
-        {/* Search and Sort Row */}
-        <View style={styles.searchRow}>
-          <View style={styles.searchInputWrap}>
-            <SearchInput
-              value={searchQuery}
-              onChangeText={setSearchQuery}
-              placeholder="Search by name, provider, type, notes..."
-              accessibilityLabel="Search documents"
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+          initialNumToRender={8}
+          maxToRenderPerBatch={8}
+          windowSize={5}
+          removeClippedSubviews={Platform.OS === 'android'}
+          refreshControl={
+            <RefreshControl
+              refreshing={isRefreshing}
+              onRefresh={handleRefresh}
+              tintColor={colors.primary}
+              colors={[colors.primary]}
             />
-          </View>
-
-          <Pressable
-            onPress={() => setShowSortPicker((prev) => !prev)}
-            hitSlop={4}
-            accessibilityRole="button"
-            accessibilityLabel="Sort documents"
-            accessibilityHint="Shows or hides document sort options"
-            accessibilityState={{ expanded: showSortPicker }}
-            style={[
-              styles.sortBtn,
-              {
-                backgroundColor: showSortPicker ? colors.primary : colors.surface,
-                borderColor: showSortPicker ? colors.primary : colors.border,
-              },
-            ]}
-          >
-            <SymbolView
-              name={{ ios: 'arrow.up.arrow.down', android: 'sort' }}
-              size={18}
-              tintColor={
-                showSortPicker
-                  ? getButtonForegroundColor('primary', colors, isDark)
-                  : colors.text
-              }
-            />
-          </Pressable>
-        </View>
-
-        {/* Collapsible Sort Options Tray */}
-        {showSortPicker && (
-          <ThemedView
-            style={[
-              styles.sortTray,
-              {
-                backgroundColor: isDark ? colors.surface : colors.surfaceSecondary,
-                borderColor: colors.border,
-              },
-            ]}
-          >
-            <ThemedText style={[styles.sortTrayTitle, { color: colors.textSecondary }]}>
-              SORT DOCUMENTS BY
-            </ThemedText>
-            <View style={styles.sortChips}>
-              {SORT_OPTIONS.map((opt) => {
-                const isSelected = activeSort === opt.key;
-                const selectedFg = getButtonForegroundColor('primary', colors, isDark);
-                return (
-                  <Pressable
-                    key={opt.key}
-                    onPress={() => {
-                      setActiveSort(opt.key);
-                      setShowSortPicker(false);
-                    }}
-                    hitSlop={6}
-                    accessibilityRole="button"
-                    accessibilityLabel={`Sort by ${opt.label}`}
-                    accessibilityState={{ selected: activeSort === opt.key }}
-                    style={[
-                      styles.sortChip,
-                      {
-                        backgroundColor: isSelected
-                          ? colors.primary
-                          : isDark
-                          ? colors.surfaceElevated
-                          : colors.surface,
-                        borderColor: isSelected ? colors.primary : colors.border,
-                      },
-                    ]}
-                  >
-                    <ThemedText
-                      style={[
-                        styles.sortChipText,
-                        { color: isSelected ? selectedFg : colors.text },
-                      ]}
-                    >
-                      {opt.label}
-                    </ThemedText>
-                  </Pressable>
-                );
-              })}
-            </View>
-          </ThemedView>
-        )}
-
-        {/* Category Pills Bar */}
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.categoryPillsScroll}
-        >
-          {CATEGORIES.map((cat) => {
-            const isSelected = selectedCategory === cat;
-            const selectedFg = getButtonForegroundColor('primary', colors, isDark);
-            return (
-              <Pressable
-                key={cat}
-                onPress={() => setSelectedCategory(cat)}
-                hitSlop={6}
-                accessibilityRole="button"
-                accessibilityLabel={cat === 'All' ? 'All document categories' : `${cat} category`}
-                accessibilityState={{ selected: selectedCategory === cat }}
-                style={[
-                  styles.categoryPill,
-                  {
-                    backgroundColor: isSelected ? colors.primary : colors.surface,
-                    borderColor: isSelected ? colors.primary : colors.border,
-                  },
-                ]}
-              >
-                <ThemedText
-                  style={[
-                    styles.categoryPillText,
-                    { color: isSelected ? selectedFg : colors.textSecondary },
-                  ]}
-                >
-                  {cat}
-                </ThemedText>
-              </Pressable>
-            );
-          })}
-        </ScrollView>
-
-        {/* Error Banner */}
-        {error && (
-          <View
-            style={[
-              styles.errorBox,
-              {
-                backgroundColor: isDark
-                  ? Colors.urgency.critical.darkBg
-                  : Colors.urgency.critical.lightBg,
-                borderColor: Colors.urgency.critical.accent,
-              },
-            ]}
-          >
-            <ThemedText
-              style={[
-                styles.errorText,
-                {
-                  color: isDark
-                    ? Colors.urgency.critical.darkText
-                    : Colors.urgency.critical.lightText,
-                },
-              ]}
-            >
-              {error}
-            </ThemedText>
-            <Button
-              variant="outline"
-              size="sm"
-              onPress={() => loadDocuments()}
-            >
-              Retry
-            </Button>
-          </View>
-        )}
-
-        {/* Content States */}
-        {isLoading && !isRefreshing ? (
-          <View style={styles.loadingContainer}>
-            <ActivityIndicator size="large" color={colors.primary} />
-            <ThemedText style={[styles.loadingText, { color: colors.textSecondary }]}>
-              Opening Document Vault...
-            </ThemedText>
-          </View>
-        ) : filteredDocuments.length === 0 ? (
-          <EmptyState
-            title={
-              searchQuery || selectedCategory !== 'All'
-                ? 'No matching documents'
-                : 'No documents yet'
-            }
-            description={
-              searchQuery || selectedCategory !== 'All'
-                ? 'Try adjusting your search criteria or category filter.'
-                : 'Upload insurance policies, lease agreements, receipts, or medical records. LifeAdmin will extract critical deadlines and charges automatically.'
-            }
-            actionLabel={searchQuery || selectedCategory !== 'All' ? 'Clear Filters' : 'Upload First Document'}
-            onAction={
-              searchQuery || selectedCategory !== 'All'
-                ? () => {
-                    setSearchQuery('');
-                    setSelectedCategory('All');
-                  }
-                : () => setIsUploadModalOpen(true)}
-            icon={
-              <SymbolView
-                name={{
-                  ios: searchQuery || selectedCategory !== 'All' ? 'magnifyingglass' : 'folder',
-                  android: searchQuery || selectedCategory !== 'All' ? 'search_off' : 'folder_open',
-                  web: searchQuery || selectedCategory !== 'All' ? 'search_off' : 'folder_open',
-                }}
-                size={28}
-                tintColor={colors.primary}
-              />
-            }
-          />
-        ) : (
-          <View style={styles.listContainer}>
-            {filteredDocuments.map((doc) => (
-              <DocumentCard
-                key={doc._id}
-                document={doc}
-                preferredCurrency={preferredCurrency}
-                onPress={() => setSelectedDocForDetails(doc)}
-                onOpen={() => handleOpenFile(doc)}
-                onConvert={() => handleOpenConversion(doc, 'task')}
-                onEdit={() => setEditingDoc(doc)}
-                onDelete={() => confirmDelete(doc)}
-              />
-            ))}
-          </View>
-        )}
-      </ScrollView>
+          }
+        />
 
       <FloatingActionButton
         label="Upload"
@@ -587,6 +605,9 @@ export default function DocumentsScreen() {
 const styles = StyleSheet.create({
   screen: {
     flex: 1,
+  },
+  headerContainer: {
+    marginBottom: Spacing.two,
   },
   scrollContent: {
     paddingHorizontal: Spacing.four,

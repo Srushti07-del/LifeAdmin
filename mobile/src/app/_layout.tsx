@@ -147,61 +147,34 @@ function RootNavigator() {
     Inter_700Bold,
   });
 
+  const isAppReady = Boolean(fontsLoaded && !isLoading);
+
   useEffect(() => {
-    if (fontsLoaded && !isLoading) {
+    if (isAppReady) {
       SplashScreen.hideAsync().catch(() => {});
     }
-  }, [fontsLoaded, isLoading]);
+  }, [isAppReady]);
 
-  // Show loading screen while restoring persistent session or loading fonts
-  if (isLoading || !fontsLoaded) {
-    return (
-      <NavigationThemeProvider value={isDark ? DarkTheme : DefaultTheme}>
-        <AnimatedSplashOverlay />
-        <AuthLoadingScreen />
-      </NavigationThemeProvider>
+  let mainContent: React.ReactNode;
+  let showBottomSnackbarOffset = false;
+
+  if (!isAppReady) {
+    mainContent = <AuthLoadingScreen />;
+  } else if (pathname.includes('reset-password')) {
+    mainContent = <AuthNavigator initialScreen="reset-password" initialToken={params.token || ''} />;
+  } else if (!user) {
+    mainContent = <AuthNavigator />;
+  } else if (!isOnboardingCompleted) {
+    mainContent = (
+      <OnboardingScreen
+        userId={user.id}
+        isGuest={isGuest}
+        onComplete={completeOnboarding}
+      />
     );
-  }
-
-  // If navigating to password reset (via Android App Link, custom scheme, or route push),
-  // present the reset password screen with pre-filled token
-  if (pathname.includes('reset-password')) {
-    return (
-      <NavigationThemeProvider value={isDark ? DarkTheme : DefaultTheme}>
-        <AuthNavigator initialScreen="reset-password" initialToken={params.token || ''} />
-        <SnackbarViewport hasBottomTabs={false} />
-      </NavigationThemeProvider>
-    );
-  }
-
-  // If unauthenticated, redirect to authentication flow (Login / Register / Guest Demo)
-  if (!user) {
-    return (
-      <NavigationThemeProvider value={isDark ? DarkTheme : DefaultTheme}>
-        <AuthNavigator />
-        <SnackbarViewport hasBottomTabs={false} />
-      </NavigationThemeProvider>
-    );
-  }
-
-  // If authenticated but onboarding not yet completed, present native onboarding flow
-  if (!isOnboardingCompleted) {
-    return (
-      <NavigationThemeProvider value={isDark ? DarkTheme : DefaultTheme}>
-        <OnboardingScreen
-          userId={user.id}
-          isGuest={isGuest}
-          onComplete={completeOnboarding}
-        />
-        <SnackbarViewport hasBottomTabs={false} />
-      </NavigationThemeProvider>
-    );
-  }
-
-  // Authenticated user (registered or guest session)
-  return (
-    <NavigationThemeProvider value={isDark ? DarkTheme : DefaultTheme}>
-      <AnimatedSplashOverlay />
+  } else {
+    showBottomSnackbarOffset = hasBottomTabs;
+    mainContent = (
       <Stack
         screenOptions={{
           headerShown: false,
@@ -219,7 +192,18 @@ function RootNavigator() {
         <Stack.Screen name="forgot-password" options={{ headerShown: false }} />
         <Stack.Screen name="reset-password" options={{ headerShown: false }} />
       </Stack>
-      <SnackbarViewport hasBottomTabs={hasBottomTabs} />
+    );
+  }
+
+  return (
+    <NavigationThemeProvider value={isDark ? DarkTheme : DefaultTheme}>
+      {mainContent}
+      <AnimatedSplashOverlay isReady={isAppReady} />
+      {showBottomSnackbarOffset ? (
+        <SnackbarViewport hasBottomTabs={true} />
+      ) : (
+        <SnackbarViewport hasBottomTabs={false} />
+      )}
     </NavigationThemeProvider>
   );
 }

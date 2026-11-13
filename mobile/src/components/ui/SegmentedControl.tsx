@@ -116,7 +116,7 @@ const styles = StyleSheet.create({
     padding: 3,
     borderRadius: Radius.lg,
     borderWidth: 1,
-    height: 44,
+    minHeight: 44, // Meets minimum touch target height: 44 while allowing accessibility font expansion
     width: '100%',
   },
   tab: {
@@ -124,9 +124,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    height: '100%',
+    minHeight: 38,
     borderRadius: Radius.md + 1,
     paddingHorizontal: Spacing.two,
+    paddingVertical: 4,
     gap: 6,
   },
   activeTab: {
