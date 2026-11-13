@@ -6,9 +6,11 @@
 export interface InputLayoutOptions {
   multiline?: boolean;
   numberOfLines?: number;
+  fontScale?: number;
 }
 
 export interface InputLayoutMetrics {
+  isScaled: boolean;
   containerHeight?: number;
   containerMinHeight: number;
   containerAlignItems: 'center' | 'stretch';
@@ -29,15 +31,22 @@ export function getInputLayoutMetrics(
   options: InputLayoutOptions = {}
 ): InputLayoutMetrics {
   if (!options.multiline) {
+    const fontScale = typeof options.fontScale === 'number' && Number.isFinite(options.fontScale)
+      ? options.fontScale
+      : 1;
+    const isScaled = fontScale > 1.15;
     return {
-      containerHeight: SINGLE_LINE_HEIGHT,
-      containerMinHeight: SINGLE_LINE_HEIGHT,
+      isScaled,
+      containerHeight: isScaled ? undefined : SINGLE_LINE_HEIGHT,
+      containerMinHeight: isScaled
+        ? Math.round(SINGLE_LINE_HEIGHT * Math.min(fontScale, 1.8))
+        : SINGLE_LINE_HEIGHT,
       containerAlignItems: 'center',
       textInputHeight: '100%',
       textInputMinHeight: undefined,
       textAlignVertical: 'center',
-      paddingTop: 0,
-      paddingBottom: 0,
+      paddingTop: isScaled ? 4 : 0,
+      paddingBottom: isScaled ? 4 : 0,
       lineHeight: undefined,
     };
   }
@@ -53,6 +62,7 @@ export function getInputLayoutMetrics(
   );
 
   return {
+    isScaled: (typeof options.fontScale === 'number' && Number.isFinite(options.fontScale) ? options.fontScale : 1) > 1.15,
     containerHeight: undefined,
     containerMinHeight: minHeight,
     containerAlignItems: 'stretch',

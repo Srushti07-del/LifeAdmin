@@ -20,6 +20,7 @@ import { onboardingService } from '@/features/onboarding/services/onboardingServ
 import { companionService } from '@/features/companions/services/companionService';
 import { notificationService } from '@/features/reminders/services/notificationService';
 import { settingsService } from '@/features/settings/services/settingsService';
+import { offlineCache } from '@/services/offlineCache';
 import { useAppTheme } from '@/context/ThemeContext';
 import { AuthContextType, User } from '@/types/auth';
 
@@ -54,6 +55,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     try {
       await secureStorage.clearSession();
+      await offlineCache.clearUserCache(user?.id || 'guest');
     } catch (e) {
       console.warn('Error clearing secure storage session:', e);
     } finally {

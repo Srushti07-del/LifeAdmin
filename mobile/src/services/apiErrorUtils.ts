@@ -105,3 +105,62 @@ export function extractServerErrorMessage(
   return getFriendlyStatusMessage(status);
 }
 
+export const DEFAULT_GET_RETRY_DELAYS = [300, 1000];
+
+/**
+ * Determines if an error is transient and eligible for automatic retry.
+ * Only network failures, timeouts, and 5xx server errors qualify.
+ * Client errors (4xx) and explicit user cancellations are never retried.
+ */
+export function isRetryableApiError(error: any): boolean {
+  if (!error) return false;
+
+  // Explicit user cancellation
+  if (error.name === 'AbortError' && error.code !== 'TIMEOUT') {
+    return false;
+  }
+
+  // Network offline / connection drops
+  if (error.code === 'NETWORK_ERROR' || error.status === 0) {
+    return true;
+  }
+
+  // Request timeouts
+  if (error.code === 'TIMEOUT' || error.status === 408) {
+    return true;
+  }
+
+  // Transient server errors: 500, 502, 503, 504
+  if (typeof error.status === 'number' && [500, 502, 503, 504].includes(error.status)) {
+    return true;
+  }
+
+  return false;
+}
+
+/**
+ * Asynchronously waits for `ms` milliseconds while listening to an abort signal.
+ */
+export function waitWithAbort(ms: number, signal?: AbortSignal | null): Promise<void> {
+  if (signal?.aborted) {
+    return Promise.reject(new DOMException('The user aborted a request.', 'AbortError'));
+  }
+
+  return new Promise<void>((resolve, reject) => {
+    let timer: ReturnType<typeof setTimeout> | null = null;
+
+    const onAbort = () => {
+      if (timer) clearTimeout(timer);
+      signal?.removeEventListener('abort', onAbort);
+      reject(new DOMException('The user aborted a request.', 'AbortError'));
+    };
+
+    timer = setTimeout(() => {
+      signal?.removeEventListener('abort', onAbort);
+      resolve();
+    }, ms);
+
+    signal?.addEventListener('abort', onAbort);
+  });
+}
+

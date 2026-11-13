@@ -12,6 +12,7 @@
     },
     "android": {
       "package": "com.lifeadmin.app",
+      "versionCode": 1,
       "adaptiveIcon": {
         "backgroundColor": "#087E83",
         "foregroundImage": "./assets/images/android-icon-foreground.png",

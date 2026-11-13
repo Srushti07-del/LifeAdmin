@@ -1,6 +1,6 @@
 import { Image } from 'expo-image';
 import * as SplashScreen from 'expo-splash-screen';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Dimensions, StyleSheet, View } from 'react-native';
 import Animated, { Easing, Keyframe } from 'react-native-reanimated';
 import { scheduleOnRN } from 'react-native-worklets';
@@ -9,10 +9,24 @@ import { useAppTheme } from '@/context/ThemeContext';
 const INITIAL_SCALE_FACTOR = Dimensions.get('screen').height / 90;
 const DURATION = 600;
 
-export function AnimatedSplashOverlay() {
+export interface AnimatedSplashOverlayProps {
+  isReady?: boolean;
+}
+
+export function AnimatedSplashOverlay({ isReady = true }: AnimatedSplashOverlayProps = {}) {
   const { colors, isDark } = useAppTheme();
   const [animate, setAnimate] = useState(false);
   const [visible, setVisible] = useState(true);
+
+  useEffect(() => {
+    if (isReady && visible && !animate) {
+      SplashScreen.hideAsync()
+        .catch(() => {})
+        .finally(() => {
+          setAnimate(true);
+        });
+    }
+  }, [isReady, visible, animate]);
 
   if (!visible) return null;
 
@@ -60,13 +74,7 @@ export function AnimatedSplashOverlay() {
       {image}
     </Animated.View>
   ) : (
-    <View
-      onLayout={() => {
-        SplashScreen.hideAsync().finally(() => {
-          setAnimate(true);
-        });
-      }}
-      style={overlayStyle}>
+    <View style={overlayStyle}>
       {image}
     </View>
   );

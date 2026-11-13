@@ -12,6 +12,8 @@ import {
   View,
   StyleSheet,
   ScrollView,
+  FlatList,
+  Platform,
   RefreshControl,
   ActivityIndicator,
   Pressable,
@@ -20,6 +22,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
 import { useAppTheme } from '@/context/ThemeContext';
+import { useAuth } from '@/context/AuthContext';
 import { useSnackbar } from '@/context/SnackbarContext';
 import { useFabBottomPadding } from '@/hooks/use-safe-bottom-padding';
 import { parseAppointmentFilterParam } from '@/utils/routeFilters';
@@ -32,8 +35,11 @@ import {
   EmptyState,
   FloatingActionButton,
   HeaderBackButton,
+  OfflineBanner,
   getButtonForegroundColor,
 } from '@/components/ui';
+import { offlineCache } from '@/services/offlineCache';
+import { useNetwork } from '@/context/NetworkContext';
 import { Typography } from '@/constants/typography';
 import { Spacing, Radius } from '@/constants/spacing';
 import {
@@ -65,7 +71,9 @@ const SORT_OPTIONS: SortOption[] = [
 
 export default function AppointmentsScreen() {
   const { colors, isDark } = useAppTheme();
+  const { user } = useAuth();
   const { showSnackbar } = useSnackbar();
+  const { isOnline, registerSyncTask, notifyActionRequiresNetwork } = useNetwork();
   const router = useRouter();
   const params = useLocalSearchParams<{ filter?: string | string[] }>();
   const bottomPadding = useFabBottomPadding(Spacing.six, false);
@@ -75,6 +83,20 @@ export default function AppointmentsScreen() {
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Background sync registration on network reconnection
+  useEffect(() => {
+    return registerSyncTask('appointments', async () => {
+      try {
+        const res = await appointmentService.fetchAppointments({ limit: 200 });
+        const fetched = res?.appointments || [];
+        setAppointments(fetched);
+        await offlineCache.setCachedData('appointments', fetched, user?.id);
+      } catch (e) {
+        console.warn('[Appointments] Background sync failed:', e);
+      }
+    });
+  }, [registerSyncTask, user?.id]);
 
   // Filter & Search state
   const [activeFilter, setActiveFilter] = useState<AppointmentFilterKey>('all');
@@ -100,20 +122,36 @@ export default function AppointmentsScreen() {
 
   // Fetch appointments from server
   const loadAppointments = useCallback(async (isSilent = false) => {
+    // 1. Immediately hydrate from cache if state is empty
+    if (appointments.length === 0) {
+      const cached = await offlineCache.getCachedData<Appointment[]>('appointments', user?.id);
+      if (cached?.data && cached.data.length > 0) {
+        setAppointments(cached.data);
+        setIsLoading(false);
+      }
+    }
+
     try {
-      if (!isSilent) setIsLoading(true);
+      if (!isSilent && appointments.length === 0) setIsLoading(true);
       setError(null);
 
       const res = await appointmentService.fetchAppointments({ limit: 200 });
-      setAppointments(res?.appointments || []);
+      const fetched = res?.appointments || [];
+      setAppointments(fetched);
+      await offlineCache.setCachedData('appointments', fetched, user?.id);
     } catch (err: any) {
       console.warn('Error loading appointments:', err);
-      setError(err?.message || 'Unable to connect to server. Please try again.');
+      const cached = await offlineCache.getCachedData<Appointment[]>('appointments', user?.id);
+      if (cached?.data && cached.data.length > 0) {
+        setAppointments(cached.data);
+      } else if (appointments.length === 0) {
+        setError(err?.message || 'Unable to connect to server. Please try again.');
+      }
     } finally {
       setIsLoading(false);
       setIsRefreshing(false);
     }
-  }, []);
+  }, [appointments.length, user?.id]);
 
   useEffect(() => {
     loadAppointments();
@@ -152,6 +190,10 @@ export default function AppointmentsScreen() {
 
   // Submit Create or Edit form
   const handleFormSubmit = async (formData: Partial<AppointmentFormData>) => {
+    if (!isOnline) {
+      notifyActionRequiresNetwork(editingAppointment ? 'update appointment' : 'create appointment');
+      return;
+    }
     if (editingAppointment) {
       const res = await appointmentService.updateAppointment(
         editingAppointment._id,
@@ -182,6 +224,10 @@ export default function AppointmentsScreen() {
 
   // Delete appointment
   const handleDeleteAppointment = async (appointmentId: string) => {
+    if (!isOnline) {
+      notifyActionRequiresNetwork('delete appointment');
+      return;
+    }
     const existingTitle = appointments.find((a) => a._id === appointmentId)?.title;
     await appointmentService.deleteAppointment(appointmentId);
     setAppointments((prev) => prev.filter((a) => a._id !== appointmentId));
@@ -217,6 +263,251 @@ export default function AppointmentsScreen() {
   const currentSortLabel =
     SORT_OPTIONS.find((s) => s.key === activeSort)?.label || 'Sort';
 
+  const appointmentKeyExtractor = useCallback((item: Appointment) => item._id, []);
+
+  const renderAppointmentItem = useCallback(
+    ({ item }: { item: Appointment }) => (
+      <AppointmentCard
+        appointment={item}
+        onPress={(a) => setSelectedAppointmentForDetails(a)}
+      />
+    ),
+    []
+  );
+
+  const renderHeader = (
+    <View style={styles.headerContainer}>
+      <OfflineBanner onRetry={() => loadAppointments(false)} />
+
+      {/* Summary Dashboard Card */}
+      <AppointmentSummaryCard totals={totals} />
+
+      {/* Search Bar & Sort Toggle Row */}
+      <View style={styles.searchSortRow}>
+        <View style={styles.searchWrapper}>
+          <SearchInput
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+            placeholder="Search appointments, doctor, clinic..."
+          />
+        </View>
+
+        <Pressable
+          onPress={() => setShowSortPicker((prev) => !prev)}
+          style={[
+            styles.sortButton,
+            {
+              backgroundColor: showSortPicker ? colors.primary : colors.surface,
+              borderColor: showSortPicker ? colors.primary : colors.border,
+            },
+          ]}
+          hitSlop={6}
+          accessibilityRole="button"
+          accessibilityLabel={`Sort by: ${currentSortLabel}`}
+        >
+          <SymbolView
+            name={{
+              ios: 'arrow.up.arrow.down',
+              android: 'sort',
+              web: 'sort',
+            }}
+            size={16}
+            tintColor={
+              showSortPicker
+                ? getButtonForegroundColor('primary', colors, isDark)
+                : colors.text
+            }
+          />
+        </Pressable>
+      </View>
+
+      {/* Sort Options Tray (When opened) */}
+      {showSortPicker && (
+        <View
+          style={[
+            styles.sortTray,
+            {
+              backgroundColor: isDark ? colors.surface : colors.surfaceSecondary,
+              borderColor: colors.border,
+            },
+          ]}
+        >
+          <ThemedText style={[styles.sortTrayTitle, { color: colors.textSecondary }]}>
+            Sort Appointments By
+          </ThemedText>
+          <View style={styles.sortOptionsGrid}>
+            {SORT_OPTIONS.map((opt) => {
+              const isSelected = activeSort === opt.key;
+              const selectedFg = getButtonForegroundColor('primary', colors, isDark);
+              return (
+                <Pressable
+                  key={opt.key}
+                  onPress={() => {
+                    setActiveSort(opt.key);
+                    setShowSortPicker(false);
+                  }}
+                  hitSlop={6}
+                  style={[
+                    styles.sortOptionChip,
+                    {
+                      backgroundColor: isSelected
+                        ? colors.primary
+                        : isDark
+                        ? colors.surfaceElevated
+                        : colors.surface,
+                      borderColor: isSelected ? colors.primary : colors.border,
+                    },
+                  ]}
+                >
+                  <ThemedText
+                    style={[
+                      styles.sortOptionText,
+                      {
+                        color: isSelected ? selectedFg : colors.text,
+                        fontFamily: isSelected
+                          ? Typography.fontFamilies.sansSemiBold
+                          : Typography.fontFamilies.sans,
+                      },
+                    ]}
+                  >
+                    {opt.label}
+                  </ThemedText>
+                </Pressable>
+              );
+            })}
+          </View>
+        </View>
+      )}
+
+      {/* Status Tabs Filter */}
+      <View style={styles.filterSection}>
+        <FilterBar
+          items={filterItems}
+          selected={activeFilter}
+          onSelect={setActiveFilter}
+        />
+      </View>
+
+      {/* Category Chip Selector */}
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={styles.categoryScroll}
+      >
+        {CATEGORIES.map((cat) => {
+          const isSelected = selectedCategory === cat;
+          return (
+            <Pressable
+              key={cat}
+              onPress={() => setSelectedCategory(cat)}
+              hitSlop={6}
+              style={[
+                styles.categoryChip,
+                {
+                  backgroundColor: isSelected
+                    ? colors.primarySoft
+                    : isDark
+                    ? colors.surface
+                    : colors.surfaceSecondary,
+                  borderColor: isSelected ? colors.primary : colors.border,
+                },
+              ]}
+              accessibilityRole="button"
+              accessibilityState={{ selected: isSelected }}
+            >
+              <ThemedText
+                style={[
+                  styles.categoryChipText,
+                  {
+                    color: isSelected ? colors.primary : colors.textSecondary,
+                    fontFamily: isSelected
+                      ? Typography.fontFamilies.sansSemiBold
+                      : Typography.fontFamilies.sans,
+                  },
+                ]}
+              >
+                {cat}
+              </ThemedText>
+            </Pressable>
+          );
+        })}
+      </ScrollView>
+
+      {/* Loading State */}
+      {isLoading && !isRefreshing ? (
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color={colors.primary} />
+          <ThemedText style={[styles.loadingText, { color: colors.textSecondary }]}>
+            Loading your appointments...
+          </ThemedText>
+        </View>
+      ) : error ? (
+        /* Error State */
+        <EmptyState
+          icon={
+            <SymbolView
+              name={{
+                ios: 'exclamationmark.triangle',
+                android: 'warning',
+                web: 'warning',
+              }}
+              size={36}
+              tintColor={colors.notification || '#EF4444'}
+            />
+          }
+          title="Unable to Load Appointments"
+          description={error}
+          actionLabel="Retry"
+          onAction={() => loadAppointments(false)}
+        />
+      ) : appointments.length === 0 ? (
+        /* Empty State: No Appointments */
+        <EmptyState
+          icon={
+            <SymbolView
+              name={{
+                ios: 'calendar.badge.clock',
+                android: 'schedule',
+                web: 'schedule',
+              }}
+              size={40}
+              tintColor={colors.primary}
+            />
+          }
+          title="No appointments scheduled"
+          description="Keep critical doctor visits, advisor meetings, and interviews organized in one place."
+          actionLabel="Schedule Your First Appointment"
+          onAction={handleOpenCreateModal}
+        />
+      ) : filteredAppointments.length === 0 ? (
+        /* Empty State: Filter Matched Nothing */
+        <EmptyState
+          icon={
+            <SymbolView
+              name={{
+                ios: 'line.3.horizontal.decrease.circle',
+                android: 'filter_alt_off',
+                web: 'filter_alt_off',
+              }}
+              size={36}
+              tintColor={colors.textSecondary}
+            />
+          }
+          title="No matching appointments"
+          description="We couldn't find any appointments matching your current search or filter criteria."
+          actionLabel="Reset Filters"
+          onAction={handleResetFilters}
+        />
+      ) : (
+        <View style={styles.listHeaderRow}>
+          <ThemedText style={[styles.listCountText, { color: colors.textSecondary }]}>
+            Showing {filteredAppointments.length} of {appointments.length} appointments
+          </ThemedText>
+        </View>
+      )}
+    </View>
+  );
+
   return (
     <ThemedView style={styles.container}>
       <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
@@ -233,14 +524,23 @@ export default function AppointmentsScreen() {
           </View>
         </View>
 
-        {/* Scrollable Content */}
-        <ScrollView
-          style={styles.scrollArea}
+        {/* Virtualized Appointments List */}
+        <FlatList
+          data={isLoading || error || appointments.length === 0 || filteredAppointments.length === 0 ? [] : filteredAppointments}
+          renderItem={renderAppointmentItem}
+          keyExtractor={appointmentKeyExtractor}
+          ItemSeparatorComponent={() => <View style={{ height: Spacing.three }} />}
+          ListHeaderComponent={renderHeader}
           contentContainerStyle={[
             styles.scrollContent,
             { paddingBottom: bottomPadding },
           ]}
           showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+          initialNumToRender={8}
+          maxToRenderPerBatch={8}
+          windowSize={5}
+          removeClippedSubviews={Platform.OS === 'android'}
           refreshControl={
             <RefreshControl
               refreshing={isRefreshing}
@@ -249,244 +549,7 @@ export default function AppointmentsScreen() {
               tintColor={colors.primary}
             />
           }
-        >
-          {/* Summary Dashboard Card */}
-          <AppointmentSummaryCard totals={totals} />
-
-          {/* Search Bar & Sort Toggle Row */}
-          <View style={styles.searchSortRow}>
-            <View style={styles.searchWrapper}>
-              <SearchInput
-                value={searchQuery}
-                onChangeText={setSearchQuery}
-                placeholder="Search appointments, doctor, clinic..."
-              />
-            </View>
-
-            <Pressable
-              onPress={() => setShowSortPicker((prev) => !prev)}
-              style={[
-                styles.sortButton,
-                {
-                  backgroundColor: showSortPicker ? colors.primary : colors.surface,
-                  borderColor: showSortPicker ? colors.primary : colors.border,
-                },
-              ]}
-              accessibilityRole="button"
-              accessibilityLabel={`Sort by: ${currentSortLabel}`}
-            >
-              <SymbolView
-                name={{
-                  ios: 'arrow.up.arrow.down',
-                  android: 'sort',
-                  web: 'sort',
-                }}
-                size={16}
-                tintColor={
-                  showSortPicker
-                    ? getButtonForegroundColor('primary', colors, isDark)
-                    : colors.text
-                }
-              />
-            </Pressable>
-          </View>
-
-          {/* Sort Options Tray (When opened) */}
-          {showSortPicker && (
-            <View
-              style={[
-                styles.sortTray,
-                {
-                  backgroundColor: isDark ? colors.surface : colors.surfaceSecondary,
-                  borderColor: colors.border,
-                },
-              ]}
-            >
-              <ThemedText style={[styles.sortTrayTitle, { color: colors.textSecondary }]}>
-                Sort Appointments By
-              </ThemedText>
-              <View style={styles.sortOptionsGrid}>
-                {SORT_OPTIONS.map((opt) => {
-                  const isSelected = activeSort === opt.key;
-                  const selectedFg = getButtonForegroundColor('primary', colors, isDark);
-                  return (
-                    <Pressable
-                      key={opt.key}
-                      onPress={() => {
-                        setActiveSort(opt.key);
-                        setShowSortPicker(false);
-                      }}
-                      hitSlop={6}
-                      style={[
-                        styles.sortOptionChip,
-                        {
-                          backgroundColor: isSelected
-                            ? colors.primary
-                            : isDark
-                            ? colors.surfaceElevated
-                            : colors.surface,
-                          borderColor: isSelected ? colors.primary : colors.border,
-                        },
-                      ]}
-                    >
-                      <ThemedText
-                        style={[
-                          styles.sortOptionText,
-                          {
-                            color: isSelected ? selectedFg : colors.text,
-                            fontFamily: isSelected
-                              ? Typography.fontFamilies.sansSemiBold
-                              : Typography.fontFamilies.sans,
-                          },
-                        ]}
-                      >
-                        {opt.label}
-                      </ThemedText>
-                    </Pressable>
-                  );
-                })}
-              </View>
-            </View>
-          )}
-
-          {/* Status Tabs Filter */}
-          <View style={styles.filterSection}>
-            <FilterBar
-              items={filterItems}
-              selected={activeFilter}
-              onSelect={setActiveFilter}
-            />
-          </View>
-
-          {/* Category Chip Selector */}
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.categoryScroll}
-          >
-            {CATEGORIES.map((cat) => {
-              const isSelected = selectedCategory === cat;
-              return (
-                <Pressable
-                  key={cat}
-                  onPress={() => setSelectedCategory(cat)}
-                  hitSlop={6}
-                  style={[
-                    styles.categoryChip,
-                    {
-                      backgroundColor: isSelected
-                        ? colors.primarySoft
-                        : isDark
-                        ? colors.surface
-                        : colors.surfaceSecondary,
-                      borderColor: isSelected ? colors.primary : colors.border,
-                    },
-                  ]}
-                  accessibilityRole="button"
-                  accessibilityState={{ selected: isSelected }}
-                >
-                  <ThemedText
-                    style={[
-                      styles.categoryChipText,
-                      {
-                        color: isSelected ? colors.primary : colors.textSecondary,
-                        fontFamily: isSelected
-                          ? Typography.fontFamilies.sansSemiBold
-                          : Typography.fontFamilies.sans,
-                      },
-                    ]}
-                  >
-                    {cat}
-                  </ThemedText>
-                </Pressable>
-              );
-            })}
-          </ScrollView>
-
-          {/* Loading State */}
-          {isLoading && !isRefreshing ? (
-            <View style={styles.loadingContainer}>
-              <ActivityIndicator size="large" color={colors.primary} />
-              <ThemedText style={[styles.loadingText, { color: colors.textSecondary }]}>
-                Loading your appointments...
-              </ThemedText>
-            </View>
-          ) : error ? (
-            /* Error State */
-            <EmptyState
-              icon={
-                <SymbolView
-                  name={{
-                    ios: 'exclamationmark.triangle',
-                    android: 'warning',
-                    web: 'warning',
-                  }}
-                  size={36}
-                  tintColor={colors.notification || '#EF4444'}
-                />
-              }
-              title="Unable to Load Appointments"
-              description={error}
-              actionLabel="Retry"
-              onAction={() => loadAppointments(false)}
-            />
-          ) : appointments.length === 0 ? (
-            /* Empty State: No Appointments */
-            <EmptyState
-              icon={
-                <SymbolView
-                  name={{
-                    ios: 'calendar.badge.clock',
-                    android: 'schedule',
-                    web: 'schedule',
-                  }}
-                  size={40}
-                  tintColor={colors.primary}
-                />
-              }
-              title="No appointments scheduled"
-              description="Keep critical doctor visits, advisor meetings, and interviews organized in one place."
-              actionLabel="Schedule Your First Appointment"
-              onAction={handleOpenCreateModal}
-            />
-          ) : filteredAppointments.length === 0 ? (
-            /* Empty State: Filter Matched Nothing */
-            <EmptyState
-              icon={
-                <SymbolView
-                  name={{
-                    ios: 'line.3.horizontal.decrease.circle',
-                    android: 'filter_alt_off',
-                    web: 'filter_alt_off',
-                  }}
-                  size={36}
-                  tintColor={colors.textSecondary}
-                />
-              }
-              title="No matching appointments"
-              description="We couldn't find any appointments matching your current search or filter criteria."
-              actionLabel="Reset Filters"
-              onAction={handleResetFilters}
-            />
-          ) : (
-            /* Appointments List */
-            <View style={styles.appointmentsList}>
-              <View style={styles.listHeaderRow}>
-                <ThemedText style={[styles.listCountText, { color: colors.textSecondary }]}>
-                  Showing {filteredAppointments.length} of {appointments.length} appointments
-                </ThemedText>
-              </View>
-
-              {filteredAppointments.map((appt) => (
-                <AppointmentCard
-                  key={appt._id}
-                  appointment={appt}
-                  onPress={(a) => setSelectedAppointmentForDetails(a)}
-                />
-              ))}
-            </View>
-          )}
-        </ScrollView>
+        />
 
         <FloatingActionButton
           label="New Visit"
@@ -616,6 +679,10 @@ const styles = StyleSheet.create({
   },
   categoryChipText: {
     fontSize: Typography.fontSize.xs,
+  },
+  headerContainer: {
+    gap: Spacing.three,
+    marginBottom: Spacing.two,
   },
   appointmentsList: {
     gap: Spacing.three,

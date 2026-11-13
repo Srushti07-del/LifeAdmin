@@ -10,6 +10,8 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
+  FlatList,
+  Platform,
   Pressable,
   RefreshControl,
   ScrollView,
@@ -20,6 +22,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
 import { useAppTheme } from '@/context/ThemeContext';
+import { useAuth } from '@/context/AuthContext';
 import { useSnackbar } from '@/context/SnackbarContext';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
@@ -29,9 +32,12 @@ import {
   FilterBar,
   FilterItem,
   FloatingActionButton,
+  OfflineBanner,
   SearchInput,
   SegmentedControl,
 } from '@/components/ui';
+import { offlineCache } from '@/services/offlineCache';
+import { useNetwork } from '@/context/NetworkContext';
 import { Colors } from '@/constants/colors';
 import { Radius, Spacing } from '@/constants/spacing';
 import { Typography } from '@/constants/typography';
@@ -66,6 +72,8 @@ const SORT_CYCLE: TaskSortOption[] = ['dueDate', 'priority', 'recent'];
 
 export default function TasksScreen() {
   const { colors, isDark } = useAppTheme();
+  const { user } = useAuth();
+  const { isOnline, registerSyncTask, notifyActionRequiresNetwork } = useNetwork();
   const { showSnackbar } = useSnackbar();
   const router = useRouter();
   const params = useLocalSearchParams<{ filter?: string | string[] }>();
@@ -97,20 +105,52 @@ export default function TasksScreen() {
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const [updatingTaskId, setUpdatingTaskId] = useState<string | null>(null);
 
+  // Background sync registration on network reconnection
+  useEffect(() => {
+    return registerSyncTask('tasks', async () => {
+      try {
+        const res = await taskService.fetchTasks({ limit: 200, sort: 'dueDate' });
+        if (res?.tasks) {
+          setTasks(res.tasks);
+          await offlineCache.setCachedData('tasks', res.tasks, user?.id);
+        }
+      } catch (e) {
+        console.warn('[Tasks] Background sync failed:', e);
+      }
+    });
+  }, [registerSyncTask, user?.id]);
+
   const loadTasks = useCallback(async (silent = false) => {
+    // 1. Immediately hydrate from persistent cache if in-memory list is empty
+    if (tasks.length === 0) {
+      const cached = await offlineCache.getCachedData<Task[]>('tasks', user?.id);
+      if (cached?.data && cached.data.length > 0) {
+        setTasks(cached.data);
+        setIsLoading(false);
+      }
+    }
+
     try {
-      if (!silent) setIsLoading(true);
+      if (!silent && tasks.length === 0) setIsLoading(true);
       setError(null);
       const res = await taskService.fetchTasks({ limit: 200, sort: 'dueDate' });
-      setTasks(res?.tasks || []);
+      const fetchedTasks = res?.tasks || [];
+      setTasks(fetchedTasks);
+      await offlineCache.setCachedData('tasks', fetchedTasks, user?.id);
     } catch (err: any) {
       console.warn('Error loading tasks:', err);
-      setError(err?.message || 'Unable to load tasks right now.');
+      // If we have cached tasks in memory or storage, preserve them and suppress fatal error screen
+      const cached = await offlineCache.getCachedData<Task[]>('tasks', user?.id);
+      if (cached?.data && cached.data.length > 0) {
+        setTasks(cached.data);
+      } else if (tasks.length === 0) {
+        setError(err?.message || 'Unable to load tasks right now.');
+      }
     } finally {
       setIsLoading(false);
       setIsRefreshing(false);
     }
-  }, []);
+  }, [tasks.length, user?.id]);
 
   useFocusEffect(
     useCallback(() => {
@@ -163,6 +203,10 @@ export default function TasksScreen() {
   };
 
   const handleChangeStatus = async (task: Task, nextStatus: TaskStatus, isUndo = false) => {
+    if (!isOnline) {
+      notifyActionRequiresNetwork('update task status');
+      return;
+    }
     const previousStatus = task.status;
     setUpdatingTaskId(task._id);
     // Optimistic update for responsive native feel
@@ -223,6 +267,10 @@ export default function TasksScreen() {
   };
 
   const handleSaveTask = async (payload: Partial<Task>) => {
+    if (!isOnline) {
+      notifyActionRequiresNetwork(editingTask ? 'update this task' : 'create tasks');
+      return;
+    }
     if (editingTask) {
       const res = await taskService.updateTask(editingTask._id, payload);
       if (res?.task) {
@@ -253,6 +301,10 @@ export default function TasksScreen() {
   };
 
   const handleDeleteTask = async (id: string) => {
+    if (!isOnline) {
+      notifyActionRequiresNetwork('delete tasks');
+      return;
+    }
     const deletedTitle = tasks.find((t) => t._id === id)?.title;
     try {
       await taskService.deleteTask(id);
@@ -290,16 +342,264 @@ export default function TasksScreen() {
   const hasActiveFilters =
     statusFilter !== 'all' || categoryFilter !== 'all' || searchQuery.trim().length > 0;
 
+  type TaskListItem =
+    | { type: 'task'; task: Task }
+    | { type: 'completed_header'; count: number };
+
+  const listData: TaskListItem[] = useMemo(() => {
+    if (viewMode !== 'list' || isLoading || filteredTasks.length === 0) return [];
+    const items: TaskListItem[] = [];
+    for (const task of activeTasks) {
+      items.push({ type: 'task', task });
+    }
+    if (doneTasks.length > 0) {
+      items.push({ type: 'completed_header', count: doneTasks.length });
+      for (const task of doneTasks) {
+        items.push({ type: 'task', task });
+      }
+    }
+    return items;
+  }, [viewMode, isLoading, filteredTasks.length, activeTasks, doneTasks]);
+
+  const renderTaskItem = useCallback(
+    ({ item }: { item: TaskListItem }) => {
+      if (item.type === 'completed_header') {
+        return (
+          <ThemedText style={[styles.completedLabel, { color: colors.textMuted }]}>
+            Completed · {item.count}
+          </ThemedText>
+        );
+      }
+      return (
+        <TaskCard
+          task={item.task}
+          onPress={setSelectedTask}
+          onToggleComplete={handleToggleComplete}
+          isUpdating={updatingTaskId === item.task._id}
+        />
+      );
+    },
+    [colors.textMuted, handleToggleComplete, updatingTaskId]
+  );
+
+  const taskKeyExtractor = useCallback((item: TaskListItem) => {
+    return item.type === 'completed_header' ? 'completed_section_header' : item.task._id;
+  }, []);
+
+  const renderHeader = () => (
+    <View style={styles.headerContainer}>
+      {/* Editorial Page Header */}
+      <View style={styles.headerRow}>
+        <View style={styles.headerText}>
+          <ThemedText style={[styles.title, { color: colors.text }]}>
+            Tasks
+          </ThemedText>
+          <ThemedText style={[styles.subtitle, { color: colors.textSecondary }]}>
+            Calm, structured tracking for what matters next
+          </ThemedText>
+        </View>
+      </View>
+
+      <OfflineBanner onRetry={() => loadTasks(false)} />
+
+      {/* View Switcher (List / Board) */}
+      <SegmentedControl
+        options={[
+          { value: 'list', label: 'List View' },
+          { value: 'board', label: 'Board View' },
+        ]}
+        value={viewMode}
+        onChange={setViewMode}
+        style={styles.viewSwitcher}
+      />
+
+      {/* Summary Overview */}
+      <TaskSummaryCard metrics={summary} />
+
+      {/* Search & Sort Controls */}
+      <View style={styles.searchRow}>
+        <SearchInput
+          placeholder="Search tasks or notes..."
+          value={searchQuery}
+          onChangeText={setSearchQuery}
+          onClear={() => setSearchQuery('')}
+          containerStyle={styles.searchInput}
+        />
+
+        <Pressable
+          onPress={handleCycleSort}
+          style={[
+            styles.sortButton,
+            {
+              backgroundColor: colors.surface,
+              borderColor: colors.border,
+            },
+          ]}
+          accessibilityRole="button"
+          accessibilityLabel={`Sort by ${SORT_LABELS[sortBy]}`}
+        >
+          <SymbolView
+            name={{ ios: 'arrow.up.arrow.down', android: 'sort', web: 'sort' }}
+            size={15}
+            tintColor={colors.primary}
+          />
+          <ThemedText style={[styles.sortLabel, { color: colors.text }]}>
+            {SORT_LABELS[sortBy]}
+          </ThemedText>
+        </Pressable>
+      </View>
+
+      {/* Status Filter Bar (for List mode; Board displays all stages) */}
+      {viewMode === 'list' ? (
+        <View style={styles.filterBar}>
+          <FilterBar
+            items={filterItems}
+            selected={statusFilter}
+            onSelect={setStatusFilter}
+          />
+        </View>
+      ) : null}
+
+      {/* Dynamic Category Filter Pills (only useful with 2+ categories) */}
+      {categories.length > 1 ? (
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.categoryRow}
+        >
+          {['all', ...categories].map((cat) => {
+            const selected = categoryFilter === cat;
+            const label = cat === 'all' ? 'All Categories' : cat;
+            return (
+              <Pressable
+                key={cat}
+                onPress={() => setCategoryFilter(cat)}
+                hitSlop={{ top: 6, bottom: 6, left: 2, right: 2 }}
+                style={[
+                  styles.categoryPill,
+                  {
+                    backgroundColor: selected ? colors.primarySoft : colors.surface,
+                    borderColor: selected ? colors.primary : colors.border,
+                  },
+                ]}
+              >
+                <ThemedText
+                  style={[
+                    styles.categoryPillText,
+                    { color: selected ? colors.primary : colors.textSecondary },
+                  ]}
+                >
+                  {label}
+                </ThemedText>
+              </Pressable>
+            );
+          })}
+        </ScrollView>
+      ) : null}
+
+      {/* Error Recovery Banner */}
+      {error ? (
+        <View
+          style={[
+            styles.errorBanner,
+            {
+              backgroundColor: isDark
+                ? Colors.urgency.critical.darkBg
+                : Colors.urgency.critical.lightBg,
+              borderColor: Colors.urgency.critical.accent,
+            },
+          ]}
+        >
+          <ThemedText
+            style={[
+              styles.errorText,
+              {
+                color: isDark
+                  ? Colors.urgency.critical.darkText
+                  : Colors.urgency.critical.lightText,
+              },
+            ]}
+          >
+            {error}
+          </ThemedText>
+          <Button variant="outline" size="sm" onPress={() => loadTasks(false)}>
+            Retry
+          </Button>
+        </View>
+      ) : null}
+
+      {/* Non-virtualized Content: Loading, Empty, or Board View */}
+      {isLoading ? (
+        <View style={styles.loadingState}>
+          <ActivityIndicator size="large" color={colors.primary} />
+          <ThemedText style={[styles.loadingText, { color: colors.textSecondary }]}>
+            Loading your tasks...
+          </ThemedText>
+        </View>
+      ) : filteredTasks.length === 0 ? (
+        hasActiveFilters ? (
+          <EmptyState
+            icon={
+              <SymbolView
+                name={{ ios: 'line.3.horizontal.decrease.circle', android: 'filter_list_off', web: 'filter_list_off' }}
+                size={26}
+                tintColor={colors.primary}
+              />
+            }
+            title="No matching tasks"
+            description="Try clearing your search or status filter to view all responsibilities."
+            actionLabel="Clear Filters"
+            onAction={resetFilters}
+          />
+        ) : (
+          <EmptyState
+            icon={
+              <SymbolView
+                name={{ ios: 'checklist', android: 'checklist', web: 'checklist' }}
+                size={26}
+                tintColor={colors.primary}
+              />
+            }
+            title="Your task list is clear"
+            description="Add an assignment, errand, or personal milestone with due dates and priority."
+            actionLabel="Add First Task"
+            onAction={openCreateModal}
+          />
+        )
+      ) : viewMode === 'board' ? (
+        <TaskBoardView
+          tasks={filterAndSortTasks(tasks, {
+            statusFilter: 'all',
+            categoryFilter,
+            searchQuery,
+            sortBy,
+          })}
+          onSelectTask={setSelectedTask}
+          onMoveStatus={handleChangeStatus}
+          updatingId={updatingTaskId}
+        />
+      ) : null}
+    </View>
+  );
+
   return (
     <ThemedView style={styles.container}>
       <SafeAreaView style={styles.safeArea} edges={['top']}>
-        <ScrollView
+        <FlatList
+          data={listData}
+          renderItem={renderTaskItem}
+          keyExtractor={taskKeyExtractor}
+          ListHeaderComponent={renderHeader}
           contentContainerStyle={[
             styles.scrollContent,
             { paddingBottom: bottomPadding },
           ]}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
+          initialNumToRender={10}
+          maxToRenderPerBatch={10}
+          windowSize={5}
+          removeClippedSubviews={Platform.OS === 'android'}
           refreshControl={
             <RefreshControl
               refreshing={isRefreshing}
@@ -308,215 +608,7 @@ export default function TasksScreen() {
               colors={[colors.primary]}
             />
           }
-        >
-          {/* Editorial Page Header */}
-          <View style={styles.headerRow}>
-            <View style={styles.headerText}>
-              <ThemedText style={[styles.title, { color: colors.text }]}>
-                Tasks
-              </ThemedText>
-              <ThemedText style={[styles.subtitle, { color: colors.textSecondary }]}>
-                Calm, structured tracking for what matters next
-              </ThemedText>
-            </View>
-          </View>
-
-          {/* View Switcher (List / Board) */}
-          <SegmentedControl
-            options={[
-              { value: 'list', label: 'List View' },
-              { value: 'board', label: 'Board View' },
-            ]}
-            value={viewMode}
-            onChange={setViewMode}
-            style={styles.viewSwitcher}
-          />
-
-          {/* Summary Overview */}
-          <TaskSummaryCard metrics={summary} />
-
-          {/* Search & Sort Controls */}
-          <View style={styles.searchRow}>
-            <SearchInput
-              placeholder="Search tasks or notes..."
-              value={searchQuery}
-              onChangeText={setSearchQuery}
-              onClear={() => setSearchQuery('')}
-              containerStyle={styles.searchInput}
-            />
-
-            <Pressable
-              onPress={handleCycleSort}
-              style={[
-                styles.sortButton,
-                {
-                  backgroundColor: colors.surface,
-                  borderColor: colors.border,
-                },
-              ]}
-              accessibilityRole="button"
-              accessibilityLabel={`Sort by ${SORT_LABELS[sortBy]}`}
-            >
-              <SymbolView
-                name={{ ios: 'arrow.up.arrow.down', android: 'sort', web: 'sort' }}
-                size={15}
-                tintColor={colors.primary}
-              />
-              <ThemedText style={[styles.sortLabel, { color: colors.text }]}>
-                {SORT_LABELS[sortBy]}
-              </ThemedText>
-            </Pressable>
-          </View>
-
-          {/* Status Filter Bar (for List mode; Board displays all stages) */}
-          {viewMode === 'list' ? (
-            <View style={styles.filterBar}>
-              <FilterBar
-                items={filterItems}
-                selected={statusFilter}
-                onSelect={setStatusFilter}
-              />
-            </View>
-          ) : null}
-
-          {/* Dynamic Category Filter Pills (only useful with 2+ categories) */}
-          {categories.length > 1 ? (
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.categoryRow}
-            >
-              {['all', ...categories].map((cat) => {
-                const selected = categoryFilter === cat;
-                const label = cat === 'all' ? 'All Categories' : cat;
-                return (
-                  <Pressable
-                    key={cat}
-                    onPress={() => setCategoryFilter(cat)}
-                    hitSlop={{ top: 6, bottom: 6, left: 2, right: 2 }}
-                    style={[
-                      styles.categoryPill,
-                      {
-                        backgroundColor: selected ? colors.primarySoft : colors.surface,
-                        borderColor: selected ? colors.primary : colors.border,
-                      },
-                    ]}
-                  >
-                    <ThemedText
-                      style={[
-                        styles.categoryPillText,
-                        { color: selected ? colors.primary : colors.textSecondary },
-                      ]}
-                    >
-                      {label}
-                    </ThemedText>
-                  </Pressable>
-                );
-              })}
-            </ScrollView>
-          ) : null}
-
-          {/* Error Recovery Banner */}
-          {error ? (
-            <View
-              style={[
-                styles.errorBanner,
-                {
-                  backgroundColor: isDark
-                    ? Colors.urgency.critical.darkBg
-                    : Colors.urgency.critical.lightBg,
-                  borderColor: Colors.urgency.critical.accent,
-                },
-              ]}
-            >
-              <ThemedText
-                style={[
-                  styles.errorText,
-                  {
-                    color: isDark
-                      ? Colors.urgency.critical.darkText
-                      : Colors.urgency.critical.lightText,
-                  },
-                ]}
-              >
-                {error}
-              </ThemedText>
-              <Button variant="outline" size="sm" onPress={() => loadTasks(false)}>
-                Retry
-              </Button>
-            </View>
-          ) : null}
-
-          {/* Task Content */}
-          {isLoading ? (
-            <View style={styles.loadingState}>
-              <ActivityIndicator size="large" color={colors.primary} />
-              <ThemedText style={[styles.loadingText, { color: colors.textSecondary }]}>
-                Loading your tasks...
-              </ThemedText>
-            </View>
-          ) : filteredTasks.length === 0 ? (
-            hasActiveFilters ? (
-              <EmptyState
-                icon={
-                  <SymbolView
-                    name={{ ios: 'line.3.horizontal.decrease.circle', android: 'filter_list_off', web: 'filter_list_off' }}
-                    size={26}
-                    tintColor={colors.primary}
-                  />
-                }
-                title="No matching tasks"
-                description="Try clearing your search or status filter to view all responsibilities."
-                actionLabel="Clear Filters"
-                onAction={resetFilters}
-              />
-            ) : (
-              <EmptyState
-                icon={
-                  <SymbolView
-                    name={{ ios: 'checklist', android: 'checklist', web: 'checklist' }}
-                    size={26}
-                    tintColor={colors.primary}
-                  />
-                }
-                title="Your task list is clear"
-                description="Add an assignment, errand, or personal milestone with due dates and priority."
-                actionLabel="Add First Task"
-                onAction={openCreateModal}
-              />
-            )
-          ) : viewMode === 'board' ? (
-            <TaskBoardView
-              tasks={filterAndSortTasks(tasks, {
-                statusFilter: 'all',
-                categoryFilter,
-                searchQuery,
-                sortBy,
-              })}
-              onSelectTask={setSelectedTask}
-              onMoveStatus={handleChangeStatus}
-              updatingId={updatingTaskId}
-            />
-          ) : (
-            <View style={styles.listSection}>
-              {[...activeTasks, ...doneTasks].map((task, idx) => (
-                <React.Fragment key={task._id}>
-                  {activeTasks.length > 0 && idx === activeTasks.length ? (
-                    <ThemedText style={[styles.completedLabel, { color: colors.textMuted }]}>
-                      Completed · {doneTasks.length}
-                    </ThemedText>
-                  ) : null}
-                  <TaskCard
-                    task={task}
-                    onPress={setSelectedTask}
-                    onToggleComplete={handleToggleComplete}
-                    isUpdating={updatingTaskId === task._id}
-                  />
-                </React.Fragment>
-              ))}
-            </View>
-          )}
-        </ScrollView>
+        />
 
         {!isLoading && tasks.length > 0 && (
           <FloatingActionButton
@@ -563,6 +655,10 @@ const styles = StyleSheet.create({
   scrollContent: {
     paddingHorizontal: Spacing.four,
     paddingTop: Spacing.two,
+  },
+  headerContainer: {
+    gap: Spacing.three,
+    marginBottom: Spacing.three,
   },
   headerRow: {
     flexDirection: 'row',

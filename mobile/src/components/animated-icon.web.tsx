@@ -6,7 +6,7 @@ import { useAppTheme } from '@/context/ThemeContext';
 import classes from './animated-icon.module.css';
 const DURATION = 300;
 
-export function AnimatedSplashOverlay() {
+export function AnimatedSplashOverlay(_props?: { isReady?: boolean }) {
   return null;
 }
 

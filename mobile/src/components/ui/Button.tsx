@@ -75,19 +75,19 @@ export const Button = React.forwardRef<React.ComponentRef<typeof Pressable>, But
 
     const sizeStyles: Record<ButtonSize, { container: ViewStyle; text: TextStyle; gap: number; spinnerSize: number | 'small' }> = {
       sm: {
-        container: { height: 32, paddingHorizontal: 12 },
+        container: { minHeight: 32, paddingHorizontal: 12, paddingVertical: 6 },
         text: { fontSize: Typography.fontSize.xs, lineHeight: 16 },
         gap: 6,
         spinnerSize: 14,
       },
       md: {
-        container: { height: 40, paddingHorizontal: 16 },
+        container: { minHeight: 40, paddingHorizontal: 16, paddingVertical: 8 },
         text: { fontSize: Typography.fontSize.sm, lineHeight: 20 },
         gap: 8,
         spinnerSize: 'small',
       },
       lg: {
-        container: { height: 48, paddingHorizontal: 20 },
+        container: { minHeight: 48, paddingHorizontal: 20, paddingVertical: 10 },
         text: { fontSize: Typography.fontSize.base, lineHeight: 24 },
         gap: 10,
         spinnerSize: 'small',

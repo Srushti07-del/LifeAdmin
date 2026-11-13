@@ -5,6 +5,8 @@
 
 /* ── LifeAdmin Ocean Teal & Editorial Theme Variables ── */
 :root {
+  color-scheme: light;
+
   /* Light theme — Ocean Teal identity, high-contrast text (WCAG AA) */
   --bg-main: #F5F7F5;
   --bg-surface: #FFFFFF;
@@ -34,6 +36,8 @@
 }
 
 .dark {
+  color-scheme: dark;
+
   /* Deep Midnight Teal — genuinely dark, premium, layered charcoal */
   --bg-main: #101719;
   --bg-surface: #1C292D;
@@ -311,16 +315,25 @@
 }
 
 /* ── Scrollbars ── */
-::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+:root,
+* {
+  scrollbar-color: var(--border-subtle) transparent;
+  scrollbar-width: thin;
 }
-::-webkit-scrollbar-track {
-  background: transparent;
-}
-::-webkit-scrollbar-thumb {
-  background: var(--border-subtle);
-  border-radius: 9999px;
+
+/* Legacy fallback for WebKit/Blink browsers without standard scrollbar-color support */
+@supports not (scrollbar-color: auto) {
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: var(--border-subtle);
+    border-radius: 9999px;
+  }
 }
 
 /* ── Selection ── */
