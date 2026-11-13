@@ -5,17 +5,11 @@ import Reminder, { IReminder } from '../models/Reminder';
 import Notification from '../models/Notification';
 import { authenticate, enforceOnboarding } from '../middleware/auth';
 import { calculateNextOccurrence } from '../services/recurrence';
-import { enqueueRecordSync } from '../services/googleCalendarSync';
 import { rescheduleEntityEmailNotifications } from '../services/emailNotificationGenerator';
 
 const router = Router();
 router.use(authenticate);
 router.use(enforceOnboarding);
-
-// Helper: auto-sync a reminder to Google Calendar (persists retry state on failure)
-function syncReminderToGoogle(userId: mongoose.Types.ObjectId, operation: 'create' | 'update' | 'delete', sourceId: mongoose.Types.ObjectId) {
-  return enqueueRecordSync(userId, 'reminder', sourceId, operation);
-}
 
 const ALLOWED_OFFSETS = new Set([0, 5, 15, 30, 60]);
 const ALLOWED_RECURRENCE = new Set(['none', 'daily', 'weekly', 'monthly', 'yearly']);
@@ -221,9 +215,6 @@ router.post(
         recurrence: reminderData.recurrence || { type: 'none', interval: 1 },
       });
 
-      // Auto-sync to Google Calendar if connected
-      void syncReminderToGoogle(req.user!._id, 'create', reminder._id);
-
       res.status(201).json({ message: 'Reminder created', reminder });
     } catch (error) {
       console.error('Create reminder error:', error);
@@ -254,9 +245,6 @@ router.put('/:id', async (req: Request, res: Response): Promise<void> => {
 
     const updateData = pickReminderData(req.body);
     const reminder = await Reminder.findByIdAndUpdate(id, { $set: updateData }, { returnDocument: 'after', runValidators: true });
-
-    // Auto-sync to Google Calendar if connected
-    void syncReminderToGoogle(req.user!._id, 'update', existingReminder._id);
 
     // Reschedule email notifications if the reminder's date/time changed
     void rescheduleEntityEmailNotifications(req.user!._id, existingReminder._id, 'reminder');
@@ -392,9 +380,6 @@ router.delete('/:id', async (req: Request, res: Response): Promise<void> => {
     }
 
     await Reminder.findByIdAndDelete(id);
-
-    // Auto-sync to Google Calendar if connected
-    void syncReminderToGoogle(req.user!._id, 'delete', existingReminder._id);
 
     res.json({ message: 'Reminder deleted' });
   } catch (error) {

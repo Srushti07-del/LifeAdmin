@@ -10,9 +10,6 @@ import Appointment from '../models/Appointment';
 import Reminder from '../models/Reminder';
 import CalendarEvent from '../models/CalendarEvent';
 import DocumentModel from '../models/Document';
-import CalendarSyncMapping from '../models/CalendarSyncMapping';
-import GoogleOAuthState from '../models/GoogleOAuthState';
-import { disconnectGoogleCalendar } from '../services/googleCalendar';
 import { authenticate, generateToken } from '../middleware/auth';
 import config from '../config';
 import { seedDemoData } from '../utils/demoSeed';
@@ -346,12 +343,6 @@ router.delete('/guest', authenticate, async (req: Request, res: Response): Promi
 
     const userId = user._id;
 
-    try {
-      await disconnectGoogleCalendar(userId.toString());
-    } catch {
-      // Ignore external Google revocation failures on demo cleanup
-    }
-
     // Delete all data scoped to this demo user (in parallel for speed)
     await Promise.all([
       Task.deleteMany({ userId }),
@@ -360,8 +351,6 @@ router.delete('/guest', authenticate, async (req: Request, res: Response): Promi
       Reminder.deleteMany({ userId }),
       CalendarEvent.deleteMany({ userId }),
       DocumentModel.deleteMany({ userId }),
-      CalendarSyncMapping.deleteMany({ userId }),
-      GoogleOAuthState.deleteMany({ userId }),
       User.findByIdAndDelete(userId),
     ]);
 

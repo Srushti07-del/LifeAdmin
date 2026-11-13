@@ -3,17 +3,11 @@ import { body, validationResult } from 'express-validator';
 import mongoose from 'mongoose';
 import Appointment from '../models/Appointment';
 import { authenticate, enforceOnboarding } from '../middleware/auth';
-import { enqueueRecordSync } from '../services/googleCalendarSync';
 import { rescheduleEntityEmailNotifications } from '../services/emailNotificationGenerator';
 
 const router = Router();
 router.use(authenticate);
 router.use(enforceOnboarding);
-
-// Helper: auto-sync an appointment to Google Calendar (persists retry state on failure)
-function syncAppointmentToGoogle(userId: mongoose.Types.ObjectId, operation: 'create' | 'update' | 'delete', sourceId: mongoose.Types.ObjectId) {
-  return enqueueRecordSync(userId, 'appointment', sourceId, operation);
-}
 
 // GET /api/appointments
 router.get('/', async (req: Request, res: Response): Promise<void> => {
@@ -97,9 +91,6 @@ router.post(
         userId: req.user!._id,
       });
 
-      // Auto-sync to Google Calendar if connected
-      void syncAppointmentToGoogle(req.user!._id, 'create', appointment._id);
-
       res.status(201).json({ message: 'Appointment created', appointment });
     } catch (error) {
       console.error('Create appointment error:', error);
@@ -135,9 +126,6 @@ router.put('/:id', async (req: Request, res: Response): Promise<void> => {
       { new: true, runValidators: true }
     );
 
-    // Auto-sync to Google Calendar if connected
-    void syncAppointmentToGoogle(req.user!._id, 'update', existingAppointment._id);
-
     // Reschedule email notifications if the appointment's date/time changed
     void rescheduleEntityEmailNotifications(req.user!._id, existingAppointment._id, 'appointment');
 
@@ -169,9 +157,6 @@ router.delete('/:id', async (req: Request, res: Response): Promise<void> => {
     }
 
     await Appointment.findByIdAndDelete(id);
-
-    // Auto-sync to Google Calendar if connected
-    void syncAppointmentToGoogle(req.user!._id, 'delete', existingAppointment._id);
 
     res.json({ message: 'Appointment deleted' });
   } catch (error) {

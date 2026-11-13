@@ -4,17 +4,11 @@ import mongoose from 'mongoose';
 import Bill from '../models/Bill';
 import { authenticate, enforceOnboarding } from '../middleware/auth';
 import { handleBillRecurrence } from '../services/recurrence';
-import { enqueueRecordSync } from '../services/googleCalendarSync';
 import { rescheduleEntityEmailNotifications } from '../services/emailNotificationGenerator';
 
 const router = Router();
 router.use(authenticate);
 router.use(enforceOnboarding);
-
-// Helper: auto-sync a bill to Google Calendar (persists retry state on failure)
-function syncBillToGoogle(userId: mongoose.Types.ObjectId, operation: 'create' | 'update' | 'delete', sourceId: mongoose.Types.ObjectId) {
-  return enqueueRecordSync(userId, 'bill', sourceId, operation);
-}
 
 function sanitizeRecurrence(input: any) {
   if (!input || input.type === 'none') return { type: 'none' as const };
@@ -127,9 +121,6 @@ router.post(
       const billData = pickBillData(req.body);
       const bill = await Bill.create({ ...billData, userId: req.user!._id, currency: billData.currency || 'INR' });
 
-      // Auto-sync to Google Calendar if connected
-      void syncBillToGoogle(req.user!._id, 'create', bill._id);
-
       res.status(201).json({ message: 'Bill created', bill });
     } catch (error) {
       console.error('Create bill error:', error);
@@ -166,9 +157,6 @@ router.put('/:id', async (req: Request, res: Response): Promise<void> => {
     }
 
     const bill = await Bill.findByIdAndUpdate(id, { $set: updateData }, { returnDocument: 'after', runValidators: true });
-
-    // Auto-sync to Google Calendar if connected
-    void syncBillToGoogle(req.user!._id, 'update', existingBill._id);
 
     // Reschedule email notifications if the bill's due date changed
     void rescheduleEntityEmailNotifications(req.user!._id, existingBill._id, 'bill');
@@ -274,9 +262,6 @@ router.delete('/:id', async (req: Request, res: Response): Promise<void> => {
     }
 
     await Bill.findByIdAndDelete(id);
-
-    // Auto-sync to Google Calendar if connected
-    void syncBillToGoogle(req.user!._id, 'delete', existingBill._id);
 
     res.json({ message: 'Bill deleted' });
   } catch (error) {

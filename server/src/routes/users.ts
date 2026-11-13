@@ -10,9 +10,6 @@ import DocumentModel from '../models/Document';
 import CalendarEvent from '../models/CalendarEvent';
 import Notification from '../models/Notification';
 import AIInteraction from '../models/AIInteraction';
-import CalendarSyncMapping from '../models/CalendarSyncMapping';
-import GoogleOAuthState from '../models/GoogleOAuthState';
-import { disconnectGoogleCalendar } from '../services/googleCalendar';
 import { authenticate, enforceOnboarding } from '../middleware/auth';
 import config from '../config';
 
@@ -242,14 +239,7 @@ router.delete('/account', async (req: Request, res: Response): Promise<void> => 
       }
     }
 
-    // 2. Revoke Google Calendar connection & stop watch channels before deleting user data
-    try {
-      await disconnectGoogleCalendar(userId.toString());
-    } catch {
-      // Never block account deletion if external Google revocation fails
-    }
-
-    // 3. Cascade delete all user records from database
+    // Cascade delete all user records from database
     await Promise.all([
       Task.deleteMany({ userId }),
       Bill.deleteMany({ userId }),
@@ -259,8 +249,6 @@ router.delete('/account', async (req: Request, res: Response): Promise<void> => 
       CalendarEvent.deleteMany({ userId }),
       Notification.deleteMany({ userId }),
       AIInteraction.deleteMany({ userId }),
-      CalendarSyncMapping.deleteMany({ userId }),
-      GoogleOAuthState.deleteMany({ userId }),
       User.findByIdAndDelete(userId),
     ]);
 

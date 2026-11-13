@@ -16,11 +16,6 @@ const config = {
   jwtSecret: process.env.JWT_SECRET || 'dev-secret-key',
   jwtExpiresIn: process.env.JWT_EXPIRES_IN || '7d',
   
-  // Google OAuth
-  googleClientId: process.env.GOOGLE_CLIENT_ID || '',
-  googleClientSecret: process.env.GOOGLE_CLIENT_SECRET || '',
-  googleCallbackUrl: process.env.GOOGLE_CALLBACK_URL || 'http://localhost:5000/api/auth/google/callback',
-  
   // Google Gemini AI
   geminiApiKey: process.env.GEMINI_API_KEY || '',
   

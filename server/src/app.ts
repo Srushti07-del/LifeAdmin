@@ -19,7 +19,6 @@ import onboardingRoutes from './routes/onboarding';
 import userRoutes from './routes/users';
 import currencyRoutes from './routes/currency';
 import emailNotificationRoutes from './routes/emailNotifications';
-import googleCalendarRoutes from './routes/googleCalendar';
 
 const app = express();
 
@@ -65,7 +64,6 @@ app.use('/api/onboarding', onboardingRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/currency', currencyRoutes);
 app.use('/api/email-notifications', emailNotificationRoutes);
-app.use('/api/google-calendar', googleCalendarRoutes);
 
 // Health check
 app.get('/api/health', (_req, res) => {

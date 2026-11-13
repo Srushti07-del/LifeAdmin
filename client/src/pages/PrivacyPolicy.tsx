@@ -75,9 +75,6 @@ export default function PrivacyPolicy() {
           <p className="text-sm text-surface-600 dark:text-surface-300 leading-relaxed">
             We do not share your personal data with third parties except as required by law, to protect safety, or with service providers who process data on our behalf under strict confidentiality obligations.
           </p>
-          <p className="text-sm text-surface-600 dark:text-surface-300 leading-relaxed">
-            If you connect Google Calendar, calendar data is synced between LifeAdmin and Google under your consent and Google's own terms.
-          </p>
         </section>
 
         <section className="bg-white dark:bg-surface-0 rounded-3xl p-6 sm:p-8 border border-surface-200 dark:border-surface-700 shadow-card space-y-6">
