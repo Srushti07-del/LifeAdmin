@@ -56,21 +56,18 @@ function getInitialTheme(): 'light' | 'dark' | 'system' {
 
 function applyTheme(theme: 'light' | 'dark' | 'system') {
   const root = document.documentElement;
-  if (theme === 'dark') {
+  const isDark = theme === 'dark' || (theme === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+  if (isDark) {
     root.classList.add('dark');
     root.style.colorScheme = 'dark';
-  } else if (theme === 'light') {
+  } else {
     root.classList.remove('dark');
     root.style.colorScheme = 'light';
-  } else {
-    const isDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-    if (isDark) {
-      root.classList.add('dark');
-      root.style.colorScheme = 'dark';
-    } else {
-      root.classList.remove('dark');
-      root.style.colorScheme = 'light';
-    }
+  }
+
+  const metaColorScheme = document.querySelector('meta[name="color-scheme"]');
+  if (metaColorScheme) {
+    metaColorScheme.setAttribute('content', theme === 'system' ? 'light dark' : isDark ? 'dark' : 'light');
   }
 }
 

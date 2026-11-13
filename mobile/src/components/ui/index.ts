@@ -19,5 +19,6 @@ export * from './HeaderBackButton';
 export * from './DatePickerField';
 export * from './TimePickerField';
 export * from './FloatingActionButton';
+export * from './OfflineBanner';
 export * from './collapsible';
 

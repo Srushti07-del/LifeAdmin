@@ -13,6 +13,8 @@ import {
   View,
   StyleSheet,
   ScrollView,
+  FlatList,
+  Platform,
   RefreshControl,
   ActivityIndicator,
   Pressable,
@@ -32,8 +34,11 @@ import {
   FilterItem,
   EmptyState,
   FloatingActionButton,
+  OfflineBanner,
   getButtonForegroundColor,
 } from '@/components/ui';
+import { offlineCache } from '@/services/offlineCache';
+import { useNetwork } from '@/context/NetworkContext';
 import { Typography } from '@/constants/typography';
 import { Spacing, Radius } from '@/constants/spacing';
 import { useFabBottomPadding } from '@/hooks/use-safe-bottom-padding';
@@ -108,6 +113,8 @@ export default function BillsScreen() {
 
   const numColumns = layoutMode === 'list' ? 1 : width >= 768 ? 3 : width >= 360 ? 2 : 1;
 
+  const { isOnline, registerSyncTask, notifyActionRequiresNetwork } = useNetwork();
+
   // Modal states
   const [isFormOpen, setIsFormOpen] = useState<boolean>(false);
   const [editingBill, setEditingBill] = useState<Bill | null>(null);
@@ -118,10 +125,49 @@ export default function BillsScreen() {
   const preferredCurrency = normalizeCurrencyCode(user?.preferredCurrency || DEFAULT_CURRENCY);
   const currencyMeta = CURRENCIES[preferredCurrency];
 
+  // Background sync registration on network reconnection
+  useEffect(() => {
+    return registerSyncTask('bills', async () => {
+      try {
+        const [billsResponse, ratesResponse] = await Promise.allSettled([
+          billService.fetchBills({ limit: 300 }),
+          billService.fetchRates(),
+        ]);
+        if (billsResponse.status === 'fulfilled') {
+          const fetchedBills = billsResponse.value?.bills || [];
+          setBills(fetchedBills);
+          await offlineCache.setCachedData('bills', fetchedBills, user?.id);
+        }
+        if (ratesResponse.status === 'fulfilled') {
+          const fetchedRates = ratesResponse.value?.rates || {};
+          setRates(fetchedRates);
+          await offlineCache.setCachedData('rates', fetchedRates, user?.id);
+        }
+      } catch (e) {
+        console.warn('[Bills] Background sync failed:', e);
+      }
+    });
+  }, [registerSyncTask, user?.id]);
+
   // Load bills and currency exchange rates
   const loadData = useCallback(async (isSilent = false) => {
+    // 1. Immediately hydrate from persistent cache if state is empty
+    if (bills.length === 0) {
+      const [cachedBills, cachedRates] = await Promise.all([
+        offlineCache.getCachedData<Bill[]>('bills', user?.id),
+        offlineCache.getCachedData<Record<string, number>>('rates', user?.id),
+      ]);
+      if (cachedBills?.data && cachedBills.data.length > 0) {
+        setBills(cachedBills.data);
+        setIsLoading(false);
+      }
+      if (cachedRates?.data) {
+        setRates(cachedRates.data);
+      }
+    }
+
     try {
-      if (!isSilent) setIsLoading(true);
+      if (!isSilent && bills.length === 0) setIsLoading(true);
       setError(null);
 
       const [billsResponse, ratesResponse] = await Promise.allSettled([
@@ -132,21 +178,29 @@ export default function BillsScreen() {
       if (billsResponse.status === 'fulfilled') {
         const fetchedBills = billsResponse.value?.bills || [];
         setBills(fetchedBills);
+        await offlineCache.setCachedData('bills', fetchedBills, user?.id);
       } else {
         throw new Error('Failed to load bills.');
       }
 
       if (ratesResponse.status === 'fulfilled') {
-        setRates(ratesResponse.value?.rates || {});
+        const fetchedRates = ratesResponse.value?.rates || {};
+        setRates(fetchedRates);
+        await offlineCache.setCachedData('rates', fetchedRates, user?.id);
       }
     } catch (err: any) {
       console.warn('Error loading bills:', err);
-      setError(err?.message || 'Unable to connect to server. Please try again.');
+      const cached = await offlineCache.getCachedData<Bill[]>('bills', user?.id);
+      if (cached?.data && cached.data.length > 0) {
+        setBills(cached.data);
+      } else if (bills.length === 0) {
+        setError(err?.message || 'Unable to connect to server. Please try again.');
+      }
     } finally {
       setIsLoading(false);
       setIsRefreshing(false);
     }
-  }, []);
+  }, [bills.length, user?.id]);
 
   useEffect(() => {
     loadData();
@@ -185,6 +239,10 @@ export default function BillsScreen() {
 
   // Toggle Mark as Paid / Unpaid
   const handleTogglePaid = async (bill: Bill, isUndo = false) => {
+    if (!isOnline) {
+      notifyActionRequiresNetwork('update bill payment');
+      return;
+    }
     const isPaid = bill.paymentStatus === 'paid' || bill.status === 'paid';
     const billLabel = bill.name || bill.title || 'Bill';
     setActionLoadingBillId(bill._id);
@@ -268,6 +326,10 @@ export default function BillsScreen() {
 
   // Submit Create or Edit form
   const handleFormSubmit = async (billData: Partial<Bill>) => {
+    if (!isOnline) {
+      notifyActionRequiresNetwork(editingBill ? 'update bill' : 'create bill');
+      return;
+    }
     if (editingBill) {
       const res = await billService.updateBill(editingBill._id, billData);
       setBills((prev) => prev.map((b) => (b._id === editingBill._id ? res.bill : b)));
@@ -293,6 +355,10 @@ export default function BillsScreen() {
 
   // Delete Bill
   const handleDeleteBill = async (billId: string) => {
+    if (!isOnline) {
+      notifyActionRequiresNetwork('delete bill');
+      return;
+    }
     const existing = bills.find((b) => b._id === billId);
     const billLabel = existing?.name || existing?.title || 'Bill';
     await billService.deleteBill(billId);
@@ -328,6 +394,287 @@ export default function BillsScreen() {
 
   const currentSortLabel = SORT_OPTIONS.find((s) => s.key === activeSort)?.label || 'Sort';
 
+  const billKeyExtractor = useCallback((item: Bill) => item._id, []);
+
+  const renderBillItem = useCallback(
+    ({ item }: { item: Bill }) => (
+      <BillCard
+        bill={item}
+        compact={numColumns > 1}
+        style={
+          numColumns === 3
+            ? styles.gridItem3
+            : numColumns === 2
+              ? styles.gridItem2
+              : undefined
+        }
+        onPress={(b) => setSelectedBillForDetails(b)}
+        onTogglePaid={handleTogglePaid}
+        isActionLoading={actionLoadingBillId === item._id}
+      />
+    ),
+    [numColumns, handleTogglePaid, actionLoadingBillId]
+  );
+
+  const renderHeader = (
+    <View style={styles.headerContainer}>
+      <OfflineBanner onRetry={() => loadData(false)} />
+
+      {/* Summary Dashboard Card */}
+      <BillSummaryCard totals={totals} preferredCurrency={preferredCurrency} />
+
+      {/* Search Bar, Layout Toggle & Sort Row */}
+      <View style={styles.searchSortRow}>
+        <View style={styles.searchWrapper}>
+          <SearchInput
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+            placeholder="Search bills, providers..."
+          />
+        </View>
+
+        <Pressable
+          onPress={() => setLayoutMode((m) => (m === 'grid' ? 'list' : 'grid'))}
+          style={[
+            styles.sortButton,
+            {
+              backgroundColor: colors.surface,
+              borderColor: colors.border,
+            },
+          ]}
+          hitSlop={4}
+          accessibilityRole="button"
+          accessibilityLabel={`Switch to ${layoutMode === 'grid' ? 'list' : 'grid'} view`}
+        >
+          <SymbolView
+            name={
+              layoutMode === 'grid'
+                ? { ios: 'list.bullet', android: 'view_list', web: 'view_list' }
+                : { ios: 'square.grid.2x2', android: 'grid_view', web: 'grid_view' }
+            }
+            size={16}
+            tintColor={colors.primary}
+          />
+        </Pressable>
+
+        <Pressable
+          onPress={() => setShowSortPicker((prev) => !prev)}
+          style={[
+            styles.sortButton,
+            {
+              backgroundColor: showSortPicker ? colors.primary : colors.surface,
+              borderColor: showSortPicker ? colors.primary : colors.border,
+            },
+          ]}
+          hitSlop={4}
+          accessibilityRole="button"
+          accessibilityLabel={`Sort by: ${currentSortLabel}`}
+        >
+          <SymbolView
+            name={{
+              ios: 'arrow.up.arrow.down',
+              android: 'sort',
+              web: 'sort',
+            }}
+            size={16}
+            tintColor={showSortPicker ? primaryFg : colors.text}
+          />
+        </Pressable>
+      </View>
+
+      {/* Sort Options Tray (When opened) */}
+      {showSortPicker && (
+        <View
+          style={[
+            styles.sortTray,
+            {
+              backgroundColor: isDark ? colors.surface : colors.surfaceSecondary,
+              borderColor: colors.border,
+            },
+          ]}
+        >
+          <ThemedText style={[styles.sortTrayTitle, { color: colors.textSecondary }]}>
+            Sort Bills By
+          </ThemedText>
+          <View style={styles.sortOptionsGrid}>
+            {SORT_OPTIONS.map((opt) => {
+              const isSelected = activeSort === opt.key;
+              return (
+                <Pressable
+                  key={opt.key}
+                  onPress={() => {
+                    setActiveSort(opt.key);
+                    setShowSortPicker(false);
+                  }}
+                  hitSlop={{ top: 6, bottom: 6, left: 2, right: 2 }}
+                  style={[
+                    styles.sortOptionChip,
+                    {
+                      backgroundColor: isSelected
+                        ? colors.primary
+                        : isDark
+                        ? colors.surfaceElevated
+                        : colors.surface,
+                      borderColor: isSelected ? colors.primary : colors.border,
+                    },
+                  ]}
+                >
+                  <ThemedText
+                    style={[
+                      styles.sortOptionText,
+                      {
+                        color: isSelected ? primaryFg : colors.text,
+                        fontFamily: isSelected
+                          ? Typography.fontFamilies.sansSemiBold
+                          : Typography.fontFamilies.sans,
+                      },
+                    ]}
+                  >
+                    {opt.label}
+                  </ThemedText>
+                </Pressable>
+              );
+            })}
+          </View>
+        </View>
+      )}
+
+      {/* Status + category filters: only meaningful once bills exist */}
+      {bills.length > 0 ? (
+        <>
+          {/* Status Tabs Filter */}
+          <View style={styles.filterSection}>
+            <FilterBar
+              items={filterItems}
+              selected={activeFilter}
+              onSelect={setActiveFilter}
+            />
+          </View>
+
+          {/* Category Chip Selector */}
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.categoryScroll}
+          >
+            {CATEGORIES.map((cat) => {
+              const isSelected = selectedCategory === cat;
+              return (
+                <Pressable
+                  key={cat}
+                  onPress={() => setSelectedCategory(cat)}
+                  hitSlop={{ top: 6, bottom: 6, left: 2, right: 2 }}
+                  style={[
+                    styles.categoryChip,
+                    {
+                      backgroundColor: isSelected
+                        ? colors.primarySoft
+                        : isDark
+                        ? colors.surface
+                        : colors.surfaceSecondary,
+                      borderColor: isSelected ? colors.primary : colors.border,
+                    },
+                  ]}
+                  accessibilityRole="button"
+                  accessibilityState={{ selected: isSelected }}
+                >
+                  <ThemedText
+                    style={[
+                      styles.categoryChipText,
+                      {
+                        color: isSelected ? colors.primary : colors.textSecondary,
+                        fontFamily: isSelected
+                          ? Typography.fontFamilies.sansSemiBold
+                          : Typography.fontFamilies.sans,
+                      },
+                    ]}
+                  >
+                    {cat}
+                  </ThemedText>
+                </Pressable>
+              );
+            })}
+          </ScrollView>
+        </>
+      ) : null}
+
+      {/* Loading Skeleton / State */}
+      {isLoading && !isRefreshing ? (
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color={colors.primary} />
+          <ThemedText style={[styles.loadingText, { color: colors.textSecondary }]}>
+            Loading your bills & payment status...
+          </ThemedText>
+        </View>
+      ) : error ? (
+        /* Error State */
+        <EmptyState
+          icon={
+            <SymbolView
+              name={{
+                ios: 'exclamationmark.triangle',
+                android: 'warning',
+                web: 'warning',
+              }}
+              size={36}
+              tintColor={colors.notification || '#EF4444'}
+            />
+          }
+          title="Unable to Load Bills"
+          description={error}
+          actionLabel="Retry"
+          onAction={() => loadData(false)}
+        />
+      ) : bills.length === 0 ? (
+        /* Empty State: No Bills Added */
+        <EmptyState
+          icon={
+            <SymbolView
+              name={{
+                ios: 'receipt',
+                android: 'receipt_long',
+                web: 'receipt_long',
+              }}
+              size={28}
+              tintColor={colors.primary}
+            />
+          }
+          title="No bills or obligations"
+          description="Keep track of recurring utilities, subscriptions, credit cards, and rent in one calm place."
+          actionLabel="Add Your First Bill"
+          onAction={handleOpenCreateModal}
+          style={{ paddingVertical: Spacing.four }}
+          descriptionStyle={{ marginBottom: Spacing.three }}
+        />
+      ) : filteredBills.length === 0 ? (
+        /* Empty State: Filters Matched Nothing */
+        <EmptyState
+          icon={
+            <SymbolView
+              name={{
+                ios: 'line.3.horizontal.decrease.circle',
+                android: 'filter_alt_off',
+                web: 'filter_alt_off',
+              }}
+              size={36}
+              tintColor={colors.textSecondary}
+            />
+          }
+          title="No matching bills"
+          description="We couldn't find any bills matching your current search or filter criteria."
+          actionLabel="Reset Filters"
+          onAction={handleResetFilters}
+        />
+      ) : (
+        <View style={styles.listHeaderRow}>
+          <ThemedText style={[styles.listCountText, { color: colors.textSecondary }]}>
+            Showing {filteredBills.length} of {bills.length} bills
+          </ThemedText>
+        </View>
+      )}
+    </View>
+  );
+
   return (
     <ThemedView style={styles.container}>
       <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
@@ -345,14 +692,34 @@ export default function BillsScreen() {
           </View>
         </View>
 
-        {/* Scrollable Content */}
-        <ScrollView
-          style={styles.scrollArea}
+        {/* Virtualized Bills List */}
+        <FlatList
+          key={numColumns > 1 ? `bills-grid-${numColumns}` : 'bills-list'}
+          data={isLoading || error || bills.length === 0 || filteredBills.length === 0 ? [] : filteredBills}
+          renderItem={renderBillItem}
+          keyExtractor={billKeyExtractor}
+          numColumns={numColumns}
+          columnWrapperStyle={
+            numColumns > 1
+              ? { gap: Spacing.three, marginBottom: Spacing.three }
+              : undefined
+          }
+          ItemSeparatorComponent={
+            numColumns === 1
+              ? () => <View style={{ height: Spacing.three }} />
+              : undefined
+          }
+          ListHeaderComponent={renderHeader}
           contentContainerStyle={[
             styles.scrollContent,
             { paddingBottom: bottomPadding },
           ]}
           showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+          initialNumToRender={8}
+          maxToRenderPerBatch={8}
+          windowSize={5}
+          removeClippedSubviews={Platform.OS === 'android'}
           refreshControl={
             <RefreshControl
               refreshing={isRefreshing}
@@ -361,283 +728,7 @@ export default function BillsScreen() {
               tintColor={colors.primary}
             />
           }
-        >
-          {/* Summary Dashboard Card */}
-          <BillSummaryCard totals={totals} preferredCurrency={preferredCurrency} />
-
-          {/* Search Bar, Layout Toggle & Sort Row */}
-          <View style={styles.searchSortRow}>
-            <View style={styles.searchWrapper}>
-              <SearchInput
-                value={searchQuery}
-                onChangeText={setSearchQuery}
-                placeholder="Search bills, providers..."
-              />
-            </View>
-
-            <Pressable
-              onPress={() => setLayoutMode((m) => (m === 'grid' ? 'list' : 'grid'))}
-              style={[
-                styles.sortButton,
-                {
-                  backgroundColor: colors.surface,
-                  borderColor: colors.border,
-                },
-              ]}
-              hitSlop={4}
-              accessibilityRole="button"
-              accessibilityLabel={`Switch to ${layoutMode === 'grid' ? 'list' : 'grid'} view`}
-            >
-              <SymbolView
-                name={
-                  layoutMode === 'grid'
-                    ? { ios: 'list.bullet', android: 'view_list', web: 'view_list' }
-                    : { ios: 'square.grid.2x2', android: 'grid_view', web: 'grid_view' }
-                }
-                size={16}
-                tintColor={colors.primary}
-              />
-            </Pressable>
-
-            <Pressable
-              onPress={() => setShowSortPicker((prev) => !prev)}
-              style={[
-                styles.sortButton,
-                {
-                  backgroundColor: showSortPicker ? colors.primary : colors.surface,
-                  borderColor: showSortPicker ? colors.primary : colors.border,
-                },
-              ]}
-              hitSlop={4}
-              accessibilityRole="button"
-              accessibilityLabel={`Sort by: ${currentSortLabel}`}
-            >
-              <SymbolView
-                name={{
-                  ios: 'arrow.up.arrow.down',
-                  android: 'sort',
-                  web: 'sort',
-                }}
-                size={16}
-                tintColor={showSortPicker ? primaryFg : colors.text}
-              />
-            </Pressable>
-          </View>
-
-          {/* Sort Options Tray (When opened) */}
-          {showSortPicker && (
-            <View
-              style={[
-                styles.sortTray,
-                {
-                  backgroundColor: isDark ? colors.surface : colors.surfaceSecondary,
-                  borderColor: colors.border,
-                },
-              ]}
-            >
-              <ThemedText style={[styles.sortTrayTitle, { color: colors.textSecondary }]}>
-                Sort Bills By
-              </ThemedText>
-              <View style={styles.sortOptionsGrid}>
-                {SORT_OPTIONS.map((opt) => {
-                  const isSelected = activeSort === opt.key;
-                  return (
-                    <Pressable
-                      key={opt.key}
-                      onPress={() => {
-                        setActiveSort(opt.key);
-                        setShowSortPicker(false);
-                      }}
-                      hitSlop={{ top: 6, bottom: 6, left: 2, right: 2 }}
-                      style={[
-                        styles.sortOptionChip,
-                        {
-                          backgroundColor: isSelected
-                            ? colors.primary
-                            : isDark
-                            ? colors.surfaceElevated
-                            : colors.surface,
-                          borderColor: isSelected ? colors.primary : colors.border,
-                        },
-                      ]}
-                    >
-                      <ThemedText
-                        style={[
-                          styles.sortOptionText,
-                          {
-                            color: isSelected ? primaryFg : colors.text,
-                            fontFamily: isSelected
-                              ? Typography.fontFamilies.sansSemiBold
-                              : Typography.fontFamilies.sans,
-                          },
-                        ]}
-                      >
-                        {opt.label}
-                      </ThemedText>
-                    </Pressable>
-                  );
-                })}
-              </View>
-            </View>
-          )}
-
-          {/* Status + category filters: only meaningful once bills exist */}
-          {bills.length > 0 ? (
-            <>
-              {/* Status Tabs Filter */}
-              <View style={styles.filterSection}>
-                <FilterBar
-                  items={filterItems}
-                  selected={activeFilter}
-                  onSelect={setActiveFilter}
-                />
-              </View>
-
-              {/* Category Chip Selector */}
-              <ScrollView
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                contentContainerStyle={styles.categoryScroll}
-              >
-                {CATEGORIES.map((cat) => {
-                  const isSelected = selectedCategory === cat;
-                  return (
-                    <Pressable
-                      key={cat}
-                      onPress={() => setSelectedCategory(cat)}
-                      hitSlop={{ top: 6, bottom: 6, left: 2, right: 2 }}
-                      style={[
-                        styles.categoryChip,
-                        {
-                          backgroundColor: isSelected
-                            ? colors.primarySoft
-                            : isDark
-                            ? colors.surface
-                            : colors.surfaceSecondary,
-                          borderColor: isSelected ? colors.primary : colors.border,
-                        },
-                      ]}
-                      accessibilityRole="button"
-                      accessibilityState={{ selected: isSelected }}
-                    >
-                      <ThemedText
-                        style={[
-                          styles.categoryChipText,
-                          {
-                            color: isSelected ? colors.primary : colors.textSecondary,
-                            fontFamily: isSelected
-                              ? Typography.fontFamilies.sansSemiBold
-                              : Typography.fontFamilies.sans,
-                          },
-                        ]}
-                      >
-                        {cat}
-                      </ThemedText>
-                    </Pressable>
-                  );
-                })}
-              </ScrollView>
-            </>
-          ) : null}
-
-          {/* Loading Skeleton / State */}
-          {isLoading && !isRefreshing ? (
-            <View style={styles.loadingContainer}>
-              <ActivityIndicator size="large" color={colors.primary} />
-              <ThemedText style={[styles.loadingText, { color: colors.textSecondary }]}>
-                Loading your bills & payment status...
-              </ThemedText>
-            </View>
-          ) : error ? (
-            /* Error State */
-            <EmptyState
-              icon={
-                <SymbolView
-                  name={{
-                    ios: 'exclamationmark.triangle',
-                    android: 'warning',
-                    web: 'warning',
-                  }}
-                  size={36}
-                  tintColor={colors.notification || '#EF4444'}
-                />
-              }
-              title="Unable to Load Bills"
-              description={error}
-              actionLabel="Retry"
-              onAction={() => loadData(false)}
-            />
-          ) : bills.length === 0 ? (
-            /* Empty State: No Bills Added */
-            <EmptyState
-              icon={
-                <SymbolView
-                  name={{
-                    ios: 'receipt',
-                    android: 'receipt_long',
-                    web: 'receipt_long',
-                  }}
-                  size={28}
-                  tintColor={colors.primary}
-                />
-              }
-              title="No bills or obligations"
-              description="Keep track of recurring utilities, subscriptions, credit cards, and rent in one calm place."
-              actionLabel="Add Your First Bill"
-              onAction={handleOpenCreateModal}
-              style={{ paddingVertical: Spacing.four }}
-              descriptionStyle={{ marginBottom: Spacing.three }}
-            />
-          ) : filteredBills.length === 0 ? (
-            /* Empty State: Filters Matched Nothing */
-            <EmptyState
-              icon={
-                <SymbolView
-                  name={{
-                    ios: 'line.3.horizontal.decrease.circle',
-                    android: 'filter_alt_off',
-                    web: 'filter_alt_off',
-                  }}
-                  size={36}
-                  tintColor={colors.textSecondary}
-                />
-              }
-              title="No matching bills"
-              description="We couldn't find any bills matching your current search or filter criteria."
-              actionLabel="Reset Filters"
-              onAction={handleResetFilters}
-            />
-          ) : (
-            /* Bills Grid / List */
-            <View style={styles.billsList}>
-              <View style={styles.listHeaderRow}>
-                <ThemedText style={[styles.listCountText, { color: colors.textSecondary }]}>
-                  Showing {filteredBills.length} of {bills.length} bills
-                </ThemedText>
-              </View>
-
-              <View style={numColumns > 1 ? styles.billsGrid : undefined}>
-                {filteredBills.map((bill) => (
-                  <BillCard
-                    key={bill._id}
-                    bill={bill}
-                    compact={numColumns > 1}
-                    style={
-                      numColumns === 3
-                        ? styles.gridItem3
-                        : numColumns === 2
-                          ? styles.gridItem2
-                          : undefined
-                    }
-                    onPress={(b) => setSelectedBillForDetails(b)}
-                    onTogglePaid={handleTogglePaid}
-                    isActionLoading={actionLoadingBillId === bill._id}
-                  />
-                ))}
-              </View>
-            </View>
-          )}
-        </ScrollView>
+        />
 
         {!isLoading && !error && bills.length > 0 && (
           <FloatingActionButton
@@ -779,6 +870,10 @@ const styles = StyleSheet.create({
   },
   categoryChipText: {
     fontSize: Typography.fontSize.xs,
+  },
+  headerContainer: {
+    gap: Spacing.three,
+    marginBottom: Spacing.two,
   },
   billsList: {
     gap: Spacing.three,

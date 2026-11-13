@@ -8,6 +8,7 @@ import {
   TextStyle,
   View,
   ViewStyle,
+  useWindowDimensions,
 } from 'react-native';
 
 import { Colors } from '@/constants/colors';
@@ -53,12 +54,14 @@ export const Input = React.forwardRef<React.ComponentRef<typeof TextInput>, Inpu
   ) => {
     const colors = useTheme();
     const isDark = useIsDark();
+    const { fontScale } = useWindowDimensions();
     const [isFocused, setIsFocused] = useState(false);
 
     const hasError = Boolean(error);
     const layoutMetrics = getInputLayoutMetrics({
       multiline: Boolean(multiline),
       numberOfLines,
+      fontScale,
     });
 
     const errorColor = isDark ? Colors.urgency.critical.darkText : Colors.urgency.critical.accent;
