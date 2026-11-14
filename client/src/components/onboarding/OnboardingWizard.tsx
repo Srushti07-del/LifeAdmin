@@ -16,7 +16,9 @@ import {
 } from 'lucide-react';
 
 interface OnboardingWizardProps {
+  initialStep?: number;
   onComplete: () => void;
+  onSkip?: () => void;
 }
 
 const CATEGORY_OPTIONS = [
@@ -28,9 +30,12 @@ const CATEGORY_OPTIONS = [
   { id: 'documents', label: 'Documents', description: 'Store and organise important files' },
 ];
 
-export default function OnboardingWizard({ onComplete }: OnboardingWizardProps) {
+export default function OnboardingWizard({ initialStep, onComplete, onSkip }: OnboardingWizardProps) {
   const { user, updateUser, setTheme } = useAuth();
-  const [step, setStep] = useState(1);
+  const [step, setStep] = useState<number>(() => {
+    const raw = initialStep ?? user?.onboardingStep ?? 1;
+    return Math.max(1, Math.min(5, raw));
+  });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
 
@@ -72,7 +77,7 @@ export default function OnboardingWizard({ onComplete }: OnboardingWizardProps) 
         updates.onboardingStep = nextStep;
       }
 
-      await api.post('/api/onboarding/progress', { step, data: updates });
+      await api.post('/onboarding/progress', { step, data: updates });
 
       // Optimistically update local user
       updateUser(updates as any);
@@ -101,6 +106,25 @@ export default function OnboardingWizard({ onComplete }: OnboardingWizardProps) 
     }
   };
 
+  const handleSkip = async () => {
+    setSaving(true);
+    setError('');
+    try {
+      await api.post('/onboarding/complete');
+      updateUser({ onboardingCompleted: true, onboardingStep: 5 } as any);
+      if (onSkip) {
+        onSkip();
+      } else {
+        onComplete();
+      }
+    } catch {
+      updateUser({ onboardingCompleted: true, onboardingStep: 5 } as any);
+      onComplete();
+    } finally {
+      setSaving(false);
+    }
+  };
+
   const completeOnboarding = async () => {
     setSaving(true);
     setError('');
@@ -113,11 +137,11 @@ export default function OnboardingWizard({ onComplete }: OnboardingWizardProps) 
         updates.notificationTypes = notificationTypes;
       }
 
-      await api.post('/api/onboarding/progress', { step: 5, data: updates });
+      await api.post('/onboarding/progress', { step: 5, data: updates });
       updateUser(updates as any);
 
       // Mark onboarding as completed
-      await api.post('/api/onboarding/complete');
+      await api.post('/onboarding/complete');
       updateUser({ onboardingCompleted: true, onboardingStep: 5 } as any);
 
       // Apply chosen theme
@@ -156,14 +180,14 @@ export default function OnboardingWizard({ onComplete }: OnboardingWizardProps) 
   const progress = (step / 5) * 100;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6">
+    <div className="login-force-light fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6">
       {/* Backdrop */}
-      <div className="fixed inset-0 bg-surface-950/60 backdrop-blur-sm animate-fade-in" />
+      <div className="fixed inset-0 bg-black/20 backdrop-blur-sm animate-fade-in" />
 
       {/* Modal Card */}
-      <div className="relative w-full max-w-xl bg-white dark:bg-surface-0 rounded-3xl border border-surface-200 dark:border-surface-700 p-6 sm:p-8 shadow-modal z-10 animate-scale-in min-h-0 max-h-[calc(100dvh-2rem)] flex flex-col my-2 sm:my-6">
+      <div className="relative w-full max-w-xl bg-white rounded-3xl border border-surface-200 p-6 sm:p-8 shadow-modal z-10 animate-scale-in min-h-0 max-h-[calc(100dvh-2rem)] flex flex-col my-2 sm:my-6">
         {/* Header */}
-        <div className="mb-6 border-b border-surface-100 dark:border-surface-800 pb-4 shrink-0">
+        <div className="mb-6 border-b border-surface-100 pb-4 shrink-0">
           <div className="flex items-center justify-between mb-2">
             <div className="flex items-center gap-1.5">
               {[1, 2, 3, 4, 5].map((i) => (
@@ -173,21 +197,36 @@ export default function OnboardingWizard({ onComplete }: OnboardingWizardProps) 
                     i === step
                       ? 'w-7 bg-primary-500'
                       : i < step
-                        ? 'w-3 bg-primary-200 dark:bg-primary-800'
-                        : 'w-3 bg-surface-200 dark:bg-surface-800'
+                        ? 'w-3 bg-primary-200'
+                        : 'w-3 bg-surface-200'
                   }`}
                 />
               ))}
             </div>
-            <span className="text-xs font-semibold text-surface-500 dark:text-surface-400">
-              Step {step} of 5
-            </span>
+            <button
+              onClick={handleSkip}
+              className="text-xs font-medium text-surface-500 hover:text-surface-700 transition-colors"
+            >
+              Skip setup
+            </button>
           </div>
-          <div className="w-full bg-surface-100 dark:bg-surface-800 rounded-full h-1.5 mb-3">
+          <div className="w-full bg-surface-100 rounded-full h-1.5 mb-3">
             <div
               className="bg-primary-500 h-1.5 rounded-full transition-all duration-300"
               style={{ width: `${progress}%` }}
             />
+          </div>
+          <div className="flex justify-between mt-2">
+            <span className="text-xs font-semibold text-surface-500">Step {step} of 5</span>
+            {step > 1 && (
+              <button
+                onClick={handleBack}
+                disabled={saving}
+                className="text-xs font-medium text-surface-500 hover:text-surface-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              >
+                Previous
+              </button>
+            )}
           </div>
         </div>
 
@@ -196,17 +235,20 @@ export default function OnboardingWizard({ onComplete }: OnboardingWizardProps) 
           {/* Step 1: Welcome */}
           {step === 1 && (
             <div className="text-center space-y-6 animate-fade-in">
-              <div className="w-20 h-20 mx-auto rounded-3xl bg-primary-50 dark:bg-primary-950/40 text-primary-600 dark:text-primary-400 flex items-center justify-center shadow-xs">
+              <div className="w-20 h-20 mx-auto rounded-3xl bg-primary-50 text-primary-600 flex items-center justify-center shadow-xs">
                 <Sparkles size={36} />
               </div>
               <div>
-                <h2 className="text-3xl font-bold font-editorial text-surface-900 dark:text-surface-100 tracking-tight">
+                <h2 className="text-3xl font-bold font-editorial text-surface-900 tracking-tight">
                   Welcome to LifeAdmin
                 </h2>
-                <p className="text-sm text-surface-500 dark:text-surface-200 mt-3 max-w-md mx-auto leading-relaxed">
+                <p className="text-sm text-surface-500 mt-3 max-w-md mx-auto leading-relaxed">
                   Organise your bills, deadlines, appointments, and files in one calm, editorial workspace. LifeAdmin helps you stay on top of everyday life — without the clutter.
                 </p>
               </div>
+              {error && (
+                <p className="text-xs text-rose-600 mt-2">{error}</p>
+              )}
               <div className="pt-6">
                 <button
                   onClick={handleNext}
@@ -223,17 +265,17 @@ export default function OnboardingWizard({ onComplete }: OnboardingWizardProps) 
           {step === 2 && (
             <div className="space-y-6 animate-fade-in">
               <div>
-                <h3 className="text-xl font-bold font-editorial text-surface-900 dark:text-surface-100">
+                <h3 className="text-xl font-bold font-editorial text-surface-900">
                   Personal Profile
                 </h3>
-                <p className="text-xs text-surface-500 dark:text-surface-200 mt-1">
+                <p className="text-xs text-surface-500 mt-1">
                   What should we call you? This name appears across your dashboard and workspace.
                 </p>
               </div>
               <div>
                 <label
                   htmlFor="onboarding-name"
-                  className="block text-xs font-semibold text-surface-800 dark:text-surface-200 mb-1.5"
+                  className="block text-xs font-semibold text-surface-800 mb-1.5"
                 >
                   Display name
                 </label>
@@ -247,18 +289,18 @@ export default function OnboardingWizard({ onComplete }: OnboardingWizardProps) 
                     required
                     maxLength={50}
                     placeholder="e.g. Maya Chen"
-                    className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-surface-200 dark:border-surface-700 bg-white dark:bg-surface-0 text-surface-900 dark:text-surface-100 placeholder:text-surface-400 dark:placeholder:text-surface-500 text-xs focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition-all"
+                    className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-surface-200 bg-white text-surface-900 placeholder:text-surface-400 text-xs focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition-all"
                   />
                 </div>
                 {error && (
-                  <p className="text-[10px] text-rose-600 dark:text-rose-400 mt-1.5">{error}</p>
+                  <p className="text-[10px] text-rose-600 mt-1.5">{error}</p>
                 )}
               </div>
               <div className="flex justify-between pt-4">
                 <button
                   onClick={handleBack}
                   disabled={saving}
-                  className="px-4 py-2 text-xs font-medium text-surface-500 dark:text-surface-300 hover:text-surface-800 dark:hover:text-surface-200 flex items-center gap-1.5 disabled:opacity-50"
+                  className="px-4 py-2 text-xs font-medium text-surface-500 hover:text-surface-700 flex items-center gap-1.5 disabled:opacity-50"
                 >
                   <ArrowLeft size={14} /> Back
                 </button>
@@ -277,10 +319,10 @@ export default function OnboardingWizard({ onComplete }: OnboardingWizardProps) 
           {step === 3 && (
             <div className="space-y-6 animate-fade-in">
               <div>
-                <h3 className="text-xl font-bold font-editorial text-surface-900 dark:text-surface-100">
+                <h3 className="text-xl font-bold font-editorial text-surface-900">
                   Your Priorities
                 </h3>
-                <p className="text-xs text-surface-500 dark:text-surface-200 mt-1">
+                <p className="text-xs text-surface-500 mt-1">
                   Select the areas you want to organise. You can choose multiple.
                 </p>
               </div>
@@ -299,13 +341,13 @@ export default function OnboardingWizard({ onComplete }: OnboardingWizardProps) 
                       }}
                       className={`flex flex-col items-center gap-2 p-3.5 rounded-2xl border transition-all ${
                         active
-                          ? 'border-primary-500 bg-primary-50/70 dark:bg-primary-950/40 text-primary-800 dark:text-primary-200 shadow-xs'
-                          : 'border-surface-200 dark:border-surface-700 text-surface-600 dark:text-surface-400 hover:bg-surface-50 dark:hover:bg-surface-800/40'
+                          ? 'border-primary-500 bg-primary-50/70 text-primary-800 shadow-xs'
+                          : 'border-surface-200 text-surface-600 hover:bg-surface-50'
                       }`}
                     >
-                      <div className="w-8 h-8 rounded-xl flex items-center justify-center mb-1 ${
-                        active ? 'bg-primary-100 dark:bg-primary-900/30' : 'bg-surface-50 dark:bg-surface-800/50'
-                      }">
+                      <div className={`w-8 h-8 rounded-xl flex items-center justify-center mb-1 ${
+                        active ? 'bg-primary-100' : 'bg-surface-50'
+                      }`}>
                         {cat.id === 'tasks' && <Target size={16} />}
                         {cat.id === 'studies' && <Monitor size={16} />}
                         {cat.id === 'bills' && <Bell size={16} />}
@@ -322,7 +364,7 @@ export default function OnboardingWizard({ onComplete }: OnboardingWizardProps) 
                 })}
               </div>
               {selectedCategories.length === 0 && (
-                <p className="text-[10px] text-rose-600 dark:text-rose-400 text-center">
+                <p className="text-[10px] text-rose-600 text-center">
                   Please select at least one priority area.
                 </p>
               )}
@@ -330,7 +372,7 @@ export default function OnboardingWizard({ onComplete }: OnboardingWizardProps) 
                 <button
                   onClick={handleBack}
                   disabled={saving}
-                  className="px-4 py-2 text-xs font-medium text-surface-500 dark:text-surface-300 hover:text-surface-800 dark:hover:text-surface-200 flex items-center gap-1.5 disabled:opacity-50"
+                  className="px-4 py-2 text-xs font-medium text-surface-500 hover:text-surface-700 flex items-center gap-1.5 disabled:opacity-50"
                 >
                   <ArrowLeft size={14} /> Back
                 </button>
@@ -349,20 +391,20 @@ export default function OnboardingWizard({ onComplete }: OnboardingWizardProps) 
           {step === 4 && (
             <div className="space-y-6 animate-fade-in">
               <div>
-                <h3 className="text-xl font-bold font-editorial text-surface-900 dark:text-surface-100">
+                <h3 className="text-xl font-bold font-editorial text-surface-900">
                   Preferences
                 </h3>
-                <p className="text-xs text-surface-500 dark:text-surface-200 mt-1">
+                <p className="text-xs text-surface-500 mt-1">
                   Choose your appearance and notification settings.
                 </p>
               </div>
 
               {/* Theme */}
-              <div className="border border-surface-200 dark:border-surface-700 rounded-2xl p-4">
+              <div className="border border-surface-200 rounded-2xl p-4">
                 <div className="flex items-center justify-between mb-3">
                   <div>
-                    <p className="text-xs font-semibold text-surface-800 dark:text-surface-200">Theme</p>
-                    <p className="text-[10px] text-surface-500 dark:text-surface-400">Light or dark mode for your workspace</p>
+                    <p className="text-xs font-semibold text-surface-800">Theme</p>
+                    <p className="text-[10px] text-surface-500">Light or dark mode for your workspace</p>
                   </div>
                   <div className="flex gap-1">
                     {['light', 'dark', 'system'].map((t) => (
@@ -371,8 +413,8 @@ export default function OnboardingWizard({ onComplete }: OnboardingWizardProps) 
                         onClick={() => setThemeState(t as any)}
                         className={`w-8 h-8 rounded-xl flex items-center justify-center transition-all border-2 ${
                           theme === t
-                            ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/30'
-                            : 'border-transparent bg-transparent hover:border-surface-300 dark:hover:border-surface-700'
+                            ? 'border-primary-500 bg-primary-50'
+                            : 'border-transparent bg-transparent hover:border-surface-300'
                         }`}
                       >
                         {t === 'light' && <Sun size={14} className="text-primary-600" />}
@@ -385,7 +427,7 @@ export default function OnboardingWizard({ onComplete }: OnboardingWizardProps) 
               </div>
 
               {/* Notifications */}
-              <div className="border border-surface-200 dark:border-surface-700 rounded-2xl p-4">
+              <div className="border border-surface-200 rounded-2xl p-4">
                 <div className="flex items-center justify-between mb-3">
                   <div className="flex items-center gap-2">
                     <input
@@ -395,12 +437,12 @@ export default function OnboardingWizard({ onComplete }: OnboardingWizardProps) 
                       onChange={(e) => setNotificationsEnabled(e.target.checked)}
                       className="rounded text-primary-500 focus:ring-primary-500"
                     />
-                    <label htmlFor="notifications-enabled" className="text-xs font-semibold text-surface-800 dark:text-surface-200">
+                    <label htmlFor="notifications-enabled" className="text-xs font-semibold text-surface-800">
                       Enable notifications
                     </label>
                   </div>
                 </div>
-                <p className="text-[10px] text-surface-500 dark:text-surface-400 mb-4">
+                <p className="text-[10px] text-surface-500 mb-4">
                   We never send spam. Notifications are only for your deadlines and reminders.
                 </p>
                 <div className="space-y-2">
@@ -414,8 +456,8 @@ export default function OnboardingWizard({ onComplete }: OnboardingWizardProps) 
                       key={n.id}
                       className={`flex items-center gap-2.5 p-2.5 rounded-xl cursor-pointer transition-colors ${
                         notificationTypes[n.id as keyof typeof notificationTypes]
-                          ? 'bg-surface-50 dark:bg-surface-800/40 border border-surface-200 dark:border-surface-700'
-                          : 'border-transparent hover:bg-surface-50 dark:hover:bg-surface-800/40'
+                          ? 'bg-surface-50 border border-surface-200'
+                          : 'border-transparent hover:bg-surface-50'
                       }`}
                     >
                       <input
@@ -431,13 +473,13 @@ export default function OnboardingWizard({ onComplete }: OnboardingWizardProps) 
                       />
                       <div className="flex items-center gap-2">
                         {n.icon}
-                        <span className="text-xs font-medium text-surface-900 dark:text-surface-100">{n.label}</span>
+                        <span className="text-xs font-medium text-surface-900">{n.label}</span>
                       </div>
                     </label>
                   ))}
                 </div>
                 {!notificationsEnabled && (
-                  <p className="text-[10px] text-surface-500 dark:text-surface-400 mt-2">
+                  <p className="text-[10px] text-surface-500 mt-2">
                     Notifications are disabled. You can enable them anytime in Settings.
                   </p>
                 )}
@@ -447,7 +489,7 @@ export default function OnboardingWizard({ onComplete }: OnboardingWizardProps) 
                 <button
                   onClick={handleBack}
                   disabled={saving}
-                  className="px-4 py-2 text-xs font-medium text-surface-500 dark:text-surface-300 hover:text-surface-800 dark:hover:text-surface-200 flex items-center gap-1.5 disabled:opacity-50"
+                  className="px-4 py-2 text-xs font-medium text-surface-500 hover:text-surface-700 flex items-center gap-1.5 disabled:opacity-50"
                 >
                   <ArrowLeft size={14} /> Back
                 </button>
@@ -465,14 +507,14 @@ export default function OnboardingWizard({ onComplete }: OnboardingWizardProps) 
           {/* Step 5: Completion */}
           {step === 5 && (
             <div className="text-center space-y-6 animate-fade-in">
-              <div className="w-20 h-20 mx-auto rounded-3xl bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shadow-xs">
+              <div className="w-20 h-20 mx-auto rounded-3xl bg-emerald-50 text-emerald-600 flex items-center justify-center shadow-xs">
                 <CheckCircle2 size={36} />
               </div>
               <div>
-                <h2 className="text-3xl font-bold font-editorial text-surface-900 dark:text-surface-100 tracking-tight">
+                <h2 className="text-3xl font-bold font-editorial text-surface-900 tracking-tight">
                   You&apos;re All Set, {displayName || 'there'}!
                 </h2>
-                <p className="text-sm text-surface-500 dark:text-surface-200 mt-3 max-w-md mx-auto leading-relaxed">
+                <p className="text-sm text-surface-500 mt-3 max-w-md mx-auto leading-relaxed">
                   Your workspace is ready. Your preferences have been saved and will sync across your devices. {displayName} is ready to organise their everyday life with LifeAdmin.
                 </p>
               </div>

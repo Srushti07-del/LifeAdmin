@@ -1,7 +1,8 @@
-﻿import { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { Outlet } from 'react-router-dom';
 import Sidebar from './Sidebar';
 import MobileBottomNav from './MobileBottomNav';
+import ErrorBoundary from './ErrorBoundary';
 
 export default function AppLayout() {
   const [collapsed, setCollapsed] = useState(() => {
@@ -26,7 +27,9 @@ export default function AppLayout() {
         }`}
       >
         <div className={`max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-20 lg:pt-8 pb-28 lg:pb-12 animate-fade-in`}>
-          <Outlet />
+          <ErrorBoundary>
+            <Outlet />
+          </ErrorBoundary>
         </div>
       </main>
 

@@ -40,7 +40,9 @@ router.post(
       }
 
       const { step, data } = req.body;
-      const updates: Record<string, unknown> = { onboardingStep: step };
+      const updates: Record<string, unknown> = {
+        onboardingStep: data?.onboardingStep ?? step,
+      };
 
       // Merge partial onboarding data into user fields
       if (data) {

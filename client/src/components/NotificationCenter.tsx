@@ -47,7 +47,6 @@ export default function NotificationCenter({ onNavigate, label, collapsed }: { o
   const panelRef = useRef<HTMLDivElement>(null);
   const [panelPosition, setPanelPosition] = useState<{ top: number; left: number } | null>(null);
   const [positioned, setPositioned] = useState(false);
-  const isDark = typeof document !== 'undefined' && document.documentElement.classList.contains('dark');
 
   const fetchCount = useCallback(async () => {
     try {
@@ -159,30 +158,50 @@ export default function NotificationCenter({ onNavigate, label, collapsed }: { o
   };
 
   return (
-    <div className="relative" ref={ref}>
-      <div className="flex items-center gap-2">
+    <div className={`relative ${label ? 'w-full' : ''}`} ref={ref}>
+      {label ? (
         <button
           ref={bellRef}
           type="button"
           onClick={() => setOpen((v) => !v)}
-          className="relative p-2 rounded-xl text-surface-700 dark:text-surface-200 hover:bg-surface-100 dark:hover:bg-[#243438]/70 transition-colors"
+          className={`w-full flex items-center gap-3 py-2 rounded-xl text-xs font-medium transition-colors ${
+            collapsed ? 'justify-center px-0' : 'px-3.5'
+          } text-surface-700 dark:text-surface-200 hover:bg-surface-100 dark:hover:bg-[#243438]/70 hover:text-surface-900 dark:hover:text-surface-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-1`}
           aria-label={unreadCount ? `Notifications, ${unreadCount} unread` : 'Notifications'}
           aria-expanded={open}
           aria-haspopup="dialog"
+          title={collapsed ? (unreadCount ? `Notifications (${unreadCount})` : 'Notifications') : undefined}
         >
-          <Bell size={18} />
-          {unreadCount > 0 && (
-            <span className="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] px-1 rounded-full bg-rose-500 text-white text-[10px] font-bold flex items-center justify-center border-2 border-white dark:border-[#304247]">
-              {unreadCount > 99 ? '99+' : unreadCount}
-            </span>
-          )}
-        </button>
-        {label && !collapsed && (
-          <span className={`text-xs font-medium transition-colors ${isDark ? 'text-surface-200' : 'text-surface-700'}`}>
-            {label}
+          <span className="relative w-[17px] h-[17px] flex items-center justify-center flex-shrink-0">
+            <Bell size={17} className="text-surface-500 dark:text-surface-300" />
+            {unreadCount > 0 && (
+              <span className="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] px-1 rounded-full bg-rose-500 text-white text-[10px] font-bold flex items-center justify-center border-2 border-white dark:border-[#304247]">
+                {unreadCount > 99 ? '99+' : unreadCount}
+              </span>
+            )}
           </span>
-        )}
-      </div>
+          {!collapsed && <span>{label}</span>}
+        </button>
+      ) : (
+        <div className="flex items-center gap-2">
+          <button
+            ref={bellRef}
+            type="button"
+            onClick={() => setOpen((v) => !v)}
+            className="relative p-2 rounded-xl text-surface-700 dark:text-surface-200 hover:bg-surface-100 dark:hover:bg-[#243438]/70 transition-colors"
+            aria-label={unreadCount ? `Notifications, ${unreadCount} unread` : 'Notifications'}
+            aria-expanded={open}
+            aria-haspopup="dialog"
+          >
+            <Bell size={18} />
+            {unreadCount > 0 && (
+              <span className="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] px-1 rounded-full bg-rose-500 text-white text-[10px] font-bold flex items-center justify-center border-2 border-white dark:border-[#304247]">
+                {unreadCount > 99 ? '99+' : unreadCount}
+              </span>
+            )}
+          </button>
+        </div>
+      )}
 
       {open && (
         <div

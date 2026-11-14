@@ -62,7 +62,7 @@ export interface IUser extends Document {
   };
 
   // Email notification preferences
-  emailReminderIntervals: number[]; // minutes before due (e.g. [1440, 60, 0])
+  emailReminderIntervals: number[]; // minutes before due (e.g. [1440, 60])
   timezone: string; // IANA timezone, e.g. 'Asia/Kolkata'
   
   createdAt: Date;
@@ -145,7 +145,7 @@ const userSchema = new Schema<IUser>(
     // Email notification preferences
     emailReminderIntervals: {
       type: [Number],
-      default: [1440, 60, 0], // 1 day before, 1 hour before, at scheduled time
+      default: [1440, 60], // 1 day before, 1 hour before
     },
     timezone: { type: String, default: 'UTC' },
   },

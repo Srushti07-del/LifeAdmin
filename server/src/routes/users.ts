@@ -19,6 +19,9 @@ router.use(enforceOnboarding);
 
 const uploadDirPath = path.join(process.cwd(), config.uploadDir);
 
+const SUPPORTED_EMAIL_INTERVALS = new Set([1440, 60, 15, 0]);
+const DEFAULT_EMAIL_INTERVALS = [1440, 60];
+
 export function getGrowthStage(level: number): 'Sprout' | 'Bloom' | 'Ascended' | 'Luminary' {
   if (level >= 10) return 'Luminary';
   if (level >= 6) return 'Ascended';
@@ -87,7 +90,9 @@ router.put('/settings', async (req: Request, res: Response): Promise<void> => {
     if (typeof notificationsEnabled === 'boolean') user.notificationsEnabled = notificationsEnabled;
     if (Array.isArray(defaultReminderTiming)) user.defaultReminderTiming = defaultReminderTiming;
     if (Array.isArray(emailReminderIntervals)) {
-      user.emailReminderIntervals = emailReminderIntervals.filter((n: number) => Number.isFinite(n));
+      const cleaned = emailReminderIntervals
+        .filter((n: number) => Number.isFinite(n) && SUPPORTED_EMAIL_INTERVALS.has(n));
+      user.emailReminderIntervals = cleaned.length > 0 ? cleaned : DEFAULT_EMAIL_INTERVALS;
     }
     if (typeof timezone === 'string' && timezone.trim()) user.timezone = timezone.trim();
     if (Array.isArray(categories)) user.categories = categories;

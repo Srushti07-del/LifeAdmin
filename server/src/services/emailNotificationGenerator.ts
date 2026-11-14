@@ -7,6 +7,9 @@ import Reminder from '../models/Reminder';
 import EmailNotification from '../models/EmailNotification';
 import { IEmailNotification } from '../models/EmailNotification';
 
+const SUPPORTED_EMAIL_INTERVALS = new Set([1440, 60, 15, 0]);
+const DEFAULT_EMAIL_INTERVALS = [1440, 60];
+
 export type EmailEventSource = 'task' | 'bill' | 'appointment' | 'reminder';
 
 interface EventWithReminders {
@@ -102,8 +105,8 @@ export async function generateEmailNotifications(now = new Date()): Promise<{
     const timezone = user.timezone || 'UTC';
     try {
       const intervals = Array.isArray(user.emailReminderIntervals)
-        ? user.emailReminderIntervals.filter((n: number) => Number.isFinite(n))
-        : [1440, 60, 0];
+        ? user.emailReminderIntervals.filter((n: number) => Number.isFinite(n) && SUPPORTED_EMAIL_INTERVALS.has(n))
+        : DEFAULT_EMAIL_INTERVALS;
 
       // Determine which notification types are enabled
       const notificationTypes = user.notificationTypes || {};

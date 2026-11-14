@@ -210,25 +210,21 @@ export default function Sidebar({ collapsed, onToggleCollapse }: SidebarProps) {
 
         {/* Bottom Section */}
         <div className="p-3 border-t border-surface-200 dark:border-[#304247] space-y-1">
-          {!collapsed && (
-            <div className="px-1 pb-1">
-              <NotificationCenter label="Notifications" />
-            </div>
-          )}
-          {collapsed && (
-            <div className="flex justify-center pb-1">
-              <NotificationCenter label="Notifications" collapsed />
-            </div>
-          )}
+          <div className="pb-1">
+            <NotificationCenter label="Notifications" collapsed={collapsed} />
+          </div>
           {/* Theme switch */}
           <button
             onClick={toggleTheme}
-            className={`flex items-center gap-3 w-full py-2 rounded-xl text-xs font-medium text-surface-700 dark:text-surface-200 hover:bg-surface-100 dark:hover:bg-surface-800 hover:text-surface-900 dark:hover:text-surface-100 transition-colors ${
+            className={`w-full flex items-center gap-3 py-2 rounded-xl text-xs font-medium transition-colors ${
               collapsed ? 'justify-center px-0' : 'px-3.5'
-            }`}
+            } text-surface-700 dark:text-surface-200 hover:bg-surface-100 dark:hover:bg-[#243438]/70 hover:text-surface-900 dark:hover:text-surface-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-1`}
             title="Toggle theme"
+            aria-pressed={isDark}
           >
-            {isDark ? <Sun size={17} className="text-amber-500" /> : <Moon size={17} className="text-primary-600" />}
+            <span className="w-[17px] h-[17px] flex items-center justify-center flex-shrink-0">
+              {isDark ? <Sun size={17} className="text-amber-500" /> : <Moon size={17} className="text-primary-600" />}
+            </span>
             {!collapsed && <span>{isDark ? 'Light Theme' : 'Dark Theme'}</span>}
           </button>
 
@@ -237,16 +233,18 @@ export default function Sidebar({ collapsed, onToggleCollapse }: SidebarProps) {
             to="/settings"
             title={collapsed ? 'Settings' : undefined}
             className={({ isActive }) =>
-              `flex items-center gap-3 py-2 rounded-xl text-xs font-medium transition-colors ${
+              `w-full flex items-center gap-3 py-2 rounded-xl text-xs font-medium transition-colors ${
                 collapsed ? 'justify-center px-0' : 'px-3.5'
-              } ${
+              } focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-1 ${
                 isActive
                   ? 'bg-primary-50 dark:bg-[#243438] text-primary-800 dark:text-[#E8F0F0] font-semibold ring-1 ring-primary-200/70 dark:ring-primary-500/40'
                   : 'text-surface-700 dark:text-surface-200 hover:bg-surface-100 dark:hover:bg-[#243438]/70 hover:text-surface-900 dark:hover:text-surface-100'
               }`
             }
           >
-            <Settings size={17} className="flex-shrink-0 text-surface-500 dark:text-surface-300" />
+            <span className="w-[17px] h-[17px] flex items-center justify-center flex-shrink-0">
+              <Settings size={17} className="text-surface-500 dark:text-surface-300" />
+            </span>
             {!collapsed && <span>Settings</span>}
           </NavLink>
 

@@ -18,12 +18,75 @@ import {
   Bell,
   Target,
   Monitor,
-  ChevronDown,
   ArrowRight,
   FileText,
   ShieldCheck,
+  Check,
 } from 'lucide-react';
 import { CURRENCIES, DEFAULT_CURRENCY, getCurrencyInfo, type CurrencyCode } from '../lib/currency';
+
+const INTERVAL_OPTIONS = [
+  { minutes: 1440, label: '1 day before' },
+  { minutes: 60, label: '1 hour before' },
+  { minutes: 15, label: '15 minutes before' },
+  { minutes: 0, label: 'At scheduled time' },
+];
+
+const SUPPORTED_INTERVALS = new Set([1440, 60, 15, 0]);
+
+function sanitizeIntervals(intervals: number[]): number[] {
+  const valid = intervals.filter((n) => SUPPORTED_INTERVALS.has(n));
+  return valid.length > 0 ? valid : [1440, 60];
+}
+
+// Convert "HH:mm" (24h) to "h:mm AM/PM" (12h)
+function format12h(time24: string): string {
+  const [h, m] = time24.split(':').map(Number);
+  if (h == null || m == null) return time24;
+  const ampm = h >= 12 ? 'PM' : 'AM';
+  const h12 = h % 12 || 12;
+  return `${h12}:${m.toString().padStart(2, '0')} ${ampm}`;
+}
+
+// Convert "h:mm AM/PM" (12h) to "HH:mm" (24h)
+function format24h(time12: string): string | null {
+  const match = time12.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
+  if (!match) return null;
+  let h = parseInt(match[1], 10);
+  const m = parseInt(match[2], 10);
+  const ampm = match[3].toUpperCase();
+  if (h < 1 || h > 12 || m > 59) return null;
+  if (ampm === 'PM' && h < 12) h += 12;
+  if (ampm === 'AM' && h === 12) h = 0;
+  return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`;
+}
+
+// Validate "h:mm AM/PM" format
+function isValidTime12h(time: string): boolean {
+  return format24h(time) !== null;
+}
+
+const DEFAULT_NOTIFICATION_TYPES = {
+  tasks: true,
+  bills: true,
+  appointments: true,
+  reminders: true,
+};
+
+const TIMEZONE_OPTIONS = [
+  { value: 'UTC', label: 'UTC' },
+  { value: 'Asia/Kolkata', label: 'India (IST)' },
+  { value: 'Asia/Dubai', label: 'Gulf Standard Time (GST)' },
+  { value: 'Asia/Singapore', label: 'Singapore Time (SGT)' },
+  { value: 'Asia/Tokyo', label: 'Japan Standard Time (JST)' },
+  { value: 'Australia/Sydney', label: 'Australian Eastern Time (AET)' },
+  { value: 'Europe/London', label: 'Greenwich Mean Time (GMT)' },
+  { value: 'Europe/Berlin', label: 'Central European Time (CET)' },
+  { value: 'America/New_York', label: 'Eastern Time (ET)' },
+  { value: 'America/Chicago', label: 'Central Time (CT)' },
+  { value: 'America/Denver', label: 'Mountain Time (MT)' },
+  { value: 'America/Los_Angeles', label: 'Pacific Time (PT)' },
+];
 
 export default function SettingsPage() {
   const { user, updateUser, logout, setTheme: setThemeContext } = useAuth();
@@ -51,38 +114,30 @@ export default function SettingsPage() {
 
   // Email notification preferences
   const [emailConfigured, setEmailConfigured] = useState(false);
-  const [emailReminderIntervals, setEmailReminderIntervals] = useState<number[]>(user?.emailReminderIntervals || [1440, 60, 0]);
+  const [emailReminderIntervals, setEmailReminderIntervals] = useState<number[]>(
+    sanitizeIntervals(user?.emailReminderIntervals || [1440, 60])
+  );
   const [timezone, setTimezone] = useState(user?.timezone || 'UTC');
+  const [quietHoursStart, setQuietHoursStart] = useState(user?.quietHoursStart ? format12h(user.quietHoursStart) : '10:00 PM');
+  const [quietHoursEnd, setQuietHoursEnd] = useState(user?.quietHoursEnd ? format12h(user.quietHoursEnd) : '08:00 AM');
+  const [quietHoursEnabled, setQuietHoursEnabled] = useState(!!(user?.quietHoursStart || user?.quietHoursEnd));
+  const [quietHoursError, setQuietHoursError] = useState('');
   const [loadingEmailStatus, setLoadingEmailStatus] = useState(false);
-  const [notificationTypesOpen, setNotificationTypesOpen] = useState(false);
 
-  const selectedCount = Object.values(user?.notificationTypes || {}).filter(Boolean).length;
+  // Notification type preferences (locally mirrored for instant UI updates, persisted via handleSaveSettings)
+  const [notificationTypes, setNotificationTypes] = useState<{
+    tasks: boolean;
+    bills: boolean;
+    appointments: boolean;
+    reminders: boolean;
+  }>({
+    tasks: user?.notificationTypes?.tasks ?? DEFAULT_NOTIFICATION_TYPES.tasks,
+    bills: user?.notificationTypes?.bills ?? DEFAULT_NOTIFICATION_TYPES.bills,
+    appointments: user?.notificationTypes?.appointments ?? DEFAULT_NOTIFICATION_TYPES.appointments,
+    reminders: user?.notificationTypes?.reminders ?? DEFAULT_NOTIFICATION_TYPES.reminders,
+  });
 
-  const INTERVAL_OPTIONS = [
-    { minutes: 1440, label: '1 day before' },
-    { minutes: 720, label: '12 hours before' },
-    { minutes: 360, label: '6 hours before' },
-    { minutes: 180, label: '3 hours before' },
-    { minutes: 60, label: '1 hour before' },
-    { minutes: 30, label: '30 minutes before' },
-    { minutes: 15, label: '15 minutes before' },
-    { minutes: 0, label: 'At scheduled time' },
-  ];
-
-  const TIMEZONE_OPTIONS = [
-    { value: 'UTC', label: 'UTC' },
-    { value: 'Asia/Kolkata', label: 'India (IST)' },
-    { value: 'Asia/Dubai', label: 'Gulf Standard Time (GST)' },
-    { value: 'Asia/Singapore', label: 'Singapore Time (SGT)' },
-    { value: 'Asia/Tokyo', label: 'Japan Standard Time (JST)' },
-    { value: 'Australia/Sydney', label: 'Australian Eastern Time (AET)' },
-    { value: 'Europe/London', label: 'Greenwich Mean Time (GMT)' },
-    { value: 'Europe/Berlin', label: 'Central European Time (CET)' },
-    { value: 'America/New_York', label: 'Eastern Time (ET)' },
-    { value: 'America/Chicago', label: 'Central Time (CT)' },
-    { value: 'America/Denver', label: 'Mountain Time (MT)' },
-    { value: 'America/Los_Angeles', label: 'Pacific Time (PT)' },
-  ];
+  const selectedCount = Object.values(notificationTypes).filter(Boolean).length;
 
   useEffect(() => {
     if (user) {
@@ -94,22 +149,21 @@ export default function SettingsPage() {
       if (user.categories) setCategories(user.categories);
       if (user.preferredCurrency) setPreferredCurrency(user.preferredCurrency as CurrencyCode);
       setDefaultReminderTiming(user.defaultReminderTiming || [7, 3, 1, 0]);
-      setEmailReminderIntervals(user.emailReminderIntervals || [1440, 60, 0]);
+      setEmailReminderIntervals(sanitizeIntervals(user.emailReminderIntervals || [1440, 60]));
       setTimezone(user.timezone || 'UTC');
+      if (user.notificationTypes) {
+        setNotificationTypes({
+          tasks: user.notificationTypes.tasks ?? DEFAULT_NOTIFICATION_TYPES.tasks,
+          bills: user.notificationTypes.bills ?? DEFAULT_NOTIFICATION_TYPES.bills,
+          appointments: user.notificationTypes.appointments ?? DEFAULT_NOTIFICATION_TYPES.appointments,
+          reminders: user.notificationTypes.reminders ?? DEFAULT_NOTIFICATION_TYPES.reminders,
+        });
+      }
+      if (user.quietHoursStart) setQuietHoursStart(format12h(user.quietHoursStart));
+      if (user.quietHoursEnd) setQuietHoursEnd(format12h(user.quietHoursEnd));
     }
     fetchEmailStatus();
   }, [user]);
-
-  useEffect(() => {
-    const handleClickOutside = (e: MouseEvent) => {
-      const target = e.target as Element | null;
-      if (notificationTypesOpen && target && !target.closest('.notification-types-dropdown')) {
-        setNotificationTypesOpen(false);
-      }
-    };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, [notificationTypesOpen]);
 
   const fetchEmailStatus = async () => {
     setLoadingEmailStatus(true);
@@ -117,7 +171,7 @@ export default function SettingsPage() {
       const res = await api.get('/email-notifications/status');
       setEmailConfigured(res.data.emailConfigured);
       setNotificationsEnabled(res.data.emailNotificationsEnabled ?? notificationsEnabled);
-      setEmailReminderIntervals(res.data.emailReminderIntervals || emailReminderIntervals);
+      setEmailReminderIntervals(sanitizeIntervals(res.data.emailReminderIntervals || emailReminderIntervals));
       setTimezone(res.data.timezone || timezone);
     } catch (err) {
       console.error('Fetch email status error:', err);
@@ -141,6 +195,25 @@ const handleSaveProfile = async (e: React.FormEvent) => {
   };
 
   const handleSaveSettings = async (overrides?: any) => {
+    // Validate quiet hours if both are provided
+      if (quietHoursStart && quietHoursEnd) {
+      if (!isValidTime12h(quietHoursStart)) {
+        setQuietHoursError('Invalid start time. Use format like 10:00 PM.');
+        return;
+      }
+      if (!isValidTime12h(quietHoursEnd)) {
+        setQuietHoursError('Invalid end time. Use format like 08:00 AM.');
+        return;
+      }
+      const start24 = format24h(quietHoursStart);
+      const end24 = format24h(quietHoursEnd);
+      if (!start24 || !end24) {
+        setQuietHoursError('Invalid time format.');
+        return;
+      }
+      setQuietHoursError('');
+    }
+
     try {
       const payload = {
         theme,
@@ -148,12 +221,16 @@ const handleSaveProfile = async (e: React.FormEvent) => {
         defaultReminderTiming,
         emailReminderIntervals,
         timezone,
+        quietHoursEnabled,
+        quietHoursStart: quietHoursEnabled && quietHoursStart ? format24h(quietHoursStart) : undefined,
+        quietHoursEnd: quietHoursEnabled && quietHoursEnd ? format24h(quietHoursEnd) : undefined,
         aiPreferences: {
           autoExtract,
           suggestionsEnabled,
         },
         categories,
         preferredCurrency,
+        notificationTypes,
         ...overrides,
       };
 
@@ -366,70 +443,75 @@ const handleSaveProfile = async (e: React.FormEvent) => {
           </div>
         </div>
 
-        {/* Per-category multi-select dropdown */}
-        <div className="space-y-2">
-          <div className="flex items-center justify-between p-2.5 rounded-xl border border-surface-200 dark:border-surface-700 bg-white dark:bg-surface-0">
+        {/* Notification types grid */}
+        <div className="space-y-3">
+          <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <Bell size={14} className="text-primary-600" />
               <span className="text-xs font-medium text-surface-900 dark:text-surface-100">Notification types</span>
             </div>
-            <div className="notification-types-dropdown relative inline-block w-40">
-              <button
-                type="button"
-                disabled={!notificationsEnabled}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setNotificationTypesOpen(!notificationTypesOpen);
-                }}
-                className={`w-full text-left items-center justify-between px-2.5 py-2 rounded-lg border border-surface-200 dark:border-surface-700 bg-surface-50 dark:bg-surface-800/40 text-[10px] text-surface-700 dark:text-surface-200 focus:ring-primary-500 focus:border-primary-500 transition-colors whitespace-nowrap ${!notificationsEnabled ? 'opacity-50 cursor-not-allowed' : ''}`}
-              >
-                <span className="truncate">
-                  {selectedCount > 0
-                    ? `${selectedCount} notification type${selectedCount > 1 ? 's' : ''} selected`
-                    : 'Select notification types'}
-                </span>
-                <ChevronDown size={12} className="flex-shrink-0 ml-1 text-surface-400 dark:text-surface-500 transition-transform duration-200 ${notificationTypesOpen ? 'rotate-180' : ''}" />
-              </button>
-              {notificationTypesOpen && (
-                <div className="absolute z-50 mt-1.5 w-full rounded-xl border border-surface-200 dark:border-surface-700 bg-white dark:bg-surface-0 shadow-xl py-1.5">
-                  {[
-                    { id: 'tasks', label: 'Tasks & deadlines', icon: <Target size={14} /> },
-                    { id: 'bills', label: 'Bill payments', icon: <Bell size={14} className="text-amber-600" /> },
-                    { id: 'appointments', label: 'Appointments', icon: <Monitor size={14} /> },
-                    { id: 'reminders', label: 'Personal reminders', icon: <Bell size={14} className="text-primary-600" /> },
-                  ].map((n) => {
-                    const nt = user?.notificationTypes as Record<string, boolean> | undefined;
-                    const isSelected = Boolean(nt?.[n.id]);
-                    return (
-                      <label
-                        key={n.id}
-                        className="flex w-full items-center gap-2 px-2.5 py-2 text-xs transition-colors hover:bg-surface-50 dark:hover:bg-surface-800/40 cursor-pointer"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          const types = { ...(user?.notificationTypes || {}) } as Record<string, boolean>;
-                          types[n.id] = !isSelected;
-                          handleSaveSettings({ notificationTypes: types });
-                        }}
-                      >
-                        <input
-                          type="checkbox"
-                          checked={isSelected}
-                          className="rounded text-primary-500 focus:ring-primary-500 shrink-0"
-                          readOnly
-                        />
-                        <div className="flex items-center gap-1">
-                          {n.icon}
-                        </div>
-                        <span className={`text-surface-700 dark:text-surface-200 ${isSelected ? 'font-medium' : 'font-normal'}`}>
-                          {n.label}
-                        </span>
-                      </label>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
+            <span className="text-[10px] font-medium text-surface-500 dark:text-surface-400">
+              {selectedCount} selected
+            </span>
           </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            {[
+              { id: 'tasks', label: 'Tasks & deadlines', icon: Target },
+              { id: 'bills', label: 'Bill payments', icon: Bell },
+              { id: 'appointments', label: 'Appointments', icon: Monitor },
+              { id: 'reminders', label: 'Personal reminders', icon: Bell },
+            ].map((n) => {
+              const id = n.id as keyof typeof notificationTypes;
+              const isSelected = Boolean(notificationTypes[id]);
+              return (
+                <label
+                  key={id}
+                  className={`flex items-center gap-2 p-2 rounded-xl border transition-all cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed ${
+                    isSelected
+                      ? 'border-teal-500 dark:border-teal-400 bg-teal-50 dark:bg-teal-900/20 shadow-sm'
+                      : 'border-surface-200 dark:border-surface-700 bg-white dark:bg-surface-0 hover:bg-surface-50 dark:hover:bg-surface-800/40'
+                  } ${!notificationsEnabled ? 'opacity-50' : ''}`}
+                  onClick={() => {
+                    if (!notificationsEnabled) return;
+                    const updated = { ...notificationTypes };
+                    updated[id] = !isSelected;
+                    setNotificationTypes(updated);
+                    handleSaveSettings({ notificationTypes: updated });
+                  }}
+                >
+                  <n.icon
+                    size={14}
+                    className={`shrink-0 transition-colors ${
+                      isSelected ? 'text-teal-600 dark:text-teal-400' : 'text-surface-400 dark:text-surface-500'
+                    }`}
+                  />
+                  <span
+                    className={`text-xs font-medium leading-tight transition-colors ${
+                      isSelected
+                        ? 'text-surface-900 dark:text-surface-100'
+                        : 'text-surface-700 dark:text-surface-200'
+                    }`}
+                  >
+                    {n.label}
+                  </span>
+                  <span className="ml-auto">
+                    {isSelected ? (
+                      <div className="w-4 h-4 rounded-md bg-teal-600 dark:bg-teal-500 flex items-center justify-center">
+                        <Check size={9} className="text-white" strokeWidth={2.5} />
+                      </div>
+                    ) : (
+                      <div className="w-4 h-4 rounded border-surface-200 dark:border-surface-700 bg-white dark:bg-surface-0" />
+                    )}
+                  </span>
+                </label>
+              );
+            })}
+          </div>
+          {!notificationsEnabled && (
+            <p className="text-[10px] text-surface-500 dark:text-surface-400">
+              Enable email notifications to manage notification types.
+            </p>
+          )}
         </div>
 
         {/* Reminder intervals */}
@@ -442,7 +524,7 @@ const handleSaveProfile = async (e: React.FormEvent) => {
               </p>
             </div>
           </div>
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             {INTERVAL_OPTIONS.map((opt) => {
               const active = emailReminderIntervals.includes(opt.minutes);
               return (
@@ -451,18 +533,20 @@ const handleSaveProfile = async (e: React.FormEvent) => {
                   type="button"
                   onClick={() => {
                     if (active) {
+                      if (emailReminderIntervals.length <= 1) return;
                       setEmailReminderIntervals(emailReminderIntervals.filter((m) => m !== opt.minutes));
                     } else {
                       setEmailReminderIntervals([...emailReminderIntervals, opt.minutes]);
                     }
                   }}
-                  className={`px-3 py-2 rounded-xl text-xs transition-all border ${
+                  className={`w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl border transition-all text-xs font-medium ${
                     active
-                      ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/30 text-primary-800 dark:text-primary-200'
-                      : 'border-surface-200 dark:border-surface-700 text-surface-600 dark:text-surface-400 hover:bg-surface-50 dark:hover:bg-surface-800'
+                      ? 'border-teal-500 dark:border-teal-400 bg-teal-50 dark:bg-teal-900/20 text-teal-800 dark:text-teal-200 shadow-sm'
+                      : 'border-surface-200 dark:border-surface-700 bg-white dark:bg-surface-0 text-surface-700 dark:text-surface-200 hover:bg-surface-50 dark:hover:bg-surface-800/40'
                   }`}
                 >
                   {opt.label}
+                  {active && <Check size={12} className="text-teal-700 dark:text-teal-400" />}
                 </button>
               );
             })}
@@ -497,19 +581,59 @@ const handleSaveProfile = async (e: React.FormEvent) => {
           </p>
         </div>
 
-        {/* Quiet hours info */}
+        {/* Quiet hours */}
         <div className="border border-surface-200 dark:border-surface-700 rounded-2xl p-4">
-          <div className="flex items-start gap-3">
+          <div className="flex items-start gap-3 mb-3">
             <div className="flex-shrink-0">
               <div className="w-6 h-6 rounded-full bg-surface-100 dark:bg-surface-800 flex items-center justify-center text-surface-500 dark:text-surface-300">
                 <Moon size={14} />
               </div>
             </div>
-            <div>
-              <p className="text-xs font-semibold text-surface-800 dark:text-surface-200">Quiet hours</p>
-              <p className="text-[10px] text-surface-500 dark:text-surface-400">
-                Emails scheduled during your quiet hours (set in {user?.quietHoursStart || '–'} to {user?.quietHoursEnd || '–'}) will be held until the quiet period ends.
+            <div className="flex-1">
+              <div className="flex items-center justify-between mb-1">
+                <p className="text-xs font-semibold text-surface-800 dark:text-surface-200">Quiet hours</p>
+              </div>
+              <div className="flex items-center gap-2">
+                <input
+                  id="quiet-hours-enabled"
+                  type="checkbox"
+                  checked={quietHoursEnabled}
+                  onChange={(e) => setQuietHoursEnabled(e.target.checked)}
+                  className="rounded text-primary-500 focus:ring-primary-500"
+                />
+                <label htmlFor="quiet-hours-enabled" className="text-xs font-semibold text-surface-800 dark:text-surface-200 cursor-pointer">
+                  Enable quiet hours
+                </label>
+              </div>
+              <p className="text-[10px] text-surface-500 dark:text-surface-400 mb-2">
+                Emails scheduled during your quiet hours will be held until the quiet period ends.
               </p>
+              <div className="flex items-center gap-3">
+                <input
+                  type="text"
+                  value={quietHoursStart}
+                  onChange={(e) => {
+                    setQuietHoursStart(e.target.value);
+                    setQuietHoursError('');
+                  }}
+                  placeholder="10:00 PM"
+                  className="flex-1 px-3 py-2 text-xs rounded-xl border border-surface-200 dark:border-surface-700 bg-white dark:bg-surface-0 text-surface-900 dark:text-surface-100 placeholder:text-surface-400 dark:placeholder:text-surface-400 focus:outline-none focus:ring-1 focus:ring-primary-500"
+                />
+                <span className="text-xs text-surface-500 dark:text-surface-400">to</span>
+                <input
+                  type="text"
+                  value={quietHoursEnd}
+                  onChange={(e) => {
+                    setQuietHoursEnd(e.target.value);
+                    setQuietHoursError('');
+                  }}
+                  placeholder="08:00 AM"
+                  className="flex-1 px-3 py-2 text-xs rounded-xl border border-surface-200 dark:border-surface-700 bg-white dark:bg-surface-0 text-surface-900 dark:text-surface-100 placeholder:text-surface-400 dark:placeholder:text-surface-400 focus:outline-none focus:ring-1 focus:ring-primary-500"
+                />
+              </div>
+              {quietHoursError && (
+                <p className="text-[10px] text-rose-600 dark:text-rose-400 mt-1.5">{quietHoursError}</p>
+              )}
             </div>
           </div>
         </div>

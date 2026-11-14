@@ -8,48 +8,68 @@ import { Loader2 } from 'lucide-react';
 export default function OnboardingPage() {
   const { user, token, loading } = useAuth();
   const navigate = useNavigate();
-  const [onboardingStatus, setOnboardingStatus] = useState<{ completed: boolean; step: number } | null>(null);
-  const [statusLoading, setStatusLoading] = useState(false);
+  const [initialStep, setInitialStep] = useState<number>(() => user?.onboardingStep || 1);
+  const [statusLoading, setStatusLoading] = useState(true);
 
   useEffect(() => {
-    if (!token || !user) return;
-    fetchStatus();
-  }, [token, user]);
-
-  const fetchStatus = async () => {
-    setStatusLoading(true);
-    try {
-      const res = await api.get('/api/onboarding/status');
-      setOnboardingStatus(res.data);
-      if (res.data.completed) {
-        navigate('/dashboard', { replace: true });
-      }
-    } catch {
-      // Ignore errors - user will see wizard and can save progress
-    } finally {
+    if (!token || !user) {
       setStatusLoading(false);
+      return;
     }
-  };
+
+    let isMounted = true;
+    const fetchStatus = async () => {
+      try {
+        const res = await api.get('/onboarding/status');
+        if (!isMounted) return;
+        if (res.data.completed) {
+          navigate('/dashboard', { replace: true });
+          return;
+        }
+        if (typeof res.data.step === 'number' && res.data.step >= 1 && res.data.step <= 5) {
+          setInitialStep(res.data.step);
+        }
+      } catch {
+        // Fallback to user.onboardingStep from AuthContext
+      } finally {
+        if (isMounted) {
+          setStatusLoading(false);
+        }
+      }
+    };
+
+    fetchStatus();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [token]);
 
   if (loading || statusLoading || !user) {
     return (
-      <div className="flex items-center justify-center min-h-screen bg-surface-50 dark:bg-[#101719]">
+      <div className="login-force-light min-h-screen flex items-center justify-center p-4 sm:p-6">
         <Loader2 className="w-8 h-8 animate-spin text-primary-500" />
       </div>
     );
   }
 
   // If onboarding already completed, go to dashboard
-  if (onboardingStatus?.completed) {
+  if (user?.onboardingCompleted) {
     navigate('/dashboard', { replace: true });
     return null;
   }
 
   return (
-    <div className="min-h-screen bg-surface-50 dark:bg-[#101719] flex items-center justify-center p-4 sm:p-6">
-      <OnboardingWizard onComplete={() => {
-        navigate('/dashboard', { replace: true });
-      }} />
+    <div className="login-force-light min-h-screen flex items-center justify-center p-4 sm:p-6">
+      <OnboardingWizard
+        initialStep={initialStep}
+        onComplete={() => {
+          navigate('/dashboard', { replace: true });
+        }}
+        onSkip={() => {
+          navigate('/dashboard', { replace: true });
+        }}
+      />
     </div>
   );
 }
