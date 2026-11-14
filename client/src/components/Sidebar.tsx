@@ -76,9 +76,11 @@ export default function Sidebar({ collapsed, onToggleCollapse }: SidebarProps) {
             <Menu size={20} />
           </button>
           <div className="flex items-center gap-2.5">
-            <div className="w-7 h-7 rounded-lg bg-primary-500 text-white flex items-center justify-center font-bold text-xs shadow-xs">
-              L
-            </div>
+            <img
+              src="/brand/lifeadmin-symbol.png"
+              alt="LifeAdmin"
+              className="w-9 h-9 object-contain select-none flex-shrink-0"
+            />
             <span className="font-editorial text-lg font-normal tracking-tight text-surface-900 dark:text-surface-100">
               LifeAdmin
             </span>
@@ -108,12 +110,14 @@ export default function Sidebar({ collapsed, onToggleCollapse }: SidebarProps) {
         id="sidebar"
       >
         {/* Brand Header */}
-        <div className="flex items-center justify-between h-18 px-5 border-b border-surface-200 dark:border-[#304247]">
+        <div className={`flex items-center ${collapsed ? 'justify-between px-3' : 'justify-between px-5'} h-18 border-b border-surface-200 dark:border-[#304247]`}>
           {!collapsed ? (
-            <div className="flex items-center gap-2.5">
-              <div className="w-8 h-8 rounded-xl bg-primary-500 text-white flex items-center justify-center font-bold text-sm shadow-xs">
-                L
-              </div>
+            <div className="flex items-center gap-3">
+              <img
+                src="/brand/lifeadmin-symbol.png"
+                alt="LifeAdmin"
+                className="w-10 h-10 object-contain select-none flex-shrink-0"
+              />
               <div>
                 <span className="font-editorial text-xl font-normal tracking-tight text-surface-900 dark:text-surface-100 block leading-none">
                   LifeAdmin
@@ -122,9 +126,11 @@ export default function Sidebar({ collapsed, onToggleCollapse }: SidebarProps) {
               </div>
             </div>
           ) : (
-            <div className="w-8 h-8 mx-auto rounded-xl bg-primary-500 text-white flex items-center justify-center font-bold text-sm shadow-xs">
-              L
-            </div>
+            <img
+              src="/brand/lifeadmin-symbol.png"
+              alt="LifeAdmin"
+              className="w-9 h-9 object-contain select-none flex-shrink-0"
+            />
           )}
           <button
             onClick={onToggleCollapse}
@@ -285,9 +291,11 @@ export default function Sidebar({ collapsed, onToggleCollapse }: SidebarProps) {
           <div className="relative w-72 max-w-[80vw] bg-white dark:bg-[#141F22] h-full p-4 flex flex-col shadow-modal z-10 animate-slide-in-right">
             <div className="flex items-center justify-between pb-4 border-b border-surface-200 dark:border-[#304247] mb-3">
               <div className="flex items-center gap-2.5">
-                <div className="w-7 h-7 rounded-lg bg-primary-600 text-white flex items-center justify-center font-bold text-xs shadow-xs">
-                  L
-                </div>
+                <img
+                  src="/brand/lifeadmin-symbol.png"
+                  alt="LifeAdmin"
+                  className="w-9 h-9 object-contain select-none flex-shrink-0"
+                />
                 <span className="font-editorial text-lg font-normal tracking-tight text-surface-900 dark:text-surface-100">
                   LifeAdmin
                 </span>

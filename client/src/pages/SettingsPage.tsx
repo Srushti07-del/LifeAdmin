@@ -18,6 +18,7 @@ import {
   Bell,
   Target,
   Monitor,
+  ChevronDown,
   ArrowRight,
   FileText,
   ShieldCheck,
@@ -53,6 +54,9 @@ export default function SettingsPage() {
   const [emailReminderIntervals, setEmailReminderIntervals] = useState<number[]>(user?.emailReminderIntervals || [1440, 60, 0]);
   const [timezone, setTimezone] = useState(user?.timezone || 'UTC');
   const [loadingEmailStatus, setLoadingEmailStatus] = useState(false);
+  const [notificationTypesOpen, setNotificationTypesOpen] = useState(false);
+
+  const selectedCount = Object.values(user?.notificationTypes || {}).filter(Boolean).length;
 
   const INTERVAL_OPTIONS = [
     { minutes: 1440, label: '1 day before' },
@@ -95,6 +99,17 @@ export default function SettingsPage() {
     }
     fetchEmailStatus();
   }, [user]);
+
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      const target = e.target as Element | null;
+      if (notificationTypesOpen && target && !target.closest('.notification-types-dropdown')) {
+        setNotificationTypesOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [notificationTypesOpen]);
 
   const fetchEmailStatus = async () => {
     setLoadingEmailStatus(true);
@@ -351,41 +366,70 @@ const handleSaveProfile = async (e: React.FormEvent) => {
           </div>
         </div>
 
-        {/* Per-category dropdowns */}
+        {/* Per-category multi-select dropdown */}
         <div className="space-y-2">
-          {[
-            { id: 'tasks', label: 'Tasks & deadlines', icon: <Target size={14} /> },
-            { id: 'bills', label: 'Bill payments', icon: <Bell size={14} className="text-amber-600" /> },
-            { id: 'appointments', label: 'Appointments', icon: <Monitor size={14} /> },
-            { id: 'reminders', label: 'Personal reminders', icon: <Bell size={14} className="text-primary-600" /> },
-          ].map((n) => {
-            const nt = user?.notificationTypes as Record<string, boolean> | undefined;
-            const isEnabled = nt?.[n.id] ?? true;
-            return (
-              <div
-                key={n.id}
-                className="flex items-center justify-between p-2.5 rounded-xl border border-surface-200 dark:border-surface-700 bg-white dark:bg-surface-0"
+          <div className="flex items-center justify-between p-2.5 rounded-xl border border-surface-200 dark:border-surface-700 bg-white dark:bg-surface-0">
+            <div className="flex items-center gap-2">
+              <Bell size={14} className="text-primary-600" />
+              <span className="text-xs font-medium text-surface-900 dark:text-surface-100">Notification types</span>
+            </div>
+            <div className="notification-types-dropdown relative inline-block w-40">
+              <button
+                type="button"
+                disabled={!notificationsEnabled}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setNotificationTypesOpen(!notificationTypesOpen);
+                }}
+                className={`w-full text-left items-center justify-between px-2.5 py-2 rounded-lg border border-surface-200 dark:border-surface-700 bg-surface-50 dark:bg-surface-800/40 text-[10px] text-surface-700 dark:text-surface-200 focus:ring-primary-500 focus:border-primary-500 transition-colors whitespace-nowrap ${!notificationsEnabled ? 'opacity-50 cursor-not-allowed' : ''}`}
               >
-                <div className="flex items-center gap-2">
-                  {n.icon}
-                  <span className="text-xs font-medium text-surface-900 dark:text-surface-100">{n.label}</span>
+                <span className="truncate">
+                  {selectedCount > 0
+                    ? `${selectedCount} notification type${selectedCount > 1 ? 's' : ''} selected`
+                    : 'Select notification types'}
+                </span>
+                <ChevronDown size={12} className="flex-shrink-0 ml-1 text-surface-400 dark:text-surface-500 transition-transform duration-200 ${notificationTypesOpen ? 'rotate-180' : ''}" />
+              </button>
+              {notificationTypesOpen && (
+                <div className="absolute z-50 mt-1.5 w-full rounded-xl border border-surface-200 dark:border-surface-700 bg-white dark:bg-surface-0 shadow-xl py-1.5">
+                  {[
+                    { id: 'tasks', label: 'Tasks & deadlines', icon: <Target size={14} /> },
+                    { id: 'bills', label: 'Bill payments', icon: <Bell size={14} className="text-amber-600" /> },
+                    { id: 'appointments', label: 'Appointments', icon: <Monitor size={14} /> },
+                    { id: 'reminders', label: 'Personal reminders', icon: <Bell size={14} className="text-primary-600" /> },
+                  ].map((n) => {
+                    const nt = user?.notificationTypes as Record<string, boolean> | undefined;
+                    const isSelected = Boolean(nt?.[n.id]);
+                    return (
+                      <label
+                        key={n.id}
+                        className="flex w-full items-center gap-2 px-2.5 py-2 text-xs transition-colors hover:bg-surface-50 dark:hover:bg-surface-800/40 cursor-pointer"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          const types = { ...(user?.notificationTypes || {}) } as Record<string, boolean>;
+                          types[n.id] = !isSelected;
+                          handleSaveSettings({ notificationTypes: types });
+                        }}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={isSelected}
+                          className="rounded text-primary-500 focus:ring-primary-500 shrink-0"
+                          readOnly
+                        />
+                        <div className="flex items-center gap-1">
+                          {n.icon}
+                        </div>
+                        <span className={`text-surface-700 dark:text-surface-200 ${isSelected ? 'font-medium' : 'font-normal'}`}>
+                          {n.label}
+                        </span>
+                      </label>
+                    );
+                  })}
                 </div>
-                <select
-                  disabled={!notificationsEnabled}
-                  value={isEnabled ? 'enabled' : 'disabled'}
-                  onChange={(e) => {
-                    const types = { ...(user?.notificationTypes || {}) } as Record<string, boolean>;
-                    types[n.id] = e.target.value === 'enabled';
-                    handleSaveSettings({ notificationTypes: types });
-                  }}
-                  className={`text-xs rounded-lg border border-surface-200 dark:border-surface-700 bg-surface-50 dark:bg-surface-800/40 text-surface-700 dark:text-surface-200 focus:ring-primary-500 focus:border-primary-500 ${!notificationsEnabled ? 'opacity-50 cursor-not-allowed' : ''}`}
-                >
-                  <option value="enabled">Enabled</option>
-                  <option value="disabled">Disabled</option>
-                </select>
-              </div>
-            );
-          })}
+              )}
+            </div>
+          </div>
         </div>
 
         {/* Reminder intervals */}

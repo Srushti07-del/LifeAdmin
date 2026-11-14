@@ -32,18 +32,19 @@ export default function LoginPage() {
       <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-primary-200/40 rounded-full blur-3xl pointer-events-none" />
       <div className="absolute bottom-1/4 right-1/4 w-80 h-80 bg-teal-200/30 rounded-full blur-3xl pointer-events-none" />
 
-      <div className="w-full max-w-md animate-fade-in relative z-10">
+      <div className="w-full max-w-md animate-fade-in relative z-10 py-6 sm:py-8">
         {/* Brand Header */}
-        <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-primary-600 text-white font-bold text-xl shadow-elevated mb-4">
-            L
+        <div className="text-center pt-4 sm:pt-6">
+          <div className="flex justify-center mb-8 sm:mb-10">
+            <img
+              src="/brand/lifeadmin-logo.png"
+              alt="LifeAdmin — Plan • Organise • Balance"
+              className="w-64 sm:w-72 h-auto max-w-[85vw] object-contain drop-shadow-sm select-none"
+            />
           </div>
-          <h1 className="text-3xl font-bold font-editorial text-surface-900 tracking-tight">
+          <h1 className="text-3xl sm:text-[34px] font-bold font-editorial text-surface-900 tracking-tight mb-8 sm:mb-10">
             Welcome back
           </h1>
-          <p className="text-sm text-surface-600 mt-1.5 max-w-xs mx-auto">
-            Your life, organised. Your mind, uncluttered.
-          </p>
         </div>
 
         {/* Card Form */}
