@@ -55,3 +55,5 @@ export interface UserSummary {
   isDemo?: boolean;
   companion?: CompanionState;
 }
+
+export type OnboardingStatus = 'completed' | 'skipped' | 'in_progress';

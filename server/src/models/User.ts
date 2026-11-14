@@ -52,6 +52,7 @@ export interface IUser extends Document {
   // Onboarding
   onboardingCompleted: boolean;
   onboardingStep: number;
+  onboardingStatus: 'completed' | 'skipped' | 'in_progress';
   
   // Notification type preferences
   notificationTypes: {
@@ -133,6 +134,13 @@ const userSchema = new Schema<IUser>(
     // Onboarding
     onboardingCompleted: { type: Boolean, default: true },
     onboardingStep: { type: Number, default: 1 },
+    onboardingStatus: {
+      type: String,
+      enum: ['completed', 'skipped', 'in_progress'],
+      default: function (this: any) {
+        return this.onboardingCompleted === false ? 'in_progress' : 'completed';
+      },
+    },
     
     // Notification type preferences
     notificationTypes: {

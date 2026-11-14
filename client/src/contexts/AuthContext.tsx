@@ -21,6 +21,7 @@ interface User {
   isDemo?: boolean;
   onboardingCompleted: boolean;
   onboardingStep: number;
+  onboardingStatus?: 'completed' | 'skipped' | 'in_progress';
   notificationTypes: {
     tasks: boolean;
     bills: boolean;

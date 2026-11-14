@@ -13,9 +13,11 @@ router.get('/status', authenticate, async (req: Request, res: Response): Promise
       res.status(404).json({ message: 'User not found' });
       return;
     }
+    const status = user.onboardingStatus || (user.onboardingCompleted ? 'completed' : 'in_progress');
     res.json({
       completed: user.onboardingCompleted,
       step: user.onboardingStep,
+      status,
     });
   } catch (error) {
     console.error('Onboarding status error:', error);
@@ -42,6 +44,7 @@ router.post(
       const { step, data } = req.body;
       const updates: Record<string, unknown> = {
         onboardingStep: data?.onboardingStep ?? step,
+        onboardingStatus: 'in_progress',
       };
 
       // Merge partial onboarding data into user fields
@@ -68,6 +71,7 @@ router.post(
         message: 'Onboarding progress saved',
         step: user.onboardingStep,
         completed: user.onboardingCompleted,
+        status: user.onboardingStatus,
       });
     } catch (error) {
       console.error('Onboarding progress error:', error);
@@ -84,7 +88,7 @@ router.post(
     try {
       const user = await User.findByIdAndUpdate(
         req.user!._id,
-        { $set: { onboardingCompleted: true, onboardingStep: 5 } },
+        { $set: { onboardingCompleted: true, onboardingStep: 5, onboardingStatus: 'completed' } },
         { new: true }
       );
 
@@ -96,10 +100,46 @@ router.post(
       res.json({
         message: 'Onboarding completed',
         completed: user.onboardingCompleted,
+        status: user.onboardingStatus,
       });
     } catch (error) {
       console.error('Onboarding complete error:', error);
       res.status(500).json({ message: 'Failed to complete onboarding' });
+    }
+  }
+);
+
+// POST /api/onboarding/skip — Mark onboarding as skipped
+router.post(
+  '/skip',
+  authenticate,
+  async (req: Request, res: Response): Promise<void> => {
+    try {
+      const user = await User.findByIdAndUpdate(
+        req.user!._id,
+        {
+          $set: {
+            onboardingCompleted: true,
+            onboardingStatus: 'skipped',
+          },
+        },
+        { new: true }
+      );
+
+      if (!user) {
+        res.status(404).json({ message: 'User not found' });
+        return;
+      }
+
+      res.json({
+        message: 'Onboarding skipped',
+        completed: user.onboardingCompleted,
+        status: user.onboardingStatus,
+        step: user.onboardingStep,
+      });
+    } catch (error) {
+      console.error('Onboarding skip error:', error);
+      res.status(500).json({ message: 'Failed to skip onboarding' });
     }
   }
 );

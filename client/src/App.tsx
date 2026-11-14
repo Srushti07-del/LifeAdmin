@@ -37,7 +37,8 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
   }
 
   // If onboarding is incomplete, redirect to onboarding wizard
-  if (user && !user.onboardingCompleted) {
+  const isSetupIncomplete = !user?.onboardingCompleted && user?.onboardingStatus !== 'skipped';
+  if (user && isSetupIncomplete) {
     return <Navigate to="/onboarding" replace />;
   }
 
@@ -78,7 +79,7 @@ function OnboardingRequiredRoute({ children }: { children: React.ReactNode }) {
   }
 
   // If onboarding is already completed, redirect to dashboard
-  if (user.onboardingCompleted) {
+  if (user.onboardingStatus === 'completed' || (user.onboardingCompleted && user.onboardingStatus !== 'skipped')) {
     return <Navigate to="/dashboard" replace />;
   }
 

@@ -5,6 +5,18 @@ All notable changes to the LifeAdmin project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.3.0] - 2026-11-14
+
+### Added
+- **Conditional Command Center Welcome Banner**:
+  - Implemented explicit, persisted three-state onboarding progression (`completed`, `skipped`, `in_progress`) in `server/src/models/User.ts`, `shared/types.ts`, and `client/src/contexts/AuthContext.tsx`.
+  - Added dedicated endpoints `POST /api/onboarding/skip` and updated `POST /api/onboarding/complete` and `GET /api/onboarding/status`.
+  - Rendered "Welcome to your command center!" orientation banner on the dashboard exclusively for users who chose to skip onboarding (`onboardingStatus === 'skipped'`).
+  - Preserved active "Add First Task" and "Reopen Setup" buttons on the banner.
+  - Allowed skipped users to reopen `/onboarding` and complete setup, which updates their status to `completed` and automatically removes the welcome banner.
+  - Ensured full backward compatibility for existing accounts with `onboardingCompleted: true`, dynamically defaulting their status to `completed` so their dashboards never show the banner.
+  - Added comprehensive backend test suite in `server/src/tests/onboarding.test.ts` covering registration, unauthenticated rejection, route blocking, full 5-step progression, skipping, setup reopening, and legacy user compatibility.
+
 ## [1.2.0] - 2026-11-11
 
 ### Added

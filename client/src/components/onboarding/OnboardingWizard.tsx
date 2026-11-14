@@ -110,8 +110,8 @@ export default function OnboardingWizard({ initialStep, onComplete, onSkip }: On
     setSaving(true);
     setError('');
     try {
-      await api.post('/onboarding/complete');
-      updateUser({ onboardingCompleted: true, onboardingStep: 5 } as any);
+      await api.post('/onboarding/skip');
+      updateUser({ onboardingCompleted: true, onboardingStatus: 'skipped' } as any);
       if (onSkip) {
         onSkip();
       } else {
@@ -142,7 +142,7 @@ export default function OnboardingWizard({ initialStep, onComplete, onSkip }: On
 
       // Mark onboarding as completed
       await api.post('/onboarding/complete');
-      updateUser({ onboardingCompleted: true, onboardingStep: 5 } as any);
+      updateUser({ onboardingCompleted: true, onboardingStep: 5, onboardingStatus: 'completed' } as any);
 
       // Apply chosen theme
       if (theme === 'system') {

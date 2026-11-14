@@ -6,7 +6,7 @@ import mongoose from 'mongoose';
 import app from '../app';
 import User from '../models/User';
 
-describe('Onboarding Flow & Step Progression Tests', () => {
+describe('Onboarding Flow, Conditional Status & Step Progression Tests', () => {
   let mongoServer: MongoMemoryServer;
   let server: http.Server;
   let baseUrl: string;
@@ -31,7 +31,7 @@ describe('Onboarding Flow & Step Progression Tests', () => {
     await mongoServer.stop();
   });
 
-  it('registers a user with onboardingCompleted=false and onboardingStep=1', async () => {
+  it('registers a user with onboardingCompleted=false, onboardingStep=1, onboardingStatus=in_progress', async () => {
     const res = await fetch(`${baseUrl}/auth/register`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -47,6 +47,7 @@ describe('Onboarding Flow & Step Progression Tests', () => {
     assert.ok(body.token);
     assert.equal(body.user.onboardingCompleted, false);
     assert.equal(body.user.onboardingStep, 1);
+    assert.equal(body.user.onboardingStatus, 'in_progress');
   });
 
   it('rejects unauthenticated requests to onboarding endpoints with 401', async () => {
@@ -64,9 +65,14 @@ describe('Onboarding Flow & Step Progression Tests', () => {
       method: 'POST',
     });
     assert.equal(compRes.status, 401);
+
+    const skipRes = await fetch(`${baseUrl}/onboarding/skip`, {
+      method: 'POST',
+    });
+    assert.equal(skipRes.status, 401);
   });
 
-  it('enforces onboarding middleware: blocks access to protected task routes before completion', async () => {
+  it('enforces onboarding middleware: blocks access to protected task routes before completion or skip', async () => {
     const regRes = await fetch(`${baseUrl}/auth/register`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -86,7 +92,7 @@ describe('Onboarding Flow & Step Progression Tests', () => {
     assert.equal(taskBody.redirect, '/onboarding');
   });
 
-  it('completes the full 5-step onboarding sequence smoothly', async () => {
+  it('Case A: completes the full 5-step onboarding sequence smoothly, marking status as completed', async () => {
     // 1. Register
     const regRes = await fetch(`${baseUrl}/auth/register`, {
       method: 'POST',
@@ -107,6 +113,7 @@ describe('Onboarding Flow & Step Progression Tests', () => {
     const s1Body = (await status1.json()) as any;
     assert.equal(s1Body.completed, false);
     assert.equal(s1Body.step, 1);
+    assert.equal(s1Body.status, 'in_progress');
 
     // Step 1 -> 2: Welcome -> Personal Profile
     const prog1 = await fetch(`${baseUrl}/onboarding/progress`, {
@@ -123,6 +130,7 @@ describe('Onboarding Flow & Step Progression Tests', () => {
     assert.equal(prog1.status, 200);
     const p1Body = (await prog1.json()) as any;
     assert.equal(p1Body.step, 2);
+    assert.equal(p1Body.status, 'in_progress');
 
     // Step 2 -> 3: Personal Profile -> Priorities
     const prog2 = await fetch(`${baseUrl}/onboarding/progress`, {
@@ -185,8 +193,9 @@ describe('Onboarding Flow & Step Progression Tests', () => {
     assert.equal(compRes.status, 200);
     const compBody = (await compRes.json()) as any;
     assert.equal(compBody.completed, true);
+    assert.equal(compBody.status, 'completed');
 
-    // Verify /api/auth/me reflects all saved onboarding data
+    // Verify /api/auth/me reflects status='completed'
     const meRes = await fetch(`${baseUrl}/auth/me`, {
       headers: { Authorization: `Bearer ${token}` },
     });
@@ -197,6 +206,7 @@ describe('Onboarding Flow & Step Progression Tests', () => {
     assert.equal(meBody.user.theme, 'dark');
     assert.equal(meBody.user.onboardingCompleted, true);
     assert.equal(meBody.user.onboardingStep, 5);
+    assert.equal(meBody.user.onboardingStatus, 'completed');
 
     // Verify protected route is now unlocked
     const taskRes = await fetch(`${baseUrl}/tasks`, {
@@ -205,7 +215,7 @@ describe('Onboarding Flow & Step Progression Tests', () => {
     assert.equal(taskRes.status, 200);
   });
 
-  it('allows skip setup to complete onboarding and unlock dashboard', async () => {
+  it('Case B: user skips onboarding, status=skipped, dashboard accessible, Command Center banner shown', async () => {
     const regRes = await fetch(`${baseUrl}/auth/register`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -217,20 +227,92 @@ describe('Onboarding Flow & Step Progression Tests', () => {
     });
     const { token } = (await regRes.json()) as any;
 
-    // Skip directly by calling complete
-    const skipRes = await fetch(`${baseUrl}/onboarding/complete`, {
+    // Skip onboarding via POST /api/onboarding/skip
+    const skipRes = await fetch(`${baseUrl}/onboarding/skip`, {
       method: 'POST',
       headers: { Authorization: `Bearer ${token}` },
     });
     assert.equal(skipRes.status, 200);
     const skipBody = (await skipRes.json()) as any;
     assert.equal(skipBody.completed, true);
+    assert.equal(skipBody.status, 'skipped');
 
-    // Verify user is unlocked
+    // Verify status returns skipped
     const statusRes = await fetch(`${baseUrl}/onboarding/status`, {
       headers: { Authorization: `Bearer ${token}` },
     });
     const statusBody = (await statusRes.json()) as any;
     assert.equal(statusBody.completed, true);
+    assert.equal(statusBody.status, 'skipped');
+
+    // Verify /api/auth/me returns status='skipped'
+    const meRes = await fetch(`${baseUrl}/auth/me`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    const meBody = (await meRes.json()) as any;
+    assert.equal(meBody.user.onboardingCompleted, true);
+    assert.equal(meBody.user.onboardingStatus, 'skipped');
+
+    // Verify user can access protected dashboard APIs despite skipping
+    const taskRes = await fetch(`${baseUrl}/tasks`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    assert.equal(taskRes.status, 200);
+
+    // Case C: Skipped user reopens setup, completes it, and status switches to completed
+    const completeRes = await fetch(`${baseUrl}/onboarding/complete`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    assert.equal(completeRes.status, 200);
+    const completeBody = (await completeRes.json()) as any;
+    assert.equal(completeBody.status, 'completed');
+
+    // Verify status is now 'completed'
+    const meAfterComp = await fetch(`${baseUrl}/auth/me`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    const meAfterCompBody = (await meAfterComp.json()) as any;
+    assert.equal(meAfterCompBody.user.onboardingStatus, 'completed');
+  });
+
+  it('Case D: backward compatibility for legacy accounts with onboardingCompleted=true and no onboardingStatus', async () => {
+    // Create raw legacy user directly in DB without onboardingStatus
+    const legacyUser = new User({
+      name: 'Legacy User',
+      email: 'legacy@example.com',
+      password: 'Password123!',
+      onboardingCompleted: true,
+      onboardingStep: 5,
+    });
+    await legacyUser.save();
+
+    // Login as legacy user
+    const loginRes = await fetch(`${baseUrl}/auth/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        email: 'legacy@example.com',
+        password: 'Password123!',
+      }),
+    });
+    assert.equal(loginRes.status, 200);
+    const loginBody = (await loginRes.json()) as any;
+    assert.equal(loginBody.user.onboardingCompleted, true);
+    assert.equal(loginBody.user.onboardingStatus, 'completed');
+
+    // GET /me returns completed
+    const meRes = await fetch(`${baseUrl}/auth/me`, {
+      headers: { Authorization: `Bearer ${loginBody.token}` },
+    });
+    const meBody = (await meRes.json()) as any;
+    assert.equal(meBody.user.onboardingStatus, 'completed');
+
+    // GET /onboarding/status returns completed
+    const statusRes = await fetch(`${baseUrl}/onboarding/status`, {
+      headers: { Authorization: `Bearer ${loginBody.token}` },
+    });
+    const statusBody = (await statusRes.json()) as any;
+    assert.equal(statusBody.status, 'completed');
   });
 });

@@ -54,6 +54,7 @@ router.post(
           password,
           authProvider: 'local',
           onboardingCompleted: false,
+          onboardingStatus: 'in_progress',
         });
       } catch (createErr: any) {
         // Handle duplicate-key race condition gracefully
@@ -80,6 +81,7 @@ router.post(
           companion: user.companion,
           onboardingCompleted: user.onboardingCompleted,
           onboardingStep: user.onboardingStep,
+          onboardingStatus: user.onboardingStatus || (user.onboardingCompleted ? 'completed' : 'in_progress'),
           notificationTypes: user.notificationTypes,
           emailReminderIntervals: user.emailReminderIntervals,
           timezone: user.timezone,
@@ -148,6 +150,7 @@ router.post(
           companion: user.companion,
           onboardingCompleted: user.onboardingCompleted,
           onboardingStep: user.onboardingStep,
+          onboardingStatus: user.onboardingStatus || (user.onboardingCompleted ? 'completed' : 'in_progress'),
           notificationTypes: user.notificationTypes,
           emailReminderIntervals: user.emailReminderIntervals,
           timezone: user.timezone,
@@ -185,8 +188,9 @@ router.get('/me', authenticate, async (req: Request, res: Response): Promise<voi
         preferredCurrency: user.preferredCurrency,
         companion: user.companion,
         onboardingCompleted: user.onboardingCompleted,
-        onboardingStep: user.onboardingStep,
-        emailReminderIntervals: user.emailReminderIntervals,
+          onboardingStep: user.onboardingStep,
+          onboardingStatus: user.onboardingStatus || (user.onboardingCompleted ? 'completed' : 'in_progress'),
+          emailReminderIntervals: user.emailReminderIntervals,
         timezone: user.timezone,
         isDemo: user.isDemo,
         createdAt: user.createdAt,
@@ -257,6 +261,7 @@ router.put(
           companion: user.companion,
           onboardingCompleted: user.onboardingCompleted,
           onboardingStep: user.onboardingStep,
+          onboardingStatus: user.onboardingStatus || (user.onboardingCompleted ? 'completed' : 'in_progress'),
           emailReminderIntervals: user.emailReminderIntervals,
           timezone: user.timezone,
           isDemo: user.isDemo,

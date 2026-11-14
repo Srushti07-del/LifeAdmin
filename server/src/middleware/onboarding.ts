@@ -30,7 +30,8 @@ export const enforceOnboarding = async (
       return;
     }
 
-    if (!user.isDemo && !user.onboardingCompleted) {
+    const isCompletedOrSkipped = user.onboardingCompleted || user.onboardingStatus === 'completed' || user.onboardingStatus === 'skipped';
+    if (!user.isDemo && !isCompletedOrSkipped) {
       res.status(403).json({
         message: 'Onboarding not completed. Please complete onboarding before accessing the dashboard.',
         redirect: '/onboarding',

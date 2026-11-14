@@ -22,7 +22,7 @@ export default function OnboardingPage() {
       try {
         const res = await api.get('/onboarding/status');
         if (!isMounted) return;
-        if (res.data.completed) {
+        if (res.data.status === 'completed' || (res.data.completed && res.data.status !== 'skipped')) {
           navigate('/dashboard', { replace: true });
           return;
         }
@@ -54,7 +54,7 @@ export default function OnboardingPage() {
   }
 
   // If onboarding already completed, go to dashboard
-  if (user?.onboardingCompleted) {
+  if (user?.onboardingStatus === 'completed' || (user?.onboardingCompleted && user?.onboardingStatus !== 'skipped')) {
     navigate('/dashboard', { replace: true });
     return null;
   }

@@ -102,8 +102,13 @@ export default function OnboardingModal({ isOpen, onComplete }: OnboardingModalP
       localStorage.setItem('lifeadmin_dashboard_preset', dashboardPreset);
       localStorage.setItem('lifeadmin_onboarding_completed', 'true');
 
+      try {
+        await api.post('/onboarding/complete');
+      } catch {}
       if (user) {
         updateUser({
+          onboardingCompleted: true,
+          onboardingStatus: 'completed',
           categories: selectedCategories,
           notificationsEnabled,
           defaultReminderTiming: reminderTiming,

@@ -376,8 +376,6 @@ export default function DashboardPage() {
       </div>
     );
   }
-
-  const isEmpty = !data || (data.needsAttention.length === 0 && data.upcoming.length === 0);
   const activeCompanion = getActiveCompanion(companionState.activeId);
   const stage = getGrowthStage(companionState.level);
 
@@ -435,8 +433,8 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {/* Gentle First-Time Orientation Banner */}
-      {isEmpty && (
+      {/* Gentle First-Time Orientation Banner (shown only for users who skipped onboarding) */}
+      {user?.onboardingStatus === 'skipped' && (
         <div className="bg-primary-50/70 dark:bg-surface-0 border border-primary-200 dark:border-surface-700 rounded-3xl p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div className="flex items-center gap-4">
             <div className="w-12 h-12 rounded-2xl bg-primary-500 text-white flex items-center justify-center font-bold text-lg shadow-xs flex-shrink-0">
@@ -459,7 +457,7 @@ export default function DashboardPage() {
               Add First Task
             </button>
             <button
-              onClick={() => setShowOnboarding(true)}
+              onClick={() => navigate('/onboarding')}
               className="px-3.5 py-2 rounded-xl border border-surface-200 dark:border-surface-700 hover:bg-surface-100 dark:hover:bg-surface-800 text-surface-700 dark:text-surface-300 text-xs font-medium"
             >
               Reopen Setup
