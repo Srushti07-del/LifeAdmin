@@ -8,6 +8,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [1.3.1] - 2026-11-15
 
 ### Fixed
+- **Express Trust Proxy Configuration for Render**:
+  - Configured `app.set('trust proxy', 1)` in `server/src/app.ts` immediately after Express app instantiation to trust Render's single reverse proxy hop.
+  - Resolved `ERR_ERL_UNEXPECTED_X_FORWARDED_FOR` validation warnings/errors in `express-rate-limit`.
+  - Guaranteed `req.ip` correctly resolves to the real client IP from `X-Forwarded-For` without IP spoofing or grouping distinct users under Render's proxy IP.
+  - Added test suite `server/src/tests/trust-proxy.test.ts` verifying `app.get('trust proxy') === 1`, client IP extraction, and rate limit isolation across distinct client IPs.
 - **Infinite Loading on Production Forgot Password**:
   - **Frontend Timeout & Loading Recovery**: Added a 30-second default timeout to `client/src/lib/api.ts` and explicit `AbortController` cancellation in `ForgotPasswordPage.tsx` with duplicate submission prevention, guaranteed loading state reset in `finally`, disabled states, active loading indicator ("Sending reset link..."), and user-friendly error messages distinguishing timeouts, service unavailability (503), gateway timeouts (504), and rate limits (429).
   - **Backend SMTP Connection & Socket Timeouts**: Configured Nodemailer `connectionTimeout` (10s), `greetingTimeout` (10s), `socketTimeout` (15s), and `dnsTimeout` (5s), plus a hard 18-second overall operation timeout on `sendPasswordResetEmail` in `server/src/services/email.ts` and `notificationEmail.ts` to prevent infinite hangs when outbound SMTP is blocked or stalling.

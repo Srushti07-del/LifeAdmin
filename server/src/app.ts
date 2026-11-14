@@ -22,6 +22,10 @@ import emailNotificationRoutes from './routes/emailNotifications';
 
 const app = express();
 
+// Trust reverse proxy (1 hop for Render deployment topology).
+// Resolves actual client IP from X-Forwarded-For and prevents express-rate-limit ERR_ERL_UNEXPECTED_X_FORWARDED_FOR.
+app.set('trust proxy', 1);
+
 // Security middleware
 app.use(helmet());
 app.use(cors({
