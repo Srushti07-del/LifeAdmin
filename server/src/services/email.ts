@@ -4,7 +4,33 @@ import config from '../config';
 
 let transporter: Transporter | null = null;
 
-function getTransporter(): Transporter {
+export const SMTP_TIMEOUTS = {
+  connectionTimeout: 10000, // 10s: Max time to establish TCP connection
+  greetingTimeout: 10000,   // 10s: Max time to wait for SMTP greeting
+  socketTimeout: 15000,     // 15s: Max time of socket inactivity
+  dnsTimeout: 5000,         // 5s: Max time for DNS lookup
+  overallTimeout: 18000,    // 18s: Hard overall deadline for send operation
+};
+
+/**
+ * Resets and closes the cached transporter instance.
+ * Useful for tests, environment variable updates, and error recovery.
+ */
+export function resetTransporter(): void {
+  if (transporter) {
+    try {
+      transporter.close();
+    } catch {
+      // Ignore close errors
+    }
+    transporter = null;
+  }
+}
+
+/**
+ * Creates or returns the cached nodemailer Transporter with safe timeouts.
+ */
+export function getTransporter(): Transporter {
   if (transporter) return transporter;
 
   const { host, port, user, pass, secure } = config.smtp;
@@ -20,6 +46,10 @@ function getTransporter(): Transporter {
     port,
     secure,
     auth: { user, pass },
+    connectionTimeout: SMTP_TIMEOUTS.connectionTimeout,
+    greetingTimeout: SMTP_TIMEOUTS.greetingTimeout,
+    socketTimeout: SMTP_TIMEOUTS.socketTimeout,
+    dnsTimeout: SMTP_TIMEOUTS.dnsTimeout,
   });
 
   return transporter;
@@ -31,11 +61,19 @@ export interface EmailResult {
   messageId: string;
 }
 
-export async function sendPasswordResetEmail(to: string, resetUrl: string): Promise<EmailResult> {
-  const transporter = getTransporter();
+/**
+ * Sends a password reset email with strict timeouts and error handling.
+ */
+export async function sendPasswordResetEmail(
+  to: string,
+  resetUrl: string,
+  options?: { timeoutMs?: number }
+): Promise<EmailResult> {
+  const activeTransporter = getTransporter();
   const from = config.smtp.from || 'noreply@lifeadmin.local';
+  const timeoutMs = options?.timeoutMs ?? SMTP_TIMEOUTS.overallTimeout;
 
-  const info = await transporter.sendMail({
+  const sendPromise = activeTransporter.sendMail({
     from: `"LifeAdmin" <${from}>`,
     to,
     subject: 'Reset your LifeAdmin password',
@@ -71,11 +109,30 @@ If you didn't request this, you can safely ignore this email. Your password will
     `,
   });
 
-  return {
-    accepted: info.accepted ?? [],
-    rejected: info.rejected ?? [],
-    messageId: info.messageId,
-  };
+  let timer: NodeJS.Timeout | null = null;
+  const timeoutPromise = new Promise<never>((_, reject) => {
+    timer = setTimeout(() => {
+      const err: any = new Error(`SMTP email delivery timed out after ${timeoutMs}ms`);
+      err.code = 'ETIMEDOUT';
+      reject(err);
+    }, timeoutMs);
+    timer.unref?.();
+  });
+
+  try {
+    const info: any = await Promise.race([sendPromise, timeoutPromise]);
+    return {
+      accepted: info.accepted ?? [],
+      rejected: info.rejected ?? [],
+      messageId: info.messageId,
+    };
+  } catch (err: any) {
+    // Invalidate cached transporter on failure so subsequent attempts do not reuse dead sockets
+    resetTransporter();
+    throw err;
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
 }
 
 export function isEmailConfigured(): boolean {

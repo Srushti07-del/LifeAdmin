@@ -366,10 +366,28 @@ router.delete('/guest', authenticate, async (req: Request, res: Response): Promi
   }
 });
 
-// Rate limiter for password reset requests (5 per 15 minutes per IP)
+/**
+ * Safely masks an email address for structured logging without leaking PII.
+ * Example: "john.doe@example.com" -> "j***e@example.com"
+ */
+function maskEmail(email: string): string {
+  if (!email || typeof email !== 'string') return '***';
+  const trimmed = email.trim().toLowerCase();
+  const atIndex = trimmed.indexOf('@');
+  if (atIndex <= 0 || atIndex === trimmed.length - 1) return '***';
+  const name = trimmed.slice(0, atIndex);
+  const domain = trimmed.slice(atIndex + 1);
+  const maskedName = name.length <= 2
+    ? name[0] + '***'
+    : name[0] + '***' + name[name.length - 1];
+  return `${maskedName}@${domain}`;
+}
+
+// Rate limiter for password reset requests (5 per 15 minutes per IP; skipped during tests)
 const forgotPasswordLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 5,
+  skip: () => process.env.NODE_ENV === 'test' || config.nodeEnv === 'test',
   message: { message: 'Too many reset requests. Please try again later.' },
   standardHeaders: true,
   legacyHeaders: false,
@@ -383,16 +401,25 @@ router.post(
     body('email').isEmail().normalizeEmail().withMessage('Valid email is required'),
   ],
   async (req: Request, res: Response): Promise<void> => {
+    const rawEmail = typeof req.body?.email === 'string' ? req.body.email.trim() : '';
+    const maskedEmail = maskEmail(rawEmail);
+
+    console.log(`[AUTH:RESET] Password reset request received for: ${maskedEmail}`);
+
     try {
       const errors = validationResult(req);
       if (!errors.isEmpty()) {
+        console.warn(`[AUTH:RESET] Email validation failed for input: ${maskedEmail}`);
         res.status(400).json({ message: errors.array()[0].msg });
         return;
       }
 
+      console.log(`[AUTH:RESET] Email validation completed successfully for: ${maskedEmail}`);
+
       // If email delivery is not configured, do not pretend email was sent.
       // Returning 503 upfront prevents leaking whether an email exists.
       if (!isEmailConfigured()) {
+        console.warn('[AUTH:RESET] Email service is not configured (missing SMTP credentials). Returning 503.');
         res.status(503).json({
           message: 'Email service is not configured. Password reset emails cannot be sent right now.',
         });
@@ -401,26 +428,40 @@ router.post(
 
       const { email } = req.body;
 
-      // Look up the user without revealing whether the account exists
-      const user = await User.findOne({ email }).select('+password');
+      // Look up user with database timeout & error handling
+      let user;
+      try {
+        user = await User.findOne({ email }).select('+password').maxTimeMS(8000);
+      } catch (dbLookupErr: any) {
+        console.error('[AUTH:RESET] Database failure during user lookup:', dbLookupErr?.message || dbLookupErr);
+        res.status(500).json({ message: 'Failed to process password reset request due to a database error.' });
+        return;
+      }
 
       if (!user || user.authProvider !== 'local' || user.isDemo) {
         // Generic response to prevent email enumeration
+        console.log(`[AUTH:RESET] User lookup completed (user eligible: false / non-local / demo). Returning generic confirmation to prevent enumeration.`);
         res.json({ message: 'If an account exists for this email, a password reset link has been sent.' });
         return;
       }
+
+      console.log(`[AUTH:RESET] User lookup completed (eligible local user confirmed).`);
 
       // Generate a cryptographically secure, random, single-use token
       const token = randomBytes(32).toString('hex');
       const tokenHash = createHash('sha256').update(token).digest('hex');
       const expiresAt = new Date(Date.now() + 30 * 60 * 1000); // 30 minutes
 
+      console.log(`[AUTH:RESET] Reset token generated securely (token byteLength: 32, expires in 30m)`);
+
       // Generate the password reset URL (enforces production HTTPS requirements)
       let resetUrl: string;
       try {
         resetUrl = generatePasswordResetUrl(token);
+        const parsedUrl = new URL(resetUrl);
+        console.log(`[AUTH:RESET] Reset URL generated successfully (origin: ${parsedUrl.origin}, path: ${parsedUrl.pathname})`);
       } catch (urlErr: any) {
-        console.error('Password reset URL configuration error:', urlErr?.message || urlErr);
+        console.error('[AUTH:RESET] Configuration error generating reset URL:', urlErr?.message || urlErr);
         res.status(500).json({
           message: 'Password reset service configuration error. Please contact support.',
         });
@@ -428,25 +469,60 @@ router.post(
       }
 
       // Store only its SHA-256 hash and expiry
-      user.resetPasswordToken = tokenHash;
-      user.resetPasswordExpires = expiresAt;
-      await user.save();
-
       try {
-        await sendPasswordResetEmail(user.email, resetUrl);
-      } catch (emailErr) {
-        console.error('Reset email send error:', emailErr);
-        // Invalidate token since delivery failed
-        user.resetPasswordToken = undefined;
-        user.resetPasswordExpires = undefined;
+        user.resetPasswordToken = tokenHash;
+        user.resetPasswordExpires = expiresAt;
         await user.save();
-        res.status(500).json({ message: 'Failed to send password reset email. Please try again later.' });
+        console.log('[AUTH:RESET] Token hash persisted to database successfully.');
+      } catch (dbSaveErr: any) {
+        console.error('[AUTH:RESET] Database failure persisting reset token hash:', dbSaveErr?.message || dbSaveErr);
+        res.status(500).json({ message: 'Failed to process password reset request due to a database error.' });
         return;
       }
 
+      // Send password reset email via SMTP
+      const smtpHost = config.smtp.host;
+      const smtpPort = config.smtp.port;
+      const smtpSecure = config.smtp.secure;
+      console.log(`[AUTH:RESET] SMTP delivery started to ${maskedEmail} via ${smtpHost}:${smtpPort} (secure: ${smtpSecure})`);
+
+      const sendStartTime = Date.now();
+      try {
+        const result = await sendPasswordResetEmail(user.email, resetUrl);
+        const durationMs = Date.now() - sendStartTime;
+        console.log(`[AUTH:RESET] SMTP delivery succeeded in ${durationMs}ms (messageId: ${result.messageId})`);
+      } catch (emailErr: any) {
+        const durationMs = Date.now() - sendStartTime;
+        const isTimeout = emailErr?.code === 'ETIMEDOUT' || emailErr?.message?.toLowerCase().includes('timed out');
+        console.error(`[AUTH:RESET] SMTP delivery ${isTimeout ? 'TIMED OUT' : 'FAILED'} after ${durationMs}ms:`, {
+          code: emailErr?.code,
+          command: emailErr?.command,
+          message: emailErr?.message || String(emailErr),
+        });
+
+        // Invalidate token since delivery failed so token isn't left hanging in DB
+        try {
+          user.resetPasswordToken = undefined;
+          user.resetPasswordExpires = undefined;
+          await user.save();
+          console.log('[AUTH:RESET] Token hash invalidated in database following delivery failure.');
+        } catch (cleanupErr: any) {
+          console.error('[AUTH:RESET] Failed to cleanup token hash after delivery failure:', cleanupErr?.message || cleanupErr);
+        }
+
+        const statusCode = isTimeout ? 504 : 503;
+        const clientMessage = isTimeout
+          ? 'Password reset email delivery timed out. Please try again later.'
+          : 'Failed to send password reset email. Please try again later.';
+
+        res.status(statusCode).json({ message: clientMessage });
+        return;
+      }
+
+      console.log(`[AUTH:RESET] Request completed successfully for: ${maskedEmail}`);
       res.json({ message: 'If an account exists for this email, a password reset link has been sent.' });
-    } catch (error) {
-      console.error('Forgot password error:', error);
+    } catch (error: any) {
+      console.error('[AUTH:RESET] Unexpected failure in forgot-password handler:', error?.message || error);
       res.status(500).json({ message: 'Failed to process password reset request.' });
     }
   }

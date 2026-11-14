@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { Mail, Lock, Eye, EyeOff, ArrowRight, Loader2, User, Sparkles } from 'lucide-react';
+import { Mail, Lock, Eye, EyeOff, ArrowRight, Loader2, User } from 'lucide-react';
 
 export default function RegisterPage() {
   const { register } = useAuth();
@@ -250,12 +250,6 @@ export default function RegisterPage() {
             Sign in
           </Link>
         </p>
-
-        {/* Brand Assurance */}
-        <div className="mt-8 text-center flex items-center justify-center gap-1.5 text-[11px] text-surface-500">
-          <Sparkles size={12} className="text-primary-600" />
-          <span>No credit card required · Free forever · Private</span>
-        </div>
       </div>
     </div>
   );

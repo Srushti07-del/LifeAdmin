@@ -1,27 +1,79 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { Link } from 'react-router-dom';
-import { Mail, ArrowRight, Loader2, Sparkles } from 'lucide-react';
+import { Mail, ArrowRight, Loader2, Sparkles, RefreshCw } from 'lucide-react';
 import api from '../lib/api';
+
+const REQUEST_TIMEOUT_MS = 30000; // 30 seconds client-side timeout
 
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState('');
   const [step, setStep] = useState<'request' | 'sent'>('request');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const abortControllerRef = useRef<AbortController | null>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (loading) return; // Prevent duplicate submissions
+
+    const trimmedEmail = email.trim().toLowerCase();
+    if (!trimmedEmail) {
+      setError('Please enter your email address.');
+      return;
+    }
+
     setError('');
     setLoading(true);
+
+    // Create an AbortController for guaranteed client-side timeout cancellation
+    const controller = new AbortController();
+    abortControllerRef.current = controller;
+
+    const timeoutTimer = setTimeout(() => {
+      controller.abort();
+    }, REQUEST_TIMEOUT_MS);
+
     try {
-      await api.post('/auth/forgot-password', { email });
+      await api.post(
+        '/auth/forgot-password',
+        { email: trimmedEmail },
+        {
+          signal: controller.signal,
+          timeout: REQUEST_TIMEOUT_MS,
+        }
+      );
       setStep('sent');
     } catch (err: any) {
-      setError(
-        err?.response?.data?.message ||
-        'Failed to process password reset request. Please try again.'
-      );
+      if (
+        err?.name === 'CanceledError' ||
+        err?.code === 'ECONNABORTED' ||
+        err?.message?.toLowerCase().includes('timeout')
+      ) {
+        setError(
+          'The request timed out. The server took too long to respond. Please check your internet connection and try again.'
+        );
+      } else if (err?.response?.status === 503) {
+        setError(
+          err?.response?.data?.message ||
+          'Email service is temporarily unavailable. Please try again in a few moments.'
+        );
+      } else if (err?.response?.status === 504 || err?.response?.status === 502) {
+        setError(
+          'The email delivery server took too long to respond. Please try again in a few moments.'
+        );
+      } else if (err?.response?.status === 429) {
+        setError(
+          err?.response?.data?.message ||
+          'Too many password reset requests. Please wait a few minutes before trying again.'
+        );
+      } else if (err?.response?.data?.message) {
+        setError(err.response.data.message);
+      } else {
+        setError('Failed to process password reset request. Please check your connection and try again.');
+      }
     } finally {
+      clearTimeout(timeoutTimer);
+      abortControllerRef.current = null;
       setLoading(false);
     }
   };
@@ -57,12 +109,18 @@ export default function ForgotPasswordPage() {
               >
                 <ArrowRight size={15} /> Back to Sign In
               </Link>
-            </div>
-          </div>
 
-          <div className="mt-8 text-center flex items-center justify-center gap-1.5 text-[11px] text-surface-500">
-            <Sparkles size={12} className="text-primary-600" />
-            <span>100% Free · Editorial Workspace · Privacy-focused</span>
+              <button
+                type="button"
+                onClick={() => {
+                  setStep('request');
+                  setError('');
+                }}
+                className="w-full flex items-center justify-center gap-1.5 py-2.5 px-4 rounded-xl text-surface-600 hover:text-surface-900 text-xs font-medium hover:bg-surface-50 transition-colors"
+              >
+                <RefreshCw size={13} /> Try another email address
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -110,22 +168,26 @@ export default function ForgotPasswordPage() {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   required
+                  disabled={loading}
                   placeholder="you@example.com"
-                  className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-surface-200 bg-white text-surface-900 placeholder:text-surface-400 text-xs focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition-all"
+                  className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-surface-200 bg-white text-surface-900 placeholder:text-surface-400 text-xs focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition-all disabled:bg-surface-50 disabled:text-surface-500 disabled:cursor-not-allowed"
                 />
               </div>
             </div>
 
             <button
               type="submit"
-              disabled={loading}
+              disabled={loading || !email.trim()}
               className="w-full flex items-center justify-center gap-2 py-3 px-4 rounded-xl bg-primary-600 hover:bg-primary-700 active:scale-[0.99] disabled:opacity-60 disabled:cursor-not-allowed text-white text-xs font-semibold tracking-wide transition-all duration-150 shadow-sm"
             >
               {loading ? (
-                <Loader2 size={16} className="animate-spin" />
+                <>
+                  <Loader2 size={16} className="animate-spin" />
+                  <span>Sending reset link...</span>
+                </>
               ) : (
                 <>
-                  Send reset link <ArrowRight size={15} />
+                  <span>Send reset link</span> <ArrowRight size={15} />
                 </>
               )}
             </button>
@@ -140,11 +202,6 @@ export default function ForgotPasswordPage() {
               Sign in
             </Link>
           </p>
-        </div>
-
-        <div className="mt-8 text-center flex items-center justify-center gap-1.5 text-[11px] text-surface-500">
-          <Sparkles size={12} className="text-primary-600" />
-          <span>100% Free · Editorial Workspace · Privacy-focused</span>
         </div>
       </div>
     </div>

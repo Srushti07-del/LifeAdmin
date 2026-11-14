@@ -5,6 +5,15 @@ All notable changes to the LifeAdmin project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.3.1] - 2026-11-15
+
+### Fixed
+- **Infinite Loading on Production Forgot Password**:
+  - **Frontend Timeout & Loading Recovery**: Added a 30-second default timeout to `client/src/lib/api.ts` and explicit `AbortController` cancellation in `ForgotPasswordPage.tsx` with duplicate submission prevention, guaranteed loading state reset in `finally`, disabled states, active loading indicator ("Sending reset link..."), and user-friendly error messages distinguishing timeouts, service unavailability (503), gateway timeouts (504), and rate limits (429).
+  - **Backend SMTP Connection & Socket Timeouts**: Configured Nodemailer `connectionTimeout` (10s), `greetingTimeout` (10s), `socketTimeout` (15s), and `dnsTimeout` (5s), plus a hard 18-second overall operation timeout on `sendPasswordResetEmail` in `server/src/services/email.ts` and `notificationEmail.ts` to prevent infinite hangs when outbound SMTP is blocked or stalling.
+  - **Production Diagnostics & Safe Masked Logging**: Added structured logging across all stages of password reset in `server/src/routes/auth.ts` (request received, email validation, user lookup with database error handling, token generation, URL resolution, token hash persistence, and SMTP delivery duration/messageId/errors) while strictly redacting sensitive tokens, passwords, and full reset URLs.
+  - **Automated Test Coverage**: Added tests in `server/src/tests/auth-password-recovery.test.ts` verifying invalid email validation (400), SMTP connection failure (503) with database token cleanup, SMTP delivery timeout (ETIMEDOUT), end-to-end SMTP delivery via a local test socket, and database error handling (500).
+
 ## [1.3.0] - 2026-11-14
 
 ### Added
