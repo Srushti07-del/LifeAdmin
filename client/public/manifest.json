@@ -1,20 +1,25 @@
 {
   "name": "LifeAdmin",
   "short_name": "LifeAdmin",
-  "description": "LifeAdmin — Plan • Organise • Balance",
+  "description": "LifeAdmin \u2014 Plan \u2022 Organise \u2022 Balance",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#F5F7F5",
   "theme_color": "#183B4A",
   "icons": [
     {
-      "src": "/brand/lifeadmin-symbol.png",
+      "src": "/favicon-16x16.png",
       "sizes": "16x16",
       "type": "image/png"
     },
     {
-      "src": "/brand/lifeadmin-symbol.png",
+      "src": "/favicon-32x32.png",
       "sizes": "32x32",
+      "type": "image/png"
+    },
+    {
+      "src": "/favicon-48x48.png",
+      "sizes": "48x48",
       "type": "image/png"
     },
     {
@@ -37,4 +42,3 @@
     }
   ]
 }
-
