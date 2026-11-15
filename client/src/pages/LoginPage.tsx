@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { Mail, Lock, Eye, EyeOff, ArrowRight, Loader2, Sparkles } from 'lucide-react';
+import { Mail, Lock, Eye, EyeOff, ArrowRight, Loader2 } from 'lucide-react';
 
 export default function LoginPage() {
   const { login } = useAuth();
@@ -156,12 +156,6 @@ export default function LoginPage() {
             Create free account
           </Link>
         </p>
-
-        {/* Brand Assurance */}
-        <div className="mt-8 text-center flex items-center justify-center gap-1.5 text-[11px] text-surface-500">
-          <Sparkles size={12} className="text-primary-600" />
-          <span>100% Free · Editorial Workspace · Privacy-focused</span>
-        </div>
       </div>
     </div>
   );
