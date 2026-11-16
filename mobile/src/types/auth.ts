@@ -46,16 +46,13 @@ export interface AuthContextType {
   isLoading: boolean;
   isAuthenticating: boolean;
   error: string | null;
-  isGuest: boolean;
   isOnboardingCompleted: boolean;
   completeOnboarding: (prefs?: any) => Promise<void>;
   skipOnboarding: () => Promise<void>;
   restartOnboarding: () => void;
   login: (email: string, password: string) => Promise<void>;
   register: (name: string, email: string, password: string) => Promise<void>;
-  loginAsGuest: () => Promise<void>;
   logout: () => Promise<void>;
-  exitGuest: () => Promise<void>;
   forgotPassword: (email: string) => Promise<{ message: string }>;
   resetPassword: (token: string, password: string, confirmPassword: string) => Promise<{ message: string }>;
   clearError: () => void;

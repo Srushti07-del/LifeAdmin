@@ -100,17 +100,21 @@ export function DashboardHeader({
             tintColor={colors.text}
           />
           {unreadCount > 0 && (
-          <View
-            style={[
-              styles.badge,
-              { backgroundColor: colors.notification, borderColor: colors.background },
-            ]}
-          >
-            <ThemedText style={styles.badgeText}>
-              {unreadCount > 9 ? '9+' : unreadCount}
-            </ThemedText>
-          </View>
-        )}
+            <View
+              style={[
+                styles.badge,
+                {
+                  backgroundColor: colors.notification,
+                  borderColor: colors.background,
+                  paddingHorizontal: unreadCount > 9 ? 4 : 2,
+                },
+              ]}
+            >
+              <ThemedText style={styles.badgeText}>
+                {unreadCount > 99 ? '99+' : unreadCount}
+              </ThemedText>
+            </View>
+          )}
       </Pressable>
 
         {/* Profile Avatar */}
@@ -176,18 +180,20 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     position: 'relative',
+    overflow: 'visible',
   },
   badge: {
     position: 'absolute',
-    top: 6,
-    right: 6,
+    top: -2,
+    right: -2,
     minWidth: 18,
     height: 18,
     borderRadius: Radius.full,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: 4,
     borderWidth: 1.5,
+    zIndex: 10,
+    elevation: 4,
   },
   badgeText: {
     color: '#FFFFFF',

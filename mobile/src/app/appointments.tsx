@@ -99,7 +99,7 @@ export default function AppointmentsScreen() {
   }, [registerSyncTask, user?.id]);
 
   // Filter & Search state
-  const [activeFilter, setActiveFilter] = useState<AppointmentFilterKey>('all');
+  const [activeFilter, setActiveFilter] = useState<AppointmentFilterKey>('upcoming');
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [activeSort, setActiveSort] = useState<AppointmentSortKey>('date');
@@ -180,10 +180,10 @@ export default function AppointmentsScreen() {
   // Status Filter Tabs with dynamic counts
   const filterItems: FilterItem<AppointmentFilterKey>[] = useMemo(
     () => [
-      { value: 'all', label: 'All', count: totals.totalCount },
       { value: 'upcoming', label: 'Upcoming', count: totals.upcomingCount },
       { value: 'today', label: 'Today', count: totals.todayCount },
       { value: 'past', label: 'Past', count: totals.pastCount },
+      { value: 'all', label: 'All', count: totals.totalCount },
     ],
     [totals]
   );
@@ -385,6 +385,7 @@ export default function AppointmentsScreen() {
           items={filterItems}
           selected={activeFilter}
           onSelect={setActiveFilter}
+          style={{ paddingHorizontal: Spacing.four }}
         />
       </View>
 
@@ -664,6 +665,7 @@ const styles = StyleSheet.create({
   },
   filterSection: {
     marginTop: -Spacing.one,
+    marginHorizontal: -Spacing.four,
   },
   categoryScroll: {
     gap: Spacing.two,

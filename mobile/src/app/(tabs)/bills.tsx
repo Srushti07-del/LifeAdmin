@@ -96,7 +96,7 @@ export default function BillsScreen() {
 
   // Layout, Filter & Search state
   const [layoutMode, setLayoutMode] = useState<'grid' | 'list'>('grid');
-  const [activeFilter, setActiveFilter] = useState<BillFilterKey>('all');
+  const [activeFilter, setActiveFilter] = useState<BillFilterKey>('unpaid');
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [activeSort, setActiveSort] = useState<BillSortKey>('dueDate');
@@ -229,10 +229,11 @@ export default function BillsScreen() {
   // Status Filter Tabs with dynamic counters
   const filterItems: FilterItem<BillFilterKey>[] = useMemo(
     () => [
-      { value: 'all', label: 'All', count: totals.totalBillsCount },
+      { value: 'unpaid', label: 'Unpaid', count: totals.unpaidCount },
       { value: 'upcoming', label: 'Upcoming', count: totals.upcomingCount },
-      { value: 'paid', label: 'Paid', count: totals.paidCount },
       { value: 'overdue', label: 'Overdue', count: totals.overdueCount },
+      { value: 'paid', label: 'Paid', count: totals.paidCount },
+      { value: 'all', label: 'All', count: totals.totalBillsCount },
     ],
     [totals]
   );
@@ -548,6 +549,7 @@ export default function BillsScreen() {
               items={filterItems}
               selected={activeFilter}
               onSelect={setActiveFilter}
+              style={{ paddingHorizontal: Spacing.four }}
             />
           </View>
 
@@ -855,6 +857,7 @@ const styles = StyleSheet.create({
   },
   filterSection: {
     marginTop: -Spacing.one,
+    marginHorizontal: -Spacing.four,
   },
   categoryScroll: {
     gap: Spacing.two,

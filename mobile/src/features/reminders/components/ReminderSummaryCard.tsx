@@ -93,7 +93,7 @@ export function ReminderSummaryCard({
       <View style={styles.statsRow}>
         {/* Today */}
         <Pressable
-          onPress={() => onSelectFilter(activeFilter === 'today' ? 'all' : 'today')}
+          onPress={() => onSelectFilter(activeFilter === 'today' ? 'active' : 'today')}
           hitSlop={4}
           style={[
             styles.statItem,
@@ -117,7 +117,7 @@ export function ReminderSummaryCard({
 
         {/* Upcoming */}
         <Pressable
-          onPress={() => onSelectFilter(activeFilter === 'upcoming' ? 'all' : 'upcoming')}
+          onPress={() => onSelectFilter(activeFilter === 'upcoming' ? 'active' : 'upcoming')}
           hitSlop={4}
           style={[
             styles.statItem,
@@ -150,7 +150,7 @@ export function ReminderSummaryCard({
 
         {/* Overdue */}
         <Pressable
-          onPress={() => onSelectFilter(activeFilter === 'overdue' ? 'all' : 'overdue')}
+          onPress={() => onSelectFilter(activeFilter === 'overdue' ? 'active' : 'overdue')}
           hitSlop={4}
           style={[
             styles.statItem,
@@ -188,7 +188,7 @@ export function ReminderSummaryCard({
 
         {/* Completed */}
         <Pressable
-          onPress={() => onSelectFilter(activeFilter === 'completed' ? 'all' : 'completed')}
+          onPress={() => onSelectFilter(activeFilter === 'completed' ? 'active' : 'completed')}
           hitSlop={4}
           style={[
             styles.statItem,

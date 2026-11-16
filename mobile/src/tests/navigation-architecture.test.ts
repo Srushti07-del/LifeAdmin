@@ -49,6 +49,7 @@ describe('Navigation Breakpoints & Snackbar/Inset Helpers', () => {
     assert.equal(isPrimaryTabPathname('/documents'), false);
     assert.equal(isPrimaryTabPathname('/reminders?reminderId=abc'), false);
     assert.equal(isPrimaryTabPathname('/settings'), false);
+    assert.equal(isPrimaryTabPathname('/privacy-security'), false);
   });
 
   it('applies Snackbar bottom-tab offset only on phone viewports viewing primary tabs', () => {
@@ -158,7 +159,7 @@ describe('Stage 4 Milestone 1 — Stack/Tabs Separation, Predictive Back & Adapt
       }
     }
 
-    for (const pushedRoute of ['ai.tsx', 'appointments.tsx', 'documents.tsx', 'reminders.tsx', 'settings.tsx']) {
+    for (const pushedRoute of ['ai.tsx', 'appointments.tsx', 'documents.tsx', 'reminders.tsx', 'settings.tsx', 'privacy-security.tsx']) {
       assert.ok(
         fs.existsSync(path.join(MOBILE_ROOT, 'src/app', pushedRoute)),
         `Missing pushed Stack screen: src/app/${pushedRoute}`,
@@ -172,7 +173,7 @@ describe('Stage 4 Milestone 1 — Stack/Tabs Separation, Predictive Back & Adapt
     assert.match(rootLayout, /unstable_settings\s*=\s*\{[\s\S]*anchor:\s*'\(tabs\)'/);
     assert.match(rootLayout, /<Stack\b/);
     assert.match(rootLayout, /<Stack\.Screen\s+name="\(tabs\)"/);
-    for (const pushedName of ['ai', 'appointments', 'documents', 'reminders', 'settings']) {
+    for (const pushedName of ['ai', 'appointments', 'documents', 'reminders', 'settings', 'privacy-security']) {
       assert.match(rootLayout, new RegExp(`<Stack\\.Screen\\s+name="${pushedName}"`));
     }
     assert.ok(rootLayout.includes('shouldOffsetSnackbarForBottomTabs'));
@@ -196,7 +197,7 @@ describe('Stage 4 Milestone 1 — Stack/Tabs Separation, Predictive Back & Adapt
   });
 
   it('equips every pushed secondary Stack screen with HeaderBackButton and removes BottomTabInset gaps', () => {
-    for (const screen of ['documents.tsx', 'appointments.tsx', 'reminders.tsx', 'ai.tsx', 'settings.tsx']) {
+    for (const screen of ['documents.tsx', 'appointments.tsx', 'reminders.tsx', 'ai.tsx', 'settings.tsx', 'privacy-security.tsx']) {
       const content = readMobileFile(`src/app/${screen}`);
       assert.ok(content.includes('<HeaderBackButton'), `${screen} must render HeaderBackButton`);
       assert.ok(!content.includes('BottomTabInset'), `${screen} should use safe-area bottom inset rather than BottomTabInset`);

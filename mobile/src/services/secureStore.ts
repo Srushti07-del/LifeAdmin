@@ -216,20 +216,6 @@ export const secureStorage = {
       console.warn('[SecureStore] Failed to set onboarding state:', error);
     }
   },
-
-  /**
-   * Checks whether onboarding is marked completed for the guest demo session.
-   */
-  async isGuestOnboardingCompleted(): Promise<boolean> {
-    return this.isOnboardingCompleted('guest');
-  },
-
-  /**
-   * Sets onboarding completion state for the guest demo session.
-   */
-  async setGuestOnboardingCompleted(completed: boolean = true): Promise<void> {
-    return this.setOnboardingCompleted('guest', completed);
-  },
 };
 
 export default secureStorage;

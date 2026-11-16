@@ -1,4 +1,4 @@
-﻿import { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
 import api from '../lib/api';
 import Modal from '../components/ui/Modal';
@@ -55,7 +55,7 @@ export default function TasksPage() {
   const [loading, setLoading] = useState(true);
   const [viewMode, setViewMode] = useState<'list' | 'board'>('list');
   const [searchQuery, setSearchQuery] = useState('');
-  const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [statusFilter, setStatusFilter] = useState<string>('todo');
   const [categoryFilter, setCategoryFilter] = useState<string>('all');
 
   // Form & Edit state
@@ -73,10 +73,8 @@ export default function TasksPage() {
 
   const fetchTasks = async () => {
     try {
-      const params: Record<string, string> = { sort: 'dueDate' };
-      if (statusFilter !== 'all') params.status = statusFilter;
-      const res = await api.get('/tasks', { params });
-      setTasks(sortTasksByStatusThenDue(res.data.tasks));
+      const res = await api.get('/tasks', { params: { sort: 'dueDate', limit: 300 } });
+      setTasks(sortTasksByStatusThenDue(res.data.tasks || []));
     } catch (err) {
       console.error('Failed to fetch tasks:', err);
     } finally {
@@ -86,7 +84,7 @@ export default function TasksPage() {
 
   useEffect(() => {
     fetchTasks();
-  }, [statusFilter]);
+  }, []);
 
   const handleOpenCreate = () => {
     setEditingId(null);
@@ -169,11 +167,34 @@ export default function TasksPage() {
     return { text: date.toLocaleDateString('en-IN', { month: 'short', day: 'numeric' }), className: 'text-surface-400' };
   };
 
+  // Check if task is overdue
+  const isTaskOverdue = (task: Task) => {
+    if (task.status === 'completed' || !task.dueDate) return false;
+    const target = new Date(task.dueDate);
+    target.setHours(0, 0, 0, 0);
+    const now = new Date();
+    now.setHours(0, 0, 0, 0);
+    return target.getTime() < now.getTime();
+  };
+
   // Extract unique categories
   const categories = ['all', ...Array.from(new Set(tasks.map((t) => t.category)))];
 
-  // Filter tasks
+  // Dynamic filter counts
+  const taskCounts = {
+    all: tasks.length,
+    todo: tasks.filter((t) => t.status === 'todo').length,
+    in_progress: tasks.filter((t) => t.status === 'in_progress').length,
+    overdue: tasks.filter((t) => isTaskOverdue(t)).length,
+    completed: tasks.filter((t) => t.status === 'completed').length,
+  };
+
+  // Filter tasks for list mode
   const filteredTasks = tasks.filter((task) => {
+    if (statusFilter === 'todo' && task.status !== 'todo') return false;
+    if (statusFilter === 'in_progress' && task.status !== 'in_progress') return false;
+    if (statusFilter === 'overdue' && !isTaskOverdue(task)) return false;
+    if (statusFilter === 'completed' && task.status !== 'completed') return false;
     const matchesSearch = task.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
       (task.description && task.description.toLowerCase().includes(searchQuery.toLowerCase()));
     const matchesCategory = categoryFilter === 'all' || task.category === categoryFilter;
@@ -258,21 +279,31 @@ export default function TasksPage() {
         {/* Status Filters */}
         <div className="flex items-center gap-1.5 overflow-x-auto pb-1">
           {[
-            { value: 'all', label: 'All' },
-            { value: 'todo', label: 'To Do' },
-            { value: 'in_progress', label: 'In Progress' },
-            { value: 'completed', label: 'Completed' },
+            { value: 'todo', label: 'To Do', count: taskCounts.todo },
+            { value: 'in_progress', label: 'In Progress', count: taskCounts.in_progress },
+            { value: 'overdue', label: 'Overdue', count: taskCounts.overdue },
+            { value: 'completed', label: 'Completed', count: taskCounts.completed },
+            { value: 'all', label: 'All', count: taskCounts.all },
           ].map((f) => (
             <button
               key={f.value}
               onClick={() => setStatusFilter(f.value)}
-              className={`px-3 py-1.5 rounded-xl text-xs font-medium whitespace-nowrap transition-colors ${
+              className={`px-3 py-1.5 rounded-xl text-xs font-medium whitespace-nowrap transition-colors flex items-center gap-1.5 ${
                 statusFilter === f.value
                   ? 'bg-primary-600 dark:bg-primary-500 text-white dark:text-[#101719] font-semibold shadow-xs'
                   : 'bg-surface-100 dark:bg-surface-800 text-surface-700 dark:text-surface-200 hover:bg-surface-200 dark:hover:bg-surface-700'
               }`}
             >
-              {f.label}
+              <span>{f.label}</span>
+              <span
+                className={`text-[10px] px-1.5 py-0.2 rounded-full ${
+                  statusFilter === f.value
+                    ? 'bg-white/20 dark:bg-black/20 text-white dark:text-[#101719]'
+                    : 'bg-surface-200 dark:bg-surface-700 text-surface-500 dark:text-surface-300'
+                }`}
+              >
+                {f.count}
+              </span>
             </button>
           ))}
         </div>
@@ -391,7 +422,13 @@ export default function TasksPage() {
       {viewMode === 'board' && (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           {(['todo', 'in_progress', 'completed'] as const).map((colStatus) => {
-            const colTasks = filteredTasks.filter((t) => t.status === colStatus);
+            const colTasks = tasks.filter((task) => {
+              if (task.status !== colStatus) return false;
+              const matchesSearch = task.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                (task.description && task.description.toLowerCase().includes(searchQuery.toLowerCase()));
+              const matchesCategory = categoryFilter === 'all' || task.category === categoryFilter;
+              return matchesSearch && matchesCategory;
+            });
             const colTitles = {
               todo: { label: 'To Do', icon: Circle, color: 'text-surface-300' },
               in_progress: { label: 'In Progress', icon: Clock, color: 'text-teal-600 dark:text-teal-400' },

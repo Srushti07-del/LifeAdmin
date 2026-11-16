@@ -39,7 +39,7 @@ interface MenuSection {
 export default function MoreScreen() {
   const { colors, isDark, themePreference, setThemePreference } = useAppTheme();
   const bottomPadding = useSafeBottomPadding(Spacing.eight, true);
-  const { user, isGuest, logout, exitGuest, restartOnboarding, updateUser } = useAuth();
+  const { user, logout, restartOnboarding, updateUser } = useAuth();
   const router = useRouter();
   const [isSanctuaryVisible, setIsSanctuaryVisible] = useState(false);
 
@@ -49,8 +49,7 @@ export default function MoreScreen() {
     try {
       const { user: remoteUser } = await settingsService.savePreferences(
         { theme: next },
-        user?.id,
-        isGuest
+        user?.id
       );
       if (remoteUser) {
         await updateUser(remoteUser);
@@ -77,21 +76,6 @@ export default function MoreScreen() {
     );
   };
 
-  const handleExitGuest = () => {
-    Alert.alert(
-      'Exit Demo Session',
-      'This will end your temporary guest session and purge seeded demo data from the server.',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Exit & Clear Data',
-          style: 'destructive',
-          onPress: () => exitGuest(),
-        },
-      ]
-    );
-  };
-
   const menuSections: MenuSection[] = [
     {
       title: 'Features',
@@ -102,13 +86,6 @@ export default function MoreScreen() {
           icon: 'favorite',
           desc: 'Virtual positive reinforcement companions',
           action: () => setIsSanctuaryVisible(true),
-        },
-        {
-          label: 'AI Assistant',
-          iosIcon: 'sparkles',
-          icon: 'smart_toy',
-          desc: 'Planning and intelligent summaries',
-          action: () => router.push('/ai' as any),
         },
       ],
     },
@@ -145,7 +122,7 @@ export default function MoreScreen() {
           label: 'Settings & Profile',
           iosIcon: 'gearshape.fill',
           icon: 'settings',
-          desc: 'Profile, currency, categories, notifications & security',
+          desc: 'Profile, appearance, currency, categories & notifications',
           action: () => router.push('/settings' as any),
         },
         {
@@ -177,7 +154,7 @@ export default function MoreScreen() {
           iosIcon: 'checkmark.shield.fill',
           icon: 'verified_user',
           desc: 'Password recovery, JSON backup & account controls',
-          action: () => router.push('/settings' as any),
+          action: () => router.push('/privacy-security' as any),
         },
       ],
     },
@@ -235,31 +212,6 @@ export default function MoreScreen() {
                 <ThemedText style={[styles.userName, { color: colors.text }]}>
                   {user?.name || 'LifeAdmin User'}
                 </ThemedText>
-                {isGuest && (
-                  <View
-                    style={[
-                      styles.guestBadge,
-                      {
-                        backgroundColor: isDark
-                          ? Colors.urgency.dueSoon.darkBg
-                          : Colors.urgency.dueSoon.lightBg,
-                      },
-                    ]}
-                  >
-                    <ThemedText
-                      style={[
-                        styles.guestBadgeText,
-                        {
-                          color: isDark
-                            ? Colors.urgency.dueSoon.darkText
-                            : Colors.urgency.dueSoon.lightText,
-                        },
-                      ]}
-                    >
-                      Demo Guest
-                    </ThemedText>
-                  </View>
-                )}
               </View>
 
               <ThemedText style={[styles.userEmail, { color: colors.textSecondary }]}>
@@ -367,9 +319,9 @@ export default function MoreScreen() {
           {/* Quiet account footer */}
           <View style={styles.accountFooter}>
             <Pressable
-              onPress={isGuest ? handleExitGuest : handleLogout}
+              onPress={handleLogout}
               accessibilityRole="button"
-              accessibilityLabel={isGuest ? 'Exit Guest Demo' : 'Sign Out'}
+              accessibilityLabel="Sign Out"
               hitSlop={8}
               style={({ pressed }) => [
                 styles.signOutButton,
@@ -407,13 +359,11 @@ export default function MoreScreen() {
                   },
                 ]}
               >
-                {isGuest ? 'Exit Guest Demo' : 'Sign Out'}
+                Sign Out
               </ThemedText>
             </Pressable>
             <ThemedText style={[styles.accountCaption, { color: colors.textMuted }]}>
-              {isGuest
-                ? 'Ends the demo and clears temporary server data'
-                : `Signed in as ${user?.email || 'User'}`}
+              {`Signed in as ${user?.email || 'User'}`}
             </ThemedText>
           </View>
         </ScrollView>

@@ -46,18 +46,81 @@ export const QUIET_HOURS_PRESETS: QuietHoursPreset[] = [
   { id: '21-06', label: '9:00 PM – 6:00 AM', start: '21:00', end: '06:00' },
 ];
 
+export const INTERVAL_OPTIONS = [
+  { minutes: 1440, label: '1 day before' },
+  { minutes: 60, label: '1 hour before' },
+  { minutes: 15, label: '15 mins before' },
+  { minutes: 0, label: 'At scheduled time' },
+];
+
+export const DEFAULT_NOTIFICATION_TYPES = {
+  tasks: true,
+  bills: true,
+  appointments: true,
+  reminders: true,
+};
+
+export const TIMEZONE_OPTIONS = [
+  { value: 'UTC', label: 'UTC' },
+  { value: 'Asia/Kolkata', label: 'India (IST)' },
+  { value: 'Asia/Dubai', label: 'Gulf Standard Time (GST)' },
+  { value: 'Asia/Singapore', label: 'Singapore Time (SGT)' },
+  { value: 'Asia/Tokyo', label: 'Japan Standard Time (JST)' },
+  { value: 'Australia/Sydney', label: 'Australian Eastern Time (AET)' },
+  { value: 'Europe/London', label: 'Greenwich Mean Time (GMT)' },
+  { value: 'Europe/Berlin', label: 'Central European Time (CET)' },
+  { value: 'America/New_York', label: 'Eastern Time (ET)' },
+  { value: 'America/Chicago', label: 'Central Time (CT)' },
+  { value: 'America/Denver', label: 'Mountain Time (MT)' },
+  { value: 'America/Los_Angeles', label: 'Pacific Time (PT)' },
+];
+
+// Convert "HH:mm" (24h) to "h:mm AM/PM" (12h)
+export function format12h(time24: string): string {
+  if (!time24 || typeof time24 !== 'string') return '';
+  const [hStr, mStr] = time24.split(':');
+  const h = parseInt(hStr, 10);
+  const m = parseInt(mStr, 10);
+  if (isNaN(h) || isNaN(m)) return time24;
+  const ampm = h >= 12 ? 'PM' : 'AM';
+  const h12 = h % 12 || 12;
+  return `${h12}:${m.toString().padStart(2, '0')} ${ampm}`;
+}
+
+// Convert "h:mm AM/PM" (12h) to "HH:mm" (24h)
+export function format24h(time12: string): string | null {
+  if (!time12 || typeof time12 !== 'string') return null;
+  const match = time12.trim().match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
+  if (!match) return null;
+  let h = parseInt(match[1], 10);
+  const m = parseInt(match[2], 10);
+  const ampm = match[3].toUpperCase();
+  if (h < 1 || h > 12 || m > 59) return null;
+  if (ampm === 'PM' && h < 12) h += 12;
+  if (ampm === 'AM' && h === 12) h = 0;
+  return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`;
+}
+
+export function isValidTime12h(time: string): boolean {
+  return format24h(time) !== null;
+}
+
 export const DEFAULT_SETTINGS_PREFERENCES: SettingsPreferences = {
   theme: 'system',
   notificationsEnabled: true,
   defaultReminderTiming: [7, 3, 1, 0],
   quietHoursStart: '',
   quietHoursEnd: '',
+  quietHoursEnabled: false,
   categories: [...SENSIBLE_DEFAULT_CATEGORIES, 'Education', 'Home'],
   preferredCurrency: DEFAULT_CURRENCY,
   aiPreferences: {
     autoExtract: true,
     suggestionsEnabled: true,
   },
+  notificationTypes: { ...DEFAULT_NOTIFICATION_TYPES },
+  emailReminderIntervals: [1440, 60],
+  timezone: 'UTC',
 };
 
 export function isValidThemeMode(value: unknown): value is ThemeMode {
@@ -206,9 +269,18 @@ export function mergeSettingsPreferences(
     defaultReminderTiming?: unknown;
     quietHoursStart?: unknown;
     quietHoursEnd?: unknown;
+    quietHoursEnabled?: unknown;
     categories?: unknown;
     preferredCurrency?: unknown;
     aiPreferences?: { autoExtract?: unknown; suggestionsEnabled?: unknown };
+    notificationTypes?: {
+      tasks?: boolean;
+      bills?: boolean;
+      appointments?: boolean;
+      reminders?: boolean;
+    };
+    emailReminderIntervals?: unknown;
+    timezone?: unknown;
   } | null,
   localOverrides?: Partial<SettingsPreferences> | null,
   onboardingPrefs?: Partial<OnboardingPreferences> | null
@@ -272,18 +344,47 @@ export function mergeSettingsPreferences(
       ? user.aiPreferences.suggestionsEnabled
       : DEFAULT_SETTINGS_PREFERENCES.aiPreferences.suggestionsEnabled;
 
+  const notificationTypes = {
+    tasks: localOverrides?.notificationTypes?.tasks ?? user?.notificationTypes?.tasks ?? DEFAULT_NOTIFICATION_TYPES.tasks,
+    bills: localOverrides?.notificationTypes?.bills ?? user?.notificationTypes?.bills ?? DEFAULT_NOTIFICATION_TYPES.bills,
+    appointments: localOverrides?.notificationTypes?.appointments ?? user?.notificationTypes?.appointments ?? DEFAULT_NOTIFICATION_TYPES.appointments,
+    reminders: localOverrides?.notificationTypes?.reminders ?? user?.notificationTypes?.reminders ?? DEFAULT_NOTIFICATION_TYPES.reminders,
+  };
+
+  const emailReminderIntervals = Array.isArray(localOverrides?.emailReminderIntervals)
+    ? localOverrides.emailReminderIntervals
+    : Array.isArray(user?.emailReminderIntervals)
+    ? (user.emailReminderIntervals as number[])
+    : DEFAULT_SETTINGS_PREFERENCES.emailReminderIntervals || [1440, 60];
+
+  const timezone = typeof localOverrides?.timezone === 'string' && localOverrides.timezone
+    ? localOverrides.timezone
+    : typeof user?.timezone === 'string' && user.timezone
+    ? (user.timezone as string)
+    : DEFAULT_SETTINGS_PREFERENCES.timezone || 'UTC';
+
+  const quietHoursEnabled = typeof localOverrides?.quietHoursEnabled === 'boolean'
+    ? localOverrides.quietHoursEnabled
+    : typeof user?.quietHoursEnabled === 'boolean'
+    ? (user.quietHoursEnabled as boolean)
+    : Boolean(quietHours.quietHoursStart && quietHours.quietHoursEnd);
+
   return {
     theme,
     notificationsEnabled,
     defaultReminderTiming,
     quietHoursStart: quietHours.quietHoursStart,
     quietHoursEnd: quietHours.quietHoursEnd,
+    quietHoursEnabled,
     categories: Array.from(new Set(candidateCategories.map((c) => String(c).trim()).filter(Boolean))),
     preferredCurrency,
     aiPreferences: {
       autoExtract,
       suggestionsEnabled,
     },
+    notificationTypes,
+    emailReminderIntervals,
+    timezone,
   };
 }
 
@@ -317,7 +418,7 @@ export function getAccountModeInfo(
     isDemo?: boolean;
     createdAt?: string;
   } | null,
-  isGuest: boolean
+  isGuest: boolean = false
 ): AccountModeInfo {
   const effectiveGuest = Boolean(isGuest || user?.isDemo);
 

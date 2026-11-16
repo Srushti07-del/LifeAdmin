@@ -33,9 +33,9 @@ export const DEFAULT_FRESH_AGE_MS = 5 * 60 * 1000; // 5 minutes fresh window
  * Normalizes user ID to ensure cache isolation between distinct accounts.
  */
 export function normalizeCacheUserId(userId?: string | null): string {
-  if (!userId) return 'guest';
+  if (!userId) return 'default';
   const clean = userId.trim();
-  return clean || 'guest';
+  return clean || 'default';
 }
 
 /**

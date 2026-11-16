@@ -198,7 +198,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: Spacing.two,
     paddingVertical: Spacing.one,
-    paddingRight: Spacing.five,
+    paddingRight: Spacing.seven,
   },
   chip: {
     flexDirection: 'row',

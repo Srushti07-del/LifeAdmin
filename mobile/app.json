@@ -78,6 +78,7 @@
       "reactCompiler": true
     },
     "extra": {
+      "EXPO_PUBLIC_USE_RN_FETCH": "1",
       "router": {
         "asyncRoutes": {
           "web": true

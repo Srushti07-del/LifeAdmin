@@ -1,6 +1,6 @@
 /**
  * LifeAdmin Mobile Root Error Boundary
- * Expo Router convention: app/+error-boundary.tsx
+ * Rendered by Expo Router when unhandled exceptions occur in routes or layouts.
  * Catches unhandled render exceptions, prevents native process crashes,
  * and provides safe themed recovery actions without data loss or auth loops.
  */
@@ -46,7 +46,7 @@ export function ErrorBoundary({ error, retry }: ErrorBoundaryProps) {
 
   const handleReturnHome = () => {
     try {
-      router.replace('/(tabs)');
+      router.replace('/(tabs)' as any);
     } catch {
       // Safe fallback if navigation stack was invalidated
       retry().catch(() => {});

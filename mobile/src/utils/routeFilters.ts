@@ -35,6 +35,7 @@ export function parseTaskFilterParam(value?: string | string[]): TaskFilterMode 
 
 const VALID_BILL_FILTERS: ReadonlySet<BillFilterKey> = new Set([
   'all',
+  'unpaid',
   'upcoming',
   'paid',
   'overdue',
@@ -49,10 +50,11 @@ export function parseBillFilterParam(value?: string | string[]): BillFilterKey |
   return null;
 }
 
-export type ReminderFilterSelection = 'all' | ReminderSectionKey;
+export type ReminderFilterSelection = 'all' | 'active' | ReminderSectionKey;
 
 const VALID_REMINDER_SECTIONS: ReadonlySet<ReminderFilterSelection> = new Set([
   'all',
+  'active',
   'today',
   'upcoming',
   'overdue',

@@ -86,7 +86,7 @@ import { ApiError } from '@/types/api';
 
 export default function DashboardScreen() {
   const { colors, isDark } = useAppTheme();
-  const { user, isGuest, exitGuest, refreshUser } = useAuth();
+  const { user, refreshUser } = useAuth();
   const { showSnackbar } = useSnackbar();
   const router = useRouter();
   const bottomPadding = useSafeBottomPadding(Spacing.six, true);
@@ -134,11 +134,11 @@ export default function DashboardScreen() {
   }, [activePreset]);
   const visibleWidgets = useMemo(() => widgets.filter((w) => w.visible), [widgets]);
 
-  // Load saved dashboard layout whenever user or guest status changes
+  // Load saved dashboard layout whenever user changes
   useEffect(() => {
     let cancelled = false;
     (async () => {
-      const saved = await dashboardPreferencesService.loadWidgets(user?.id, isGuest);
+      const saved = await dashboardPreferencesService.loadWidgets(user?.id);
       if (!cancelled) {
         setWidgets(saved);
       }
@@ -146,7 +146,7 @@ export default function DashboardScreen() {
     return () => {
       cancelled = true;
     };
-  }, [user?.id, isGuest]);
+  }, [user?.id]);
 
   const loadDashboard = useCallback(
     async (isPullToRefresh = false) => {
@@ -335,7 +335,7 @@ export default function DashboardScreen() {
 
   const handleSaveWidgets = async (nextWidgets: WidgetConfig[]) => {
     setWidgets(nextWidgets);
-    await dashboardPreferencesService.saveWidgets(nextWidgets, user?.id, isGuest);
+    await dashboardPreferencesService.saveWidgets(nextWidgets, user?.id);
   };
 
   const handleCreateBill = async (formData: Partial<Bill>) => {
@@ -417,7 +417,7 @@ export default function DashboardScreen() {
             preferredCurrency={preferredCurrency}
             exchangeRates={exchangeRates}
             isLoadingOverview={loading}
-            sessionKey={user?.id || (isGuest ? 'guest' : 'anon')}
+            sessionKey={user?.id || 'default'}
             onPressItem={(type) => navigateToEntityRoute(type)}
           />
         );
@@ -469,8 +469,12 @@ export default function DashboardScreen() {
     }
   };
 
-  const totalUnreadCount = data
-    ? data.stats.overdueCount + data.stats.dueSoonCount + (data.reminders?.length || 0)
+  // Notification bell badge reflects action alerts requiring user intervention
+  // Matches the exact item count inside the Action Alerts modal sheet
+  const totalUnreadCount = data?.needsAttention
+    ? data.needsAttention.length
+    : data
+    ? data.stats.overdueCount + data.stats.dueSoonCount
     : 0;
 
   return (
@@ -508,53 +512,6 @@ export default function DashboardScreen() {
               onNotificationPress={() => setIsNotifSheetVisible(true)}
               onAvatarPress={() => router.push('/more' as any)}
             />
-
-            {/* Guest Demo Session Banner */}
-            {isGuest && (
-              <View
-                style={[
-                  styles.guestBanner,
-                  {
-                    backgroundColor: colors.primarySoft,
-                    borderColor: colors.border,
-                  },
-                ]}
-              >
-                <View style={styles.guestBannerLeft}>
-                  <SymbolView
-                    name={{ ios: 'sparkles', android: 'auto_awesome', web: 'auto_awesome' } as any}
-                    size={16}
-                    tintColor={colors.primary}
-                  />
-                  <ThemedText style={[styles.guestBannerText, { color: colors.text }]}>
-                    Guest Demo Session • Temporary workspace
-                  </ThemedText>
-                </View>
-                <Pressable
-                  onPress={() => {
-                    Alert.alert(
-                      'Exit Demo Session',
-                      'This will end your guest session and clear ephemeral demo data on the server.',
-                      [
-                        { text: 'Cancel', style: 'cancel' },
-                        {
-                          text: 'Exit Demo',
-                          style: 'destructive',
-                          onPress: () => exitGuest(),
-                        },
-                      ]
-                    );
-                  }}
-                  hitSlop={8}
-                  accessibilityRole="button"
-                  accessibilityLabel="Exit guest demo session"
-                >
-                  <ThemedText style={[styles.exitDemoBtn, { color: colors.notification }]}>
-                    Exit
-                  </ThemedText>
-                </Pressable>
-              </View>
-            )}
 
             {/* Quick Metrics Grid (2x2: Overdue, Due Soon, Upcoming, Alerts) */}
             {derivedStats && (

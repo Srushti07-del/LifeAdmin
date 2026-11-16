@@ -186,7 +186,7 @@ export function groupRemindersBySection(
  */
 export function filterAndSortReminders(
   reminders: Reminder[],
-  filterSection: string = 'all',
+  filterSection: string = 'active',
   category: string = 'all',
   priority: string = 'all',
   searchQuery: string = '',

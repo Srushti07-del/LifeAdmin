@@ -82,6 +82,10 @@ describe('Task Summary, Filtering, and Sorting', () => {
 
   it('filters by status, overdue, category, and search query cleanly', () => {
     assert.deepStrictEqual(
+      filterAndSortTasks(sample, { statusFilter: 'todo', referenceDate: REF_DATE }).map((t) => t._id),
+      ['1', '4']
+    );
+    assert.deepStrictEqual(
       filterAndSortTasks(sample, { statusFilter: 'overdue', referenceDate: REF_DATE }).map((t) => t._id),
       ['1']
     );

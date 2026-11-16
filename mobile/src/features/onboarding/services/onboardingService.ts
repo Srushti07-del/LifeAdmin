@@ -22,10 +22,7 @@ export const onboardingService = {
   /**
    * Checks whether onboarding has been completed for a user ID
    */
-  async isOnboardingCompleted(userId: string, isGuest: boolean = false): Promise<boolean> {
-    if (isGuest) {
-      return secureStorage.isGuestOnboardingCompleted();
-    }
+  async isOnboardingCompleted(userId: string): Promise<boolean> {
     return secureStorage.isOnboardingCompleted(userId);
   },
 
@@ -87,13 +84,12 @@ export const onboardingService = {
   },
 
   /**
-   * Completes onboarding: syncs preferences to backend (if registered),
+   * Completes onboarding: syncs preferences to backend (for authenticated accounts),
    * initializes the chosen LifeBuddy companion, and marks onboarding complete.
    */
   async completeOnboarding(
     userId: string,
-    prefs: OnboardingPreferences,
-    isGuest: boolean = false
+    prefs: OnboardingPreferences
   ): Promise<void> {
     // Ensure final categories default sensibly if empty
     const finalCategories =
@@ -116,26 +112,24 @@ export const onboardingService = {
       lastActiveDate: new Date().toISOString().split('T')[0],
     };
 
-    // 1. Sync onboarding completion and settings to backend for registered accounts
-    if (!isGuest) {
-      try {
-        await authService.completeOnboarding();
-      } catch (onboardingError) {
-        console.warn('[OnboardingService] Could not mark onboarding completed on backend:', onboardingError);
-      }
+    // 1. Sync onboarding completion and settings to backend
+    try {
+      await authService.completeOnboarding();
+    } catch (onboardingError) {
+      console.warn('[OnboardingService] Could not mark onboarding completed on backend:', onboardingError);
+    }
 
-      try {
-        await authService.updateSettings({
-          categories: finalPrefs.categories,
-          notificationsEnabled: finalPrefs.notificationsEnabled,
-          defaultReminderTiming: finalPrefs.defaultReminderTiming,
-          preferredCurrency: finalPrefs.preferredCurrency,
-          companion: companionInitialState,
-        });
-      } catch (networkError) {
-        // Graceful fallback: Network failure does not block local onboarding completion
-        console.warn('[OnboardingService] Could not sync settings to backend, saving locally:', networkError);
-      }
+    try {
+      await authService.updateSettings({
+        categories: finalPrefs.categories,
+        notificationsEnabled: finalPrefs.notificationsEnabled,
+        defaultReminderTiming: finalPrefs.defaultReminderTiming,
+        preferredCurrency: finalPrefs.preferredCurrency,
+        companion: companionInitialState,
+      });
+    } catch (networkError) {
+      // Graceful fallback: Network failure does not block local onboarding completion
+      console.warn('[OnboardingService] Could not sync settings to backend, saving locally:', networkError);
     }
 
     // 2. Initialize and persist selected LifeBuddy companion locally
@@ -146,12 +140,7 @@ export const onboardingService = {
     }
 
     // 3. Mark onboarding completed in hardware-backed SecureStore
-    if (isGuest) {
-      await secureStorage.setGuestOnboardingCompleted(true);
-      await secureStorage.setOnboardingCompleted(userId, true);
-    } else {
-      await secureStorage.setOnboardingCompleted(userId, true);
-    }
+    await secureStorage.setOnboardingCompleted(userId, true);
 
     // 4. Save final preferences copy
     await this.saveStoredPreferences(userId, finalPrefs);
@@ -161,7 +150,7 @@ export const onboardingService = {
    * Skips onboarding: applies sensible defaults without requiring manual selection.
    * Ensures returning users' existing saved preferences are never overwritten.
    */
-  async skipOnboarding(userId: string, isGuest: boolean = false): Promise<void> {
+  async skipOnboarding(userId: string): Promise<void> {
     const existing = await this.getStoredPreferences(userId);
     const hasExistingCategories = Boolean(
       existing && Array.isArray(existing.categories) && existing.categories.length > 0
@@ -170,7 +159,7 @@ export const onboardingService = {
       ? existing
       : DEFAULT_ONBOARDING_PREFERENCES;
 
-    await this.completeOnboarding(userId, prefsToApply, isGuest);
+    await this.completeOnboarding(userId, prefsToApply);
   },
 };
 

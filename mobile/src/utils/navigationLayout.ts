@@ -91,7 +91,7 @@ export function getSafeBottomInset({
 
 export const FAB_HEIGHT = 56;
 export const FAB_MARGIN = 16;
-export const FAB_SCROLL_CLEARANCE = 72;
+export const FAB_SCROLL_CLEARANCE = 96;
 export const FAB_SNACKBAR_CLEARANCE = 84;
 
 export interface FabBottomOffsetOptions {

@@ -167,7 +167,7 @@ export function formatAppointmentDate(dateInput: string | Date): string {
  */
 export function filterAndSortAppointments(
   appointments: Appointment[],
-  filter: AppointmentFilterKey = 'all',
+  filter: AppointmentFilterKey = 'upcoming',
   searchQuery: string = '',
   category?: string,
   sortKey: AppointmentSortKey = 'date'

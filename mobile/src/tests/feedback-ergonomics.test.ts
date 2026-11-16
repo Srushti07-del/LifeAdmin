@@ -262,10 +262,9 @@ describe('Stage 3 Alert Audit, Modal Host Portal, & Touch-Target Ergonomics', ()
     const allowedAlertFiles = new Set([
       'app/ai.tsx',
       'app/documents.tsx',
-      'app/(tabs)/index.tsx',
       'app/(tabs)/more.tsx',
+      'app/privacy-security.tsx',
       'app/reminders.tsx',
-      'app/settings.tsx',
       'features/appointments/components/AppointmentDetailsModal.tsx',
       'features/bills/components/BillDetailsModal.tsx',
       'features/calendar/components/CalendarItemDetailsModal.tsx',
@@ -288,9 +287,7 @@ describe('Stage 3 Alert Audit, Modal Host Portal, & Touch-Target Ergonomics', ()
     // Confirm remaining Alert.alert calls are confirmation dialogs (have multiple actions or confirm copy)
     assert.match(readMobileFile('src/app/ai.tsx'), /Confirm Bulk Creation/);
     assert.match(readMobileFile('src/app/documents.tsx'), /Delete Document/);
-    assert.match(readMobileFile('src/app/(tabs)/index.tsx'), /Exit Demo Session/);
-    assert.match(readMobileFile('src/app/settings.tsx'), /Exit Guest Demo Session/);
-    assert.match(readMobileFile('src/app/settings.tsx'), /Alert\.alert\('Sign Out'/);
+    assert.match(readMobileFile('src/app/privacy-security.tsx'), /Alert\.alert\('Sign Out'/);
     assert.match(readMobileFile('src/app/(tabs)/more.tsx'), /Alert\.alert\(\s*'Sign Out'/);
     assert.match(readMobileFile('src/app/reminders.tsx'), /"Delete Reminder"/);
   });
