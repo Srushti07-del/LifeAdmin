@@ -345,5 +345,32 @@ describe('Dashboard StatsOverview, StatCard, QuickActions & Module FAB Wiring', 
     assert.ok(readMobileFile('src/app/appointments.tsx').includes('parseAppointmentFilterParam'));
     assert.ok(readMobileFile('src/app/reminders.tsx').includes('parseReminderSectionParam'));
   });
+
+  it('anchors notification bell badge to top-right corner with 99+ support and maintains action alerts vs reminders distinction', () => {
+    const header = readMobileFile('src/features/dashboard/components/DashboardHeader.tsx');
+    assert.match(header, /overflow:\s*'visible'/);
+    assert.match(header, /top:\s*-2/);
+    assert.match(header, /right:\s*-2/);
+    assert.match(header, /unreadCount\s*>\s*99\s*\?\s*'99\+'\s*:\s*unreadCount/);
+
+    const index = readMobileFile('src/app/(tabs)/index.tsx');
+    // Notification bell count represents action alerts from needsAttention
+    assert.ok(index.includes('totalUnreadCount = data?.needsAttention'));
+    assert.ok(!index.includes('data.stats.overdueCount + data.stats.dueSoonCount + (data.reminders?.length || 0)'));
+  });
+
+  it('guarantees FilterBar edge reachability with generous end spacing across Tasks, Bills, and Appointments', () => {
+    const filterBar = readMobileFile('src/components/ui/FilterBar.tsx');
+    assert.match(filterBar, /paddingRight:\s*Spacing\.seven/);
+
+    const tasks = readMobileFile('src/app/(tabs)/tasks.tsx');
+    assert.match(tasks, /marginHorizontal:\s*-Spacing\.four/);
+
+    const bills = readMobileFile('src/app/(tabs)/bills.tsx');
+    assert.match(bills, /marginHorizontal:\s*-Spacing\.four/);
+
+    const appointments = readMobileFile('src/app/appointments.tsx');
+    assert.match(appointments, /marginHorizontal:\s*-Spacing\.four/);
+  });
 });
 

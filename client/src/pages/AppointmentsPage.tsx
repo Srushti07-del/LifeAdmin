@@ -1,4 +1,4 @@
-﻿import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import api from '../lib/api';
 import Modal from '../components/ui/Modal';
 import {
@@ -29,6 +29,7 @@ export default function AppointmentsPage() {
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
+  const [statusFilter, setStatusFilter] = useState<'upcoming' | 'today' | 'past' | 'all'>('upcoming');
   const [searchQuery, setSearchQuery] = useState('');
   const [formData, setFormData] = useState({
     title: '',
@@ -96,12 +97,70 @@ export default function AppointmentsPage() {
     return d.toLocaleDateString('en-IN', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' });
   };
 
-  const filtered = appointments.filter(
-    (a) =>
-      a.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (a.relatedPerson && a.relatedPerson.toLowerCase().includes(searchQuery.toLowerCase())) ||
-      (a.location && a.location.toLowerCase().includes(searchQuery.toLowerCase()))
-  );
+  const isAppointmentToday = (dateStr: string) => {
+    if (!dateStr) return false;
+    const target = new Date(dateStr);
+    if (isNaN(target.getTime())) return false;
+    const now = new Date();
+    return (
+      target.getFullYear() === now.getFullYear() &&
+      target.getMonth() === now.getMonth() &&
+      target.getDate() === now.getDate()
+    );
+  };
+
+  const isAppointmentUpcoming = (dateStr: string, timeStr?: string) => {
+    if (!dateStr) return false;
+    const target = new Date(dateStr);
+    if (isNaN(target.getTime())) return false;
+    const now = new Date();
+    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const targetStart = new Date(target.getFullYear(), target.getMonth(), target.getDate());
+
+    if (targetStart.getTime() > todayStart.getTime()) return true;
+    if (targetStart.getTime() === todayStart.getTime()) {
+      if (!timeStr) return true;
+      const [hours, minutes] = timeStr.split(':').map((s) => parseInt(s, 10));
+      if (isNaN(hours)) return true;
+      const currentMinutes = now.getHours() * 60 + now.getMinutes();
+      const apptMinutes = hours * 60 + (minutes || 0);
+      return apptMinutes >= currentMinutes;
+    }
+    return false;
+  };
+
+  const isAppointmentPast = (dateStr: string, timeStr?: string) => {
+    return !isAppointmentUpcoming(dateStr, timeStr);
+  };
+
+  const appointmentCounts = useMemo(() => {
+    return {
+      upcoming: appointments.filter((a) => isAppointmentUpcoming(a.date, a.time)).length,
+      today: appointments.filter((a) => isAppointmentToday(a.date)).length,
+      past: appointments.filter((a) => isAppointmentPast(a.date, a.time)).length,
+      all: appointments.length,
+    };
+  }, [appointments]);
+
+  const filtered = useMemo(() => {
+    return appointments.filter((a) => {
+      if (statusFilter === 'today' && !isAppointmentToday(a.date)) return false;
+      if (statusFilter === 'upcoming' && !isAppointmentUpcoming(a.date, a.time)) return false;
+      if (statusFilter === 'past' && !isAppointmentPast(a.date, a.time)) return false;
+
+      const q = searchQuery.trim().toLowerCase();
+      if (q) {
+        const matchesSearch =
+          a.title.toLowerCase().includes(q) ||
+          (a.relatedPerson && a.relatedPerson.toLowerCase().includes(q)) ||
+          (a.location && a.location.toLowerCase().includes(q)) ||
+          (a.category && a.category.toLowerCase().includes(q)) ||
+          (a.notes && a.notes.toLowerCase().includes(q));
+        if (!matchesSearch) return false;
+      }
+      return true;
+    });
+  }, [appointments, statusFilter, searchQuery]);
 
   if (loading) {
     return (
@@ -135,16 +194,49 @@ export default function AppointmentsPage() {
         </button>
       </div>
 
-      {/* Search Input */}
-      <div className="relative max-w-md">
-        <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-surface-400 pointer-events-none" />
-        <input
-          type="text"
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          placeholder="Search by title, person, or location..."
-          className="w-full pl-10 pr-4 py-2 text-xs rounded-xl border border-surface-200 dark:border-surface-700 bg-white dark:bg-surface-0 text-surface-900 dark:text-surface-100 placeholder:text-surface-400 focus:outline-none focus:ring-1 focus:ring-primary-500"
-        />
+      {/* Search & Filter Bar */}
+      <div className="flex flex-col sm:flex-row gap-3">
+        <div className="relative flex-1">
+          <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-surface-400 pointer-events-none" />
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Search by title, person, or location..."
+            className="w-full pl-10 pr-4 py-2 text-xs rounded-xl border border-surface-200 dark:border-surface-700 bg-white dark:bg-surface-0 text-surface-900 dark:text-surface-100 placeholder:text-surface-400 focus:outline-none focus:ring-1 focus:ring-primary-500"
+          />
+        </div>
+
+        {/* Status Filters */}
+        <div className="flex items-center gap-1.5 overflow-x-auto pb-1">
+          {[
+            { value: 'upcoming', label: 'Upcoming', count: appointmentCounts.upcoming },
+            { value: 'today', label: 'Today', count: appointmentCounts.today },
+            { value: 'past', label: 'Past', count: appointmentCounts.past },
+            { value: 'all', label: 'All', count: appointmentCounts.all },
+          ].map((f) => (
+            <button
+              key={f.value}
+              onClick={() => setStatusFilter(f.value as any)}
+              className={`px-3 py-1.5 rounded-xl text-xs font-medium whitespace-nowrap transition-colors flex items-center gap-1.5 ${
+                statusFilter === f.value
+                  ? 'bg-primary-600 dark:bg-primary-500 text-white dark:text-[#101719] font-semibold shadow-xs'
+                  : 'bg-surface-100 dark:bg-surface-800 text-surface-700 dark:text-surface-200 hover:bg-surface-200 dark:hover:bg-surface-700'
+              }`}
+            >
+              <span>{f.label}</span>
+              <span
+                className={`text-[10px] px-1.5 py-0.2 rounded-full ${
+                  statusFilter === f.value
+                    ? 'bg-white/20 dark:bg-black/20 text-white dark:text-[#101719]'
+                    : 'bg-surface-200 dark:bg-surface-700 text-surface-500 dark:text-surface-300'
+                }`}
+              >
+                {f.count}
+              </span>
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* Appointment Cards List */}

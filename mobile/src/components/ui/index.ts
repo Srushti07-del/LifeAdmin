@@ -20,5 +20,6 @@ export * from './DatePickerField';
 export * from './TimePickerField';
 export * from './FloatingActionButton';
 export * from './OfflineBanner';
+export * from './ErrorBoundary';
 export * from './collapsible';
 

@@ -21,14 +21,12 @@ interface ForgotPasswordModalProps {
   visible: boolean;
   onClose: () => void;
   onGoToRegister: () => void;
-  onGoToGuest: () => void;
 }
 
 export function ForgotPasswordModal({
   visible,
   onClose,
   onGoToRegister,
-  onGoToGuest,
 }: ForgotPasswordModalProps) {
   const { colors, isDark } = useAppTheme();
 
@@ -86,7 +84,7 @@ export function ForgotPasswordModal({
               • <ThemedText style={{ fontFamily: Typography.fontFamilies.sansSemiBold }}>Self-hosted instance:</ThemedText> Reset your password in your MongoDB cluster or contact your administrator.
             </ThemedText>
             <ThemedText style={[styles.bullet, { color: colors.text, marginTop: Spacing.two }]}>
-              • <ThemedText style={{ fontFamily: Typography.fontFamilies.sansSemiBold }}>Immediate access:</ThemedText> You can create a new free account or explore all features in Guest Demo mode.
+              • <ThemedText style={{ fontFamily: Typography.fontFamilies.sansSemiBold }}>Immediate access:</ThemedText> You can create a new free account to start with a fresh workspace.
             </ThemedText>
           </View>
 
@@ -95,7 +93,7 @@ export function ForgotPasswordModal({
             <Pressable
               onPress={() => {
                 onClose();
-                onGoToGuest();
+                onGoToRegister();
               }}
               style={({ pressed }) => [
                 styles.primaryBtn,
@@ -109,25 +107,6 @@ export function ForgotPasswordModal({
                   { color: getButtonForegroundColor('primary', colors, isDark) },
                 ]}
               >
-                Try Guest Demo Mode
-              </ThemedText>
-            </Pressable>
-
-            <Pressable
-              onPress={() => {
-                onClose();
-                onGoToRegister();
-              }}
-              style={({ pressed }) => [
-                styles.secondaryBtn,
-                {
-                  backgroundColor: colors.surfaceSecondary,
-                  borderColor: colors.border,
-                },
-                pressed && { opacity: 0.85 },
-              ]}
-            >
-              <ThemedText style={[styles.secondaryBtnText, { color: colors.text }]}>
                 Create New Account
               </ThemedText>
             </Pressable>

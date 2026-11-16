@@ -55,7 +55,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     try {
       await secureStorage.clearSession();
-      await offlineCache.clearUserCache(user?.id || 'guest');
+      await offlineCache.clearUserCache(user?.id || 'default');
     } catch (e) {
       console.warn('Error clearing secure storage session:', e);
     } finally {
@@ -66,20 +66,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setIsOnboardingCompleted(true);
     }
   }, [user?.id, resetToUnauthenticatedTheme]);
-
-  /**
-   * Exit ephemeral demo/guest session: cleans up demo data on server, clears guest caches, then logs out
-   */
-  const exitGuest = useCallback(async () => {
-    try {
-      await authService.exitGuestSession();
-    } catch (e) {
-      console.warn('Server-side demo session cleanup failed:', e);
-    } finally {
-      await settingsService.clearUserScopedData(user?.id, true, true).catch(() => {});
-      await logout();
-    }
-  }, [logout, user?.id]);
 
   /**
    * Updates the active user in React state and persistent encrypted cache
@@ -117,7 +103,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
    */
   const deleteAccount = useCallback(async () => {
     const activeUserId = user?.id;
-    const isDemoUser = Boolean(user?.isDemo);
 
     await settingsService.deleteAccount();
 
@@ -127,7 +112,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       } else {
         await notificationService.clearAllUserSchedules();
       }
-      await settingsService.clearUserScopedData(activeUserId, isDemoUser, true);
+      await settingsService.clearUserScopedData(activeUserId, false, true);
       await secureStorage.clearSession();
     } finally {
       await resetToUnauthenticatedTheme().catch(() => {});
@@ -136,7 +121,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setUser(null);
       setIsOnboardingCompleted(true);
     }
-  }, [user?.id, user?.isDemo, resetToUnauthenticatedTheme]);
+  }, [user?.id, resetToUnauthenticatedTheme]);
 
   /**
    * Refreshes user profile from the server
@@ -152,7 +137,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
         await applyUserTheme(
           res.user.id,
-          Boolean(res.user.isDemo),
+          false,
           res.user.theme,
           true
         );
@@ -183,10 +168,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         // Optionally load cached user first for immediate UI paint
         const cachedUser = await secureStorage.getCachedUser<User>();
         if (cachedUser && isMounted) {
+          if (cachedUser.isDemo) {
+            // Immediately purge legacy guest session and force clean login
+            await secureStorage.clearSession();
+            await resetToUnauthenticatedTheme().catch(() => {});
+            apiConfig.setAuthToken(null);
+            if (isMounted) {
+              setToken(null);
+              setUser(null);
+              setIsLoading(false);
+            }
+            return;
+          }
+
           setUser(cachedUser);
           await applyUserTheme(
             cachedUser.id,
-            Boolean(cachedUser.isDemo),
+            false,
             cachedUser.theme,
             false
           );
@@ -196,22 +194,34 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         try {
           const res = await authService.getCurrentUser();
           if (isMounted && res?.user) {
+            if (res.user.isDemo) {
+              // Reject legacy demo sessions and direct user to login
+              await secureStorage.clearSession();
+              await resetToUnauthenticatedTheme().catch(() => {});
+              apiConfig.setAuthToken(null);
+              if (isMounted) {
+                setToken(null);
+                setUser(null);
+                setIsLoading(false);
+              }
+              return;
+            }
+
             setUser(res.user);
             await secureStorage.setCachedUser(res.user);
             if (res.user.companion) {
               await companionService.saveCompanionState(res.user.id, res.user.companion, false);
             }
-            // Check onboarding completion status for hydrated session
-            const isGuestUser = Boolean(res.user.isDemo);
+            // Check onboarding completion status for authenticated session
             const isCompleted =
               res.user.onboardingCompleted === true ||
-              (await onboardingService.isOnboardingCompleted(res.user.id, isGuestUser));
+              (await onboardingService.isOnboardingCompleted(res.user.id));
             if (isMounted) {
               setIsOnboardingCompleted(isCompleted);
             }
             await applyUserTheme(
               res.user.id,
-              isGuestUser,
+              false,
               res.user.theme,
               true
             );
@@ -355,53 +365,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [applyUserTheme]);
 
   /**
-   * Start a guest demo session
-   */
-  const loginAsGuest = useCallback(async () => {
-    setIsAuthenticating(true);
-    setError(null);
-    try {
-      const response = await authService.loginAsGuest();
-      const { token: newToken, user: userData } = response;
-
-      await secureStorage.setToken(newToken);
-      await secureStorage.setCachedUser(userData);
-      apiConfig.setAuthToken(newToken);
-
-      if (userData.companion) {
-        await companionService.saveCompanionState(userData.id, userData.companion, false);
-      }
-
-      await applyUserTheme(userData.id, true, userData.theme, true);
-
-      const guestCompleted = await secureStorage.isGuestOnboardingCompleted();
-
-      setToken(newToken);
-      setUser(userData);
-      setIsOnboardingCompleted(guestCompleted);
-    } catch (err: any) {
-      const message =
-        err?.message ||
-        err?.details?.message ||
-        'Unable to start guest demo session.';
-      setError(message);
-      throw err;
-    } finally {
-      setIsAuthenticating(false);
-    }
-  }, [applyUserTheme]);
-
-  /**
    * Complete onboarding and transition to dashboard
    */
   const completeOnboarding = useCallback(async (prefs?: any) => {
     if (!user) return;
     try {
-      const isGuestUser = Boolean(user.isDemo);
       if (prefs) {
-        await onboardingService.completeOnboarding(user.id, prefs, isGuestUser);
+        await onboardingService.completeOnboarding(user.id, prefs);
       } else {
-        await onboardingService.skipOnboarding(user.id, isGuestUser);
+        await onboardingService.skipOnboarding(user.id);
       }
     } catch (err) {
       console.warn('Error completing onboarding:', err);
@@ -416,7 +388,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const skipOnboarding = useCallback(async () => {
     if (!user) return;
     try {
-      await onboardingService.skipOnboarding(user.id, Boolean(user.isDemo));
+      await onboardingService.skipOnboarding(user.id);
     } finally {
       setIsOnboardingCompleted(true);
     }
@@ -471,8 +443,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
-  const isGuest = useMemo(() => Boolean(user?.isDemo), [user?.isDemo]);
-
   const value = useMemo(
     () => ({
       user,
@@ -480,16 +450,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       isLoading,
       isAuthenticating,
       error,
-      isGuest,
       isOnboardingCompleted,
       completeOnboarding,
       skipOnboarding,
       restartOnboarding,
       login,
       register,
-      loginAsGuest,
       logout,
-      exitGuest,
       forgotPassword,
       resetPassword,
       clearError,
@@ -503,16 +470,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       isLoading,
       isAuthenticating,
       error,
-      isGuest,
       isOnboardingCompleted,
       completeOnboarding,
       skipOnboarding,
       restartOnboarding,
       login,
       register,
-      loginAsGuest,
       logout,
-      exitGuest,
       forgotPassword,
       resetPassword,
       clearError,

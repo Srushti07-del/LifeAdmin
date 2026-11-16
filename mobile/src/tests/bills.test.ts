@@ -105,7 +105,8 @@ describe('Dashboard Totals Calculation (calculateBillTotals)', () => {
 
   it('calculates totals correctly with single currency (INR)', () => {
     const now = new Date();
-    const dueThisMonthDate = new Date(now.getFullYear(), now.getMonth(), 15).toISOString();
+    const dueDay = now.getDate() >= 28 ? now.getDate() : Math.min(28, now.getDate() + 5);
+    const dueThisMonthDate = new Date(now.getFullYear(), now.getMonth(), dueDay, 23, 59, 59).toISOString();
     const overdueDate = new Date(now.getFullYear(), now.getMonth() - 1, 10).toISOString();
 
     const bills: Bill[] = [
@@ -132,6 +133,7 @@ describe('Dashboard Totals Calculation (calculateBillTotals)', () => {
     const totals = calculateBillTotals(bills, 'INR', exchangeRates);
 
     assert.strictEqual(totals.totalBillsCount, 3);
+    assert.strictEqual(totals.unpaidCount, 2);
     assert.strictEqual(totals.paidCount, 1);
     assert.strictEqual(totals.paidAmount, 1000);
     assert.strictEqual(totals.overdueCount, 1);
@@ -226,7 +228,15 @@ describe('Filtering, Searching & Sorting (filterAndSortBills)', () => {
     }),
   ];
 
-  it('filters by status: all, paid, overdue, upcoming', () => {
+  it('filters by status: unpaid (default), all, paid, overdue, upcoming', () => {
+    const def = filterAndSortBills(bills);
+    assert.strictEqual(def.length, 3);
+    assert.deepStrictEqual(def.map((b) => b._id).sort(), ['1', '3', '4']);
+
+    const unpaid = filterAndSortBills(bills, 'unpaid');
+    assert.strictEqual(unpaid.length, 3);
+    assert.deepStrictEqual(unpaid.map((b) => b._id).sort(), ['1', '3', '4']);
+
     const all = filterAndSortBills(bills, 'all');
     assert.strictEqual(all.length, 4);
 

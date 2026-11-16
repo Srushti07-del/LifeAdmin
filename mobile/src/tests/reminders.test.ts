@@ -244,7 +244,10 @@ describe('Multi-Criteria Filtering, Search & Sorting', () => {
     }),
   ];
 
-  it('filters by status section (active vs completed vs overdue vs today)', () => {
+  it('filters by status section (active [default] vs completed vs overdue vs today)', () => {
+    const def = filterAndSortReminders(sampleReminders, undefined, 'all', 'all', '', 'dueDate', referenceNow);
+    assert.strictEqual(def.length, 3);
+
     const activeOnly = filterAndSortReminders(sampleReminders, 'active', 'all', 'all', '', 'dueDate', referenceNow);
     assert.strictEqual(activeOnly.length, 3);
 

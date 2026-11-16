@@ -102,6 +102,7 @@ export function calculateBillTotals(
     pendingDueSoonAmount,
     overdueAmount,
     totalBillsCount: bills.length,
+    unpaidCount: overdue.length + upcoming.length,
     paidCount: paid.length,
     overdueCount: overdue.length,
     upcomingCount: upcoming.length,
@@ -114,7 +115,7 @@ export function calculateBillTotals(
  */
 export function filterAndSortBills(
   bills: Bill[],
-  filter: BillFilterKey = 'all',
+  filter: BillFilterKey = 'unpaid',
   searchQuery: string = '',
   sort: BillSortKey = 'dueDate',
   selectedCategory?: string
@@ -124,7 +125,9 @@ export function filterAndSortBills(
   let list = bills.filter((b) => {
     const ds = displayStatus(b);
 
-    if (filter === 'paid') {
+    if (filter === 'unpaid') {
+      if (b.paymentStatus === 'paid' || b.status === 'paid') return false;
+    } else if (filter === 'paid') {
       if (b.paymentStatus !== 'paid' && b.status !== 'paid') return false;
     } else if (filter === 'overdue') {
       if (ds.key !== 'overdue') return false;

@@ -6,7 +6,7 @@
 import { PaymentStatus, RecurrenceConfig } from '@/types/entities';
 import { CurrencyCode } from '@/utils/currency';
 
-export type BillFilterKey = 'all' | 'upcoming' | 'paid' | 'overdue';
+export type BillFilterKey = 'unpaid' | 'upcoming' | 'overdue' | 'paid' | 'all';
 export type BillSortKey = 'dueDate' | '-dueDate' | 'amount' | '-amount';
 
 export type BillDisplayStatusKey = 'paid' | 'overdue' | 'due_soon' | 'upcoming' | 'unpaid';
@@ -57,6 +57,7 @@ export interface BillTotals {
   pendingDueSoonAmount: number;
   overdueAmount: number;
   totalBillsCount: number;
+  unpaidCount: number;
   paidCount: number;
   overdueCount: number;
   upcomingCount: number;

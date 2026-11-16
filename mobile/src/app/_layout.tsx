@@ -33,18 +33,22 @@ import { AuthLoadingScreen } from '@/features/auth/screens/AuthLoadingScreen';
 import { usePasswordResetDeepLink } from '@/features/auth';
 import { OnboardingScreen } from '@/features/onboarding';
 import { notificationService } from '@/features/reminders/services/notificationService';
+import { ErrorBoundary } from '@/components/ui/ErrorBoundary';
+
+export { ErrorBoundary };
 
 SplashScreen.preventAutoHideAsync();
 
 export const unstable_settings = {
   anchor: '(tabs)',
+  screenErrorBoundary: ErrorBoundary,
 };
 
 function RootNavigator() {
   const router = useRouter();
   const { colors, isDark } = useAppTheme();
   const { width } = useWindowDimensions();
-  const { user, isLoading, isGuest, isOnboardingCompleted, completeOnboarding } = useAuth();
+  const { user, isLoading, isOnboardingCompleted, completeOnboarding } = useAuth();
   const pathname = usePathname();
   const params = useLocalSearchParams<{ token?: string }>();
   const hasBottomTabs = shouldOffsetSnackbarForBottomTabs(pathname, width, Platform.OS);
@@ -169,7 +173,6 @@ function RootNavigator() {
     mainContent = (
       <OnboardingScreen
         userId={user.id}
-        isGuest={isGuest}
         onComplete={completeOnboarding}
       />
     );
@@ -188,6 +191,7 @@ function RootNavigator() {
         <Stack.Screen name="documents" options={{ headerShown: false }} />
         <Stack.Screen name="reminders" options={{ headerShown: false }} />
         <Stack.Screen name="settings" options={{ headerShown: false }} />
+        <Stack.Screen name="privacy-security" options={{ headerShown: false }} />
         <Stack.Screen name="login" options={{ headerShown: false }} />
         <Stack.Screen name="register" options={{ headerShown: false }} />
         <Stack.Screen name="forgot-password" options={{ headerShown: false }} />

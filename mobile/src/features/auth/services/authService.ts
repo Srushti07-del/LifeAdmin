@@ -33,20 +33,6 @@ export const authService = {
   },
 
   /**
-   * Start an isolated 2-hour guest demo session with pre-seeded data
-   */
-  async loginAsGuest(): Promise<AuthResponse> {
-    return apiClient.post<AuthResponse>(Endpoints.auth.guest);
-  },
-
-  /**
-   * Terminate active guest session and purge its ephemeral database records
-   */
-  async exitGuestSession(): Promise<{ message: string }> {
-    return apiClient.delete<{ message: string }>(Endpoints.auth.exitGuest);
-  },
-
-  /**
    * Fetch currently authenticated user profile
    */
   async getCurrentUser(): Promise<{ user: User }> {
@@ -110,6 +96,17 @@ export const authService = {
       suggestionsEnabled?: boolean;
     };
     companion?: Partial<CompanionState>;
+    emailReminderIntervals?: number[];
+    timezone?: string;
+    quietHoursEnabled?: boolean;
+    quietHoursStart?: string;
+    quietHoursEnd?: string;
+    notificationTypes?: {
+      tasks: boolean;
+      bills: boolean;
+      appointments: boolean;
+      reminders: boolean;
+    };
   }): Promise<{ message: string; user: User }> {
     return apiClient.put<{ message: string; user: User }>(Endpoints.auth.updateSettings, settings);
   },

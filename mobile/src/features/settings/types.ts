@@ -18,12 +18,21 @@ export interface SettingsPreferences {
   defaultReminderTiming: number[];
   quietHoursStart: string;
   quietHoursEnd: string;
+  quietHoursEnabled?: boolean;
   categories: string[];
   preferredCurrency: CurrencyCode;
   aiPreferences: {
     autoExtract: boolean;
     suggestionsEnabled: boolean;
   };
+  notificationTypes?: {
+    tasks: boolean;
+    bills: boolean;
+    appointments: boolean;
+    reminders: boolean;
+  };
+  emailReminderIntervals?: number[];
+  timezone?: string;
 }
 
 export interface ValidationResult {

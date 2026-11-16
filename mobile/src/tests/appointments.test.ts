@@ -222,7 +222,10 @@ describe('Filtering, Searching, and Sorting', () => {
     }),
   ];
 
-  it('filters by status tab (all, today, upcoming, past)', () => {
+  it('filters by status tab (upcoming [default], all, today, past)', () => {
+    const def = filterAndSortAppointments(dataset);
+    assert.strictEqual(def.length, 2);
+
     const all = filterAndSortAppointments(dataset, 'all');
     assert.strictEqual(all.length, 3);
 

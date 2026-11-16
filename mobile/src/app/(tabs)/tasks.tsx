@@ -85,7 +85,7 @@ export default function TasksScreen() {
   const [error, setError] = useState<string | null>(null);
 
   const [viewMode, setViewMode] = useState<TaskViewMode>('list');
-  const [statusFilter, setStatusFilter] = useState<TaskFilterMode>('all');
+  const [statusFilter, setStatusFilter] = useState<TaskFilterMode>('todo');
   const [categoryFilter, setCategoryFilter] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [sortBy, setSortBy] = useState<TaskSortOption>('dueDate');
@@ -179,11 +179,11 @@ export default function TasksScreen() {
 
   const filterItems: FilterItem<TaskFilterMode>[] = useMemo(
     () => [
-      { value: 'all', label: 'All', count: summary.total },
       { value: 'todo', label: 'To Do', count: summary.todo },
       { value: 'in_progress', label: 'In Progress', count: summary.inProgress },
       { value: 'overdue', label: 'Overdue', count: summary.overdue },
       { value: 'completed', label: 'Completed', count: summary.completed },
+      { value: 'all', label: 'All', count: summary.total },
     ],
     [summary]
   );
@@ -456,6 +456,7 @@ export default function TasksScreen() {
             items={filterItems}
             selected={statusFilter}
             onSelect={setStatusFilter}
+            style={{ paddingHorizontal: Spacing.four }}
           />
         </View>
       ) : null}
@@ -710,6 +711,7 @@ const styles = StyleSheet.create({
   },
   filterBar: {
     marginBottom: Spacing.two,
+    marginHorizontal: -Spacing.four,
   },
   categoryRow: {
     flexDirection: 'row',

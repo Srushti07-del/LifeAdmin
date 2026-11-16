@@ -1,4 +1,4 @@
-﻿import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import api from '../lib/api';
 import Modal from '../components/ui/Modal';
@@ -39,7 +39,7 @@ interface Bill {
   notes?: string;
 }
 
-type FilterKey = 'all' | 'upcoming' | 'paid' | 'overdue';
+type FilterKey = 'unpaid' | 'upcoming' | 'paid' | 'overdue' | 'all';
 type SortKey = 'dueDate' | '-dueDate' | 'amount' | '-amount';
 
 interface BillForm {
@@ -118,7 +118,7 @@ export default function BillsPage() {
   const [bills, setBills] = useState<Bill[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [filter, setFilter] = useState<FilterKey>('all');
+  const [filter, setFilter] = useState<FilterKey>('unpaid');
   const [searchQuery, setSearchQuery] = useState('');
   const [sort, setSort] = useState<SortKey>('dueDate');
   const [showModal, setShowModal] = useState(false);
@@ -167,6 +167,7 @@ export default function BillsPage() {
     const q = searchQuery.trim().toLowerCase();
     let list = bills.filter((b) => {
       const ds = displayStatus(b);
+      if (filter === 'unpaid') return b.paymentStatus !== 'paid';
       if (filter === 'paid') return b.paymentStatus === 'paid';
       if (filter === 'overdue') return ds.key === 'overdue';
       if (filter === 'upcoming') return b.paymentStatus !== 'paid' && ds.key !== 'overdue';
@@ -192,6 +193,7 @@ export default function BillsPage() {
     const overdue = bills.filter((b) => b.paymentStatus !== 'paid' && displayStatus(b).key === 'overdue');
     const paid = bills.filter((b) => b.paymentStatus === 'paid');
     const dueThisMonth = bills.filter((b) => b.paymentStatus !== 'paid' && sameMonth(new Date(b.dueDate), now));
+    const unpaidCount = bills.filter((b) => b.paymentStatus !== 'paid').length;
     return {
       upcomingCount,
       overdueCount: overdue.length,
@@ -199,6 +201,7 @@ export default function BillsPage() {
       paidCount: paid.length,
       paidAmount: paid.reduce((s, b) => s + convertAmount(b.amount || 0, b.currency), 0),
       dueThisMonthAmount: dueThisMonth.reduce((s, b) => s + convertAmount(b.amount || 0, b.currency), 0),
+      unpaidCount,
     };
   }, [bills, exchangeRates, preferredCurrency]);
 
@@ -364,21 +367,31 @@ export default function BillsPage() {
         </div>
         <div className="flex items-center gap-1.5 overflow-x-auto pb-1">
           {([
-            { value: 'all', label: 'All' },
-            { value: 'upcoming', label: 'Upcoming' },
-            { value: 'paid', label: 'Paid' },
-            { value: 'overdue', label: 'Overdue' },
+            { value: 'unpaid', label: 'Unpaid', count: totals.unpaidCount },
+            { value: 'upcoming', label: 'Upcoming', count: totals.upcomingCount },
+            { value: 'overdue', label: 'Overdue', count: totals.overdueCount },
+            { value: 'paid', label: 'Paid', count: totals.paidCount },
+            { value: 'all', label: 'All', count: bills.length },
           ] as const).map((f) => (
             <button
               key={f.value}
               onClick={() => setFilter(f.value)}
-              className={`px-3 py-1.5 rounded-xl text-xs font-medium whitespace-nowrap transition-colors ${
+              className={`px-3 py-1.5 rounded-xl text-xs font-medium whitespace-nowrap transition-colors flex items-center gap-1.5 ${
                 filter === f.value
                   ? 'bg-primary-600 dark:bg-primary-500 text-white dark:text-[#101719] font-semibold shadow-xs'
                   : 'bg-surface-100 dark:bg-surface-800 text-surface-700 dark:text-surface-200 hover:bg-surface-200 dark:hover:bg-surface-700'
               }`}
             >
-              {f.label}
+              <span>{f.label}</span>
+              <span
+                className={`text-[10px] px-1.5 py-0.2 rounded-full ${
+                  filter === f.value
+                    ? 'bg-white/20 dark:bg-black/20 text-white dark:text-[#101719]'
+                    : 'bg-surface-200 dark:bg-surface-700 text-surface-500 dark:text-surface-300'
+                }`}
+              >
+                {f.count}
+              </span>
             </button>
           ))}
         </div>

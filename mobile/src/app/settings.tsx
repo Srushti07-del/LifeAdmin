@@ -1,17 +1,16 @@
 /**
- * LifeAdmin Mobile — Complete Settings & Profile Screen
- * Functional parity with client/src/pages/SettingsPage.tsx & native Android UX.
+ * LifeAdmin Mobile — Settings & Profile Screen
+ * Complete feature parity with LifeAdmin Web, synchronized via shared backend.
+ * Refined layout: zero visual jitter, predictable vertical flow, stable component heights.
  */
 
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
-  Alert,
   AppState,
   Linking,
   Pressable,
   RefreshControl,
   ScrollView,
-  Share,
   StyleSheet,
   Switch,
   View,
@@ -24,29 +23,27 @@ import { useAuth } from '@/context/AuthContext';
 import { useSnackbar } from '@/context/SnackbarContext';
 import { ThemedView } from '@/components/themed-view';
 import { ThemedText } from '@/components/themed-text';
-import { Button, HeaderBackButton, Input } from '@/components/ui';
+import { Button, HeaderBackButton, Input, ModalSheet } from '@/components/ui';
 import { Colors } from '@/constants/colors';
 import { Typography } from '@/constants/typography';
 import { Spacing, Radius } from '@/constants/spacing';
+import { useSafeBottomPadding } from '@/hooks/use-safe-bottom-padding';
 import { CURRENCIES, CurrencyCode } from '@/utils/currency';
-import { AVAILABLE_DOMAINS } from '@/features/onboarding/types';
-import { onboardingService } from '@/features/onboarding/services/onboardingService';
 import { notificationService, reminderService } from '@/features/reminders';
 import { ReminderPermissionStatus } from '@/features/reminders/types';
-import { authService } from '@/features/auth/services/authService';
 import {
-  ALERT_TIMING_OPTIONS,
   CurrencyPickerModal,
+  DEFAULT_NOTIFICATION_TYPES,
   DEFAULT_SETTINGS_PREFERENCES,
-  DeleteAccountModal,
-  PasswordSecurityModal,
+  INTERVAL_OPTIONS,
   QUIET_HOURS_PRESETS,
   SettingsPreferences,
   SettingsSectionCard,
   THEME_OPTIONS,
+  TIMEZONE_OPTIONS,
   ThemeMode,
   canRemoveCategory,
-  countExportRecords,
+  format12h,
   getAccountModeInfo,
   mergeSettingsPreferences,
   settingsService,
@@ -54,46 +51,45 @@ import {
   validateDisplayName,
 } from '@/features/settings';
 
-type SaveBannerState = {
-  tone: 'success' | 'error' | 'info';
-  text: string;
-} | null;
-
 export default function SettingsScreen() {
   const router = useRouter();
   const { colors, isDark, themePreference, activeTheme, setThemePreference } = useAppTheme();
-  const {
-    user,
-    isGuest,
-    logout,
-    exitGuest,
-    restartOnboarding,
-    refreshUser,
-    updateUser,
-    deleteAccount,
-  } = useAuth();
+  const { user, refreshUser, updateUser } = useAuth();
+  const { showSnackbar } = useSnackbar();
+  const bottomPadding = useSafeBottomPadding(Spacing.eight, false);
 
-  // Synchronized settings state
+  // Synchronized settings preferences state
   const [prefs, setPrefs] = useState<SettingsPreferences>(DEFAULT_SETTINGS_PREFERENCES);
   const [displayName, setDisplayName] = useState(user?.name || '');
   const [nameError, setNameError] = useState<string | null>(null);
   const [newCategory, setNewCategory] = useState('');
   const [categoryError, setCategoryError] = useState<string | null>(null);
 
+  // Notification types multi-select state
+  const [notificationTypes, setNotificationTypes] = useState({
+    tasks: user?.notificationTypes?.tasks ?? DEFAULT_NOTIFICATION_TYPES.tasks,
+    bills: user?.notificationTypes?.bills ?? DEFAULT_NOTIFICATION_TYPES.bills,
+    appointments: user?.notificationTypes?.appointments ?? DEFAULT_NOTIFICATION_TYPES.appointments,
+    reminders: user?.notificationTypes?.reminders ?? DEFAULT_NOTIFICATION_TYPES.reminders,
+  });
+
+  // Selected reminder intervals (in minutes)
+  const [reminderIntervals, setReminderIntervals] = useState<number[]>(
+    user?.emailReminderIntervals || [1440, 60]
+  );
+
+  // Timezone state
+  const [timezone, setTimezone] = useState(user?.timezone || 'UTC');
+  const [isTimezoneModalOpen, setIsTimezoneModalOpen] = useState(false);
+
   // Loading & status flags
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isSavingProfile, setIsSavingProfile] = useState(false);
   const [isSavingPrefs, setIsSavingPrefs] = useState(false);
   const [isSyncingNotifications, setIsSyncingNotifications] = useState(false);
-  const [isExporting, setIsExporting] = useState(false);
-  const [isDeletingAccount, setIsDeletingAccount] = useState(false);
-  const [deleteError, setDeleteError] = useState<string | null>(null);
-  const [banner, setBanner] = useState<SaveBannerState>(null);
 
   // Modals
   const [isCurrencyPickerOpen, setIsCurrencyPickerOpen] = useState(false);
-  const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false);
-  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
 
   // Native Android permission state
   const [permissions, setPermissions] = useState<ReminderPermissionStatus>({
@@ -103,38 +99,39 @@ export default function SettingsScreen() {
     canAskExactAlarm: true,
   });
 
-  const accountMode = useMemo(() => getAccountModeInfo(user, isGuest), [user, isGuest]);
-  const { showSnackbar } = useSnackbar();
-
-  const showBanner = useCallback((tone: 'success' | 'error' | 'info', text: string) => {
-    setBanner({ tone, text });
-  }, []);
+  const accountMode = useMemo(() => getAccountModeInfo(user), [user]);
 
   const refreshPermissions = useCallback(async () => {
     try {
       const status = await notificationService.getCombinedPermissionsAsync();
       setPermissions(status);
     } catch {
-      // Safe fallback handled in service
+      // Safe fallback
     }
   }, []);
 
   const hydrateSettings = useCallback(
     async (preferFreshUser: boolean = false) => {
-      const [localOverrides, onboardingPrefs] = await Promise.all([
-        preferFreshUser
-          ? Promise.resolve(null)
-          : settingsService.loadLocalPreferences(user?.id, isGuest),
-        user?.id ? onboardingService.getStoredPreferences(user.id) : Promise.resolve(null),
-      ]);
+      const localOverrides = preferFreshUser
+        ? null
+        : await settingsService.loadLocalPreferences(user?.id);
 
-      const merged = mergeSettingsPreferences(user, localOverrides, onboardingPrefs);
-      // Keep active UI themePreference as the visible selection when already initialized
+      const merged = mergeSettingsPreferences(user, localOverrides);
       merged.theme = themePreference;
       setPrefs(merged);
       setDisplayName(user?.name || '');
+
+      if (merged.notificationTypes) {
+        setNotificationTypes(merged.notificationTypes);
+      }
+      if (merged.emailReminderIntervals) {
+        setReminderIntervals(merged.emailReminderIntervals);
+      }
+      if (merged.timezone) {
+        setTimezone(merged.timezone);
+      }
     },
-    [user, isGuest, themePreference]
+    [user, themePreference]
   );
 
   useEffect(() => {
@@ -171,7 +168,7 @@ export default function SettingsScreen() {
     }
   };
 
-  // Generic helper to persist partial settings cleanly across local cache + onboarding + backend + AuthContext
+  // Helper to commit preference updates to local store + backend + AuthContext
   const commitPreferenceUpdate = async (
     updates: Partial<SettingsPreferences>,
     successMessage?: string
@@ -184,15 +181,18 @@ export default function SettingsScreen() {
         ...prefs.aiPreferences,
         ...(updates.aiPreferences || {}),
       },
+      notificationTypes: {
+        ...(prefs.notificationTypes || DEFAULT_NOTIFICATION_TYPES),
+        ...(updates.notificationTypes || {}),
+      },
     };
     setPrefs(optimistic);
     setIsSavingPrefs(true);
 
     try {
-      const { user: remoteUser, syncedRemotely } = await settingsService.savePreferences(
+      const { user: remoteUser } = await settingsService.savePreferences(
         updates,
-        user?.id,
-        isGuest
+        user?.id
       );
 
       const authPatch: Record<string, unknown> = {};
@@ -200,18 +200,14 @@ export default function SettingsScreen() {
       if (typeof updates.notificationsEnabled === 'boolean') {
         authPatch.notificationsEnabled = updates.notificationsEnabled;
       }
-      if (updates.defaultReminderTiming) {
-        authPatch.defaultReminderTiming = updates.defaultReminderTiming;
-      }
       if (updates.categories) authPatch.categories = updates.categories;
       if (updates.preferredCurrency) authPatch.preferredCurrency = updates.preferredCurrency;
       if (updates.aiPreferences) authPatch.aiPreferences = optimistic.aiPreferences;
-      if (typeof updates.quietHoursStart === 'string') {
-        authPatch.quietHoursStart = updates.quietHoursStart;
-      }
-      if (typeof updates.quietHoursEnd === 'string') {
-        authPatch.quietHoursEnd = updates.quietHoursEnd;
-      }
+      if (typeof updates.quietHoursStart === 'string') authPatch.quietHoursStart = updates.quietHoursStart;
+      if (typeof updates.quietHoursEnd === 'string') authPatch.quietHoursEnd = updates.quietHoursEnd;
+      if (updates.notificationTypes) authPatch.notificationTypes = updates.notificationTypes;
+      if (updates.emailReminderIntervals) authPatch.emailReminderIntervals = updates.emailReminderIntervals;
+      if (updates.timezone) authPatch.timezone = updates.timezone;
 
       if (remoteUser) {
         await updateUser(remoteUser);
@@ -220,25 +216,28 @@ export default function SettingsScreen() {
       }
 
       if (successMessage) {
-        showBanner(
-          syncedRemotely ? 'success' : 'info',
-          syncedRemotely ? successMessage : `${successMessage} (saved locally)`
-        );
+        showSnackbar({
+          variant: 'success',
+          title: 'Preferences Updated',
+          message: successMessage,
+          duration: 3500,
+        });
       }
     } catch (err: any) {
-      // ThemeContext preserves local unsynced override; surface honest sync status for non-theme errors too
-      if (updates.theme) {
-        showBanner('info', 'Theme updated on this device; server sync will retry when online.');
-      } else {
+      if (!updates.theme) {
         setPrefs(previous);
-        showBanner('error', err?.message || 'Could not sync setting changes. Please try again.');
+        showSnackbar({
+          variant: 'error',
+          title: 'Update Failed',
+          message: err?.message || 'Could not sync setting changes.',
+        });
       }
     } finally {
       setIsSavingPrefs(false);
     }
   };
 
-  // --- 1. PROFILE ---
+  // 1. Personal Information Handlers
   const normalizedInputName = displayName.trim().replace(/\s+/g, ' ');
   const isNameDirty = normalizedInputName !== (user?.name || '').trim();
 
@@ -255,105 +254,77 @@ export default function SettingsScreen() {
       const res = await settingsService.updateProfile({ name: check.normalized });
       setDisplayName(res.user?.name || check.normalized);
       await updateUser({ name: res.user?.name || check.normalized });
-      showBanner('success', res.message || 'Profile details updated.');
+      showSnackbar({
+        variant: 'success',
+        title: 'Profile Updated',
+        message: 'Your display name has been saved.',
+      });
     } catch (err: any) {
-      showBanner('error', err?.message || 'Failed to update profile.');
+      showSnackbar({
+        variant: 'error',
+        title: 'Profile Update Failed',
+        message: err?.message || 'Failed to update profile.',
+      });
     } finally {
       setIsSavingProfile(false);
     }
   };
 
-  // --- 2. PERSONAL PREFERENCES (DOMAINS, CATEGORIES, CURRENCY, AI) ---
-  const handleToggleDomainCategory = async (domainId: string) => {
-    setCategoryError(null);
-    const exists = prefs.categories.some(
-      (c) => c.trim().toLowerCase() === domainId.toLowerCase()
-    );
-
-    if (exists) {
-      if (!canRemoveCategory(prefs.categories)) {
-        setCategoryError('Keep at least one category in your workspace.');
-        return;
-      }
-      const next = prefs.categories.filter(
-        (c) => c.trim().toLowerCase() !== domainId.toLowerCase()
-      );
-      await commitPreferenceUpdate({ categories: next }, `Removed "${domainId}" domain.`);
-    } else {
-      const next = [...prefs.categories, domainId];
-      await commitPreferenceUpdate({ categories: next }, `Added "${domainId}" domain.`);
-    }
-  };
-
-  const handleAddCustomCategory = async () => {
-    const check = validateCategoryName(newCategory, prefs.categories);
-    if (!check.valid) {
-      setCategoryError(check.error || 'Enter a valid category.');
-      return;
-    }
-    setCategoryError(null);
-    const next = [...prefs.categories, check.normalized];
-    setNewCategory('');
-    await commitPreferenceUpdate({ categories: next }, `Added "${check.normalized}" category.`);
-  };
-
-  const handleRemoveCategory = async (categoryName: string) => {
-    if (!canRemoveCategory(prefs.categories)) {
-      setCategoryError('At least one workspace category is required.');
-      return;
-    }
-    setCategoryError(null);
-    const next = prefs.categories.filter((c) => c !== categoryName);
-    await commitPreferenceUpdate({ categories: next }, `Removed "${categoryName}" category.`);
-  };
-
-  const handleSelectCurrency = async (code: CurrencyCode) => {
-    setIsCurrencyPickerOpen(false);
-    if (code === prefs.preferredCurrency) return;
-    await commitPreferenceUpdate(
-      { preferredCurrency: code },
-      `Preferred currency switched to ${code} (${CURRENCIES[code].symbol}).`
-    );
-  };
-
-  // --- 3. APPEARANCE ---
+  // 2. Appearance Handlers
   const handleSelectTheme = async (mode: ThemeMode) => {
     setThemePreference(mode);
     await commitPreferenceUpdate({ theme: mode }, `Appearance set to ${mode} mode.`);
   };
 
-  // --- 4. NOTIFICATIONS & ANDROID PERMISSIONS ---
-  const handleToggleMasterNotifications = async (enabled: boolean) => {
+  // 3. Notification Preferences Handlers
+  const handleToggleNotifications = async (val: boolean) => {
     await commitPreferenceUpdate(
-      { notificationsEnabled: enabled },
-      enabled ? 'Reminder notifications enabled.' : 'Reminder notifications paused.'
+      { notificationsEnabled: val },
+      val ? 'Alert notifications enabled.' : 'Alert notifications paused.'
     );
-    if (!enabled) {
+    if (!val) {
       await notificationService.clearAllUserSchedules(user?.id);
     } else if (user?.id) {
       try {
         const res = await reminderService.fetchReminders({ status: 'active', limit: 100 });
         await notificationService.reconcileUserReminders(res.reminders, user.id);
       } catch {
-        // Ignore background schedule refresh error; manual Sync button remains available
+        // Safe fallback
       }
     }
   };
 
-  const handleToggleTimingDay = async (days: number) => {
-    const exists = prefs.defaultReminderTiming.includes(days);
-    const next = exists
-      ? prefs.defaultReminderTiming.filter((d) => d !== days)
-      : [...prefs.defaultReminderTiming, days].sort((a, b) => b - a);
-    await commitPreferenceUpdate(
-      { defaultReminderTiming: next },
-      'Default advance alert timing updated.'
-    );
+  const handleToggleNotificationType = async (key: 'tasks' | 'bills' | 'appointments' | 'reminders') => {
+    const next = {
+      ...notificationTypes,
+      [key]: !notificationTypes[key],
+    };
+    setNotificationTypes(next);
+    await commitPreferenceUpdate({ notificationTypes: next }, 'Notification types updated.');
+  };
+
+  const handleToggleInterval = async (minutes: number) => {
+    const exists = reminderIntervals.includes(minutes);
+    let next: number[];
+    if (exists) {
+      next = reminderIntervals.filter((m) => m !== minutes);
+      if (next.length === 0) next = [1440]; // Keep at least one interval
+    } else {
+      next = [...reminderIntervals, minutes].sort((a, b) => b - a);
+    }
+    setReminderIntervals(next);
+    await commitPreferenceUpdate({ emailReminderIntervals: next }, 'Reminder interval updated.');
+  };
+
+  const handleSelectTimezone = async (tz: string) => {
+    setTimezone(tz);
+    setIsTimezoneModalOpen(false);
+    await commitPreferenceUpdate({ timezone: tz }, `Timezone set to ${tz}.`);
   };
 
   const handleSelectQuietHours = async (start: string, end: string, label: string) => {
     await commitPreferenceUpdate(
-      { quietHoursStart: start, quietHoursEnd: end },
+      { quietHoursStart: start, quietHoursEnd: end, quietHoursEnabled: Boolean(start && end) },
       `Quiet hours updated (${label}).`
     );
   };
@@ -364,18 +335,27 @@ export default function SettingsScreen() {
     try {
       if (!prefs.notificationsEnabled) {
         await notificationService.clearAllUserSchedules(user.id);
-        showBanner('info', 'Reminder alerts are paused — device notification queue cleared.');
+        showSnackbar({
+          variant: 'info',
+          title: 'Notifications Paused',
+          message: 'Notifications are paused — device queue cleared.',
+        });
         return;
       }
       const res = await reminderService.fetchReminders({ status: 'active', limit: 100 });
       const syncResult = await notificationService.reconcileUserReminders(res.reminders, user.id);
       await refreshPermissions();
-      showBanner(
-        'success',
-        `Device schedules synchronized (${syncResult.scheduledCount} active alerts scheduled).`
-      );
+      showSnackbar({
+        variant: 'success',
+        title: 'Schedules Synchronized',
+        message: `${syncResult.scheduledCount} active reminders scheduled on this device.`,
+      });
     } catch (err: any) {
-      showBanner('error', err?.message || 'Unable to synchronize reminder alerts.');
+      showSnackbar({
+        variant: 'error',
+        title: 'Sync Failed',
+        message: err?.message || 'Unable to synchronize reminder alerts.',
+      });
     } finally {
       setIsSyncingNotifications(false);
     }
@@ -391,7 +371,11 @@ export default function SettingsScreen() {
     if (!granted) {
       await Linking.openSettings();
     } else {
-      showBanner('success', 'Android notification display permission granted.');
+      showSnackbar({
+        variant: 'success',
+        title: 'Permission Granted',
+        message: 'Notification display access enabled.',
+      });
     }
   };
 
@@ -399,93 +383,45 @@ export default function SettingsScreen() {
     const granted = await notificationService.requestExactAlarmPermissionAsync();
     await refreshPermissions();
     if (granted) {
-      showBanner('success', 'Android exact-alarm permission enabled for timely alerts.');
+      showSnackbar({
+        variant: 'success',
+        title: 'Permission Granted',
+        message: 'Exact-alarm permission enabled for timely alerts.',
+      });
     }
   };
 
-  // --- 5. PRIVACY, EXPORT & ACCOUNT ---
-  const handleExportData = async () => {
-    if (!accountMode.canExportData) {
-      showBanner('info', 'Data export is only available for registered accounts.');
+  // 4. Workspace Categories Handlers
+  const handleAddCategory = async () => {
+    const check = validateCategoryName(newCategory, prefs.categories);
+    if (!check.valid) {
+      setCategoryError(check.error || 'Enter a valid category.');
       return;
     }
-
-    setIsExporting(true);
-    try {
-      const payload = await settingsService.exportUserData();
-      const summary = countExportRecords(payload);
-      const formattedJson = JSON.stringify(payload, null, 2);
-
-      const summaryLine = `Tasks: ${summary.tasks} • Bills: ${summary.bills} • Appointments: ${summary.appointments} • Reminders: ${summary.reminders} • Docs: ${summary.documents}`;
-
-      try {
-        const result = await Share.share({
-          title: 'LifeAdmin Personal Data Export',
-          message: formattedJson,
-        });
-        if (result.action === Share.sharedAction) {
-          showBanner('success', `Backup exported (${summary.total} records). ${summaryLine}`);
-        } else {
-          showBanner('info', `Prepared export of ${summary.total} records (${summaryLine}).`);
-        }
-      } catch {
-        showBanner(
-          'info',
-          `Prepared export of ${summary.total} records (${summaryLine}). Device share sheet unavailable.`
-        );
-        showSnackbar({
-          variant: 'info',
-          title: 'Export Ready',
-          message: `Prepared ${summary.total} records (${summaryLine}). Device share sheet could not be opened.`,
-          duration: 5500,
-        });
-      }
-    } catch (err: any) {
-      showBanner('error', err?.message || 'Failed to export account data.');
-    } finally {
-      setIsExporting(false);
-    }
+    setCategoryError(null);
+    const next = [...prefs.categories, check.normalized];
+    setNewCategory('');
+    await commitPreferenceUpdate({ categories: next }, `Added "${check.normalized}" category.`);
   };
 
-  const handleSignOutOrExitGuest = () => {
-    if (accountMode.isGuest) {
-      Alert.alert(
-        'Exit Guest Demo Session',
-        'Your temporary demo records will be erased from the server and this device. Continue?',
-        [
-          { text: 'Stay in Demo', style: 'cancel' },
-          {
-            text: 'Exit Demo',
-            style: 'destructive',
-            onPress: () => exitGuest(),
-          },
-        ]
-      );
+  const handleRemoveCategory = async (categoryName: string) => {
+    if (!canRemoveCategory(prefs.categories)) {
+      setCategoryError('Keep at least one category in your workspace.');
       return;
     }
-
-    Alert.alert('Sign Out', 'Sign out of LifeAdmin on this device?', [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Sign Out',
-        style: 'destructive',
-        onPress: () => logout(),
-      },
-    ]);
+    setCategoryError(null);
+    const next = prefs.categories.filter((c) => c !== categoryName);
+    await commitPreferenceUpdate({ categories: next }, `Removed "${categoryName}" category.`);
   };
 
-  const handleConfirmDeleteAccount = async () => {
-    if (!accountMode.canDeleteAccount) return;
-    setDeleteError(null);
-    setIsDeletingAccount(true);
-    try {
-      await deleteAccount();
-      setIsDeleteModalOpen(false);
-    } catch (err: any) {
-      setDeleteError(err?.message || 'Failed to delete account. Please try again.');
-    } finally {
-      setIsDeletingAccount(false);
-    }
+  // 5. Preferred Currency Handler
+  const handleSelectCurrency = async (code: CurrencyCode) => {
+    setIsCurrencyPickerOpen(false);
+    if (code === prefs.preferredCurrency) return;
+    await commitPreferenceUpdate(
+      { preferredCurrency: code },
+      `Preferred currency switched to ${code} (${CURRENCIES[code].symbol}).`
+    );
   };
 
   const avatarInitials = useMemo(() => {
@@ -498,10 +434,11 @@ export default function SettingsScreen() {
   }, [user?.name]);
 
   const currentCurrency = CURRENCIES[prefs.preferredCurrency] || CURRENCIES.INR;
+  const currentTimezoneLabel = TIMEZONE_OPTIONS.find((t) => t.value === timezone)?.label || timezone;
 
   return (
     <ThemedView style={styles.container}>
-      <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right', 'bottom']}>
+      <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
         {/* Top App Bar */}
         <View style={[styles.header, { borderBottomColor: colors.borderSubtle }]}>
           <HeaderBackButton
@@ -514,21 +451,16 @@ export default function SettingsScreen() {
               Settings & Profile
             </ThemedText>
             <ThemedText style={[styles.headerSubtitle, { color: colors.textSecondary }]}>
-              Account, preferences, appearance & device alerts
+              Preferences, appearance, notifications & workspace
             </ThemedText>
           </View>
-
-          {isSavingPrefs || isSavingProfile ? (
-            <View style={[styles.syncPill, { backgroundColor: colors.primarySoft }]}>
-              <ThemedText style={[styles.syncPillText, { color: colors.primary }]}>
-                Saving...
-              </ThemedText>
-            </View>
-          ) : null}
         </View>
 
         <ScrollView
-          contentContainerStyle={styles.scrollContent}
+          contentContainerStyle={[
+            styles.scrollContent,
+            { paddingBottom: bottomPadding },
+          ]}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
           refreshControl={
@@ -540,105 +472,10 @@ export default function SettingsScreen() {
             />
           }
         >
-          {/* Feedback Banner */}
-          {banner ? (
-            <View
-              style={[
-                styles.feedbackBanner,
-                {
-                  backgroundColor:
-                    banner.tone === 'error'
-                      ? isDark
-                        ? 'rgba(239, 68, 68, 0.16)'
-                        : '#FEF2F2'
-                      : banner.tone === 'info'
-                      ? colors.surfaceSecondary
-                      : isDark
-                      ? 'rgba(16, 185, 129, 0.16)'
-                      : '#ECFDF5',
-                  borderColor:
-                    banner.tone === 'error'
-                      ? Colors.status.danger
-                      : banner.tone === 'info'
-                      ? colors.border
-                      : Colors.status.success,
-                },
-              ]}
-            >
-              <ThemedText
-                style={[
-                  styles.feedbackText,
-                  {
-                    color:
-                      banner.tone === 'error'
-                        ? isDark
-                          ? Colors.urgency.critical.darkText
-                          : Colors.status.danger
-                        : banner.tone === 'info'
-                        ? colors.text
-                        : isDark
-                        ? '#6EE7B7'
-                        : Colors.status.success,
-                  },
-                ]}
-              >
-                {banner.text}
-              </ThemedText>
-              <Pressable
-                onPress={() => setBanner(null)}
-                hitSlop={8}
-                accessibilityRole="button"
-                accessibilityLabel="Dismiss notification banner"
-                style={styles.feedbackCloseBtn}
-              >
-                <SymbolView
-                  name={{ ios: 'xmark', android: 'close', web: 'close' } as any}
-                  size={15}
-                  tintColor={colors.textMuted}
-                />
-              </Pressable>
-            </View>
-          ) : null}
-
-          {/* Guest Demo Account Banner */}
-          {accountMode.isGuest ? (
-            <View
-              style={[
-                styles.guestBanner,
-                {
-                  backgroundColor: isDark ? 'rgba(245, 158, 11, 0.14)' : '#FFFBEB',
-                  borderColor: isDark ? 'rgba(245, 158, 11, 0.4)' : '#FDE68A',
-                },
-              ]}
-            >
-              <View style={styles.guestTopRow}>
-                <SymbolView
-                  name={{ ios: 'clock.badge.exclamationmark', android: 'schedule', web: 'schedule' } as any}
-                  size={18}
-                  tintColor={Colors.status.warning}
-                />
-                <ThemedText style={[styles.guestTitle, { color: colors.text }]}>
-                  {accountMode.accountTypeLabel}
-                </ThemedText>
-              </View>
-              <ThemedText style={[styles.guestDesc, { color: colors.textSecondary }]}>
-                {accountMode.securityNote}
-              </ThemedText>
-              <Button
-                variant="outline"
-                size="sm"
-                onPress={handleSignOutOrExitGuest}
-                style={{ alignSelf: 'flex-start', marginTop: Spacing.two }}
-              >
-                End Demo & Sign Up Free
-              </Button>
-            </View>
-          ) : null}
-
-          {/* SECTION 1: PROFILE */}
+          {/* 1. PERSONAL INFORMATION */}
           <SettingsSectionCard
-            title="Profile & Account Identity"
-            subtitle="Manage your display name and account details"
+            title="Personal Information"
+            subtitle="Update your display name and view account email"
             icon={{ ios: 'person.crop.circle', android: 'person' }}
           >
             <View style={styles.profileSummaryRow}>
@@ -659,7 +496,7 @@ export default function SettingsScreen() {
                 <View style={styles.metaBadgeRow}>
                   <View style={[styles.metaChip, { backgroundColor: colors.primarySoft }]}>
                     <ThemedText style={[styles.metaChipText, { color: colors.primary }]}>
-                      {accountMode.isGuest ? 'Guest Demo' : 'Free Forever'}
+                      Free Account
                     </ThemedText>
                   </View>
                   <ThemedText style={[styles.memberSinceText, { color: colors.textMuted }]}>
@@ -679,18 +516,14 @@ export default function SettingsScreen() {
               }}
               error={nameError || undefined}
               maxLength={60}
-              helperText={`${displayName.trim().length}/60 characters`}
+              helperText="Visible on greetings, notifications, and shared items."
             />
 
             <Input
               label="Account Email"
               value={accountMode.emailLabel}
               editable={false}
-              helperText={
-                accountMode.isGuest
-                  ? 'Guest workspaces do not bind an email address.'
-                  : 'Used for login notifications and password recovery.'
-              }
+              helperText="Email used for login notifications and password resets."
             />
 
             <Button
@@ -704,181 +537,459 @@ export default function SettingsScreen() {
             </Button>
           </SettingsSectionCard>
 
-          {/* SECTION 2: PERSONAL & REGIONAL PREFERENCES */}
+          {/* 2. APPEARANCE & THEME */}
           <SettingsSectionCard
-            title="Personal & Regional Preferences"
-            subtitle="Domains, categories, currency, and smart assistant preferences"
-            icon={{ ios: 'slider.horizontal.3', android: 'tune' }}
+            title="Appearance & Theme"
+            subtitle="Applies immediately across all screens and saves to your account"
+            icon={{ ios: 'paintbrush', android: 'palette' }}
           >
-            {/* Preferred Currency Selector */}
-            <View style={styles.subsection}>
-              <ThemedText style={[styles.fieldLabel, { color: colors.text }]}>
-                Preferred Currency
-              </ThemedText>
-              <Pressable
-                onPress={() => setIsCurrencyPickerOpen(true)}
-                accessibilityRole="button"
-                accessibilityLabel="Choose preferred currency"
-                style={({ pressed }) => [
-                  styles.currencyTrigger,
-                  {
-                    backgroundColor: colors.surfaceSecondary,
-                    borderColor: colors.border,
-                  },
-                  pressed && { opacity: 0.85 },
-                ]}
-              >
-                <View style={[styles.currencySymbolBox, { backgroundColor: colors.primary }]}>
-                  <ThemedText
-                    style={[
-                      styles.currencySymbol,
-                      { color: isDark ? '#143440' : '#FFFFFF' },
+            <View style={styles.themeGrid}>
+              {THEME_OPTIONS.map((option) => {
+                const selected = themePreference === option.id;
+                return (
+                  <Pressable
+                    key={option.id}
+                    onPress={() => handleSelectTheme(option.id)}
+                    accessibilityRole="button"
+                    accessibilityState={{ selected }}
+                    style={({ pressed }) => [
+                      styles.themeCard,
+                      {
+                        backgroundColor: selected
+                          ? colors.primarySoft
+                          : isDark
+                          ? colors.surfaceElevated
+                          : colors.surfaceSecondary,
+                        borderColor: selected ? colors.primary : colors.border,
+                      },
+                      pressed && { opacity: 0.85 },
                     ]}
                   >
-                    {currentCurrency.symbol}
-                  </ThemedText>
-                </View>
-                <View style={styles.currencyTextCol}>
-                  <ThemedText style={[styles.currencyCode, { color: colors.text }]}>
-                    {currentCurrency.code} — {currentCurrency.name}
-                  </ThemedText>
-                  <ThemedText style={[styles.currencyMeta, { color: colors.textSecondary }]}>
-                    Locale: {currentCurrency.locale} • Tap to change
-                  </ThemedText>
-                </View>
-                <SymbolView
-                  name={{ ios: 'chevron.right', android: 'chevron_right', web: 'chevron_right' } as any}
-                  size={16}
-                  tintColor={colors.textMuted}
-                />
-              </Pressable>
-            </View>
-
-            {/* Onboarding Life Domains */}
-            <View style={styles.subsection}>
-              <ThemedText style={[styles.fieldLabel, { color: colors.text }]}>
-                Focus Domains (Synced with Onboarding)
-              </ThemedText>
-              <ThemedText style={[styles.fieldHelp, { color: colors.textSecondary }]}>
-                Choose the personal life areas highlighted across your workspace.
-              </ThemedText>
-              <View style={styles.chipWrap}>
-                {AVAILABLE_DOMAINS.map((domain) => {
-                  const active = prefs.categories.some(
-                    (c) => c.trim().toLowerCase() === domain.id.toLowerCase()
-                  );
-                  return (
-                    <Pressable
-                      key={domain.id}
-                      onPress={() => handleToggleDomainCategory(domain.id)}
-                      accessibilityRole="button"
-                      accessibilityState={{ selected: active }}
+                    <ThemedText
                       style={[
-                        styles.domainChip,
-                        {
-                          backgroundColor: active
-                            ? colors.primarySoft
-                            : isDark
-                            ? colors.surfaceElevated
-                            : colors.surfaceSecondary,
-                          borderColor: active ? colors.primary : colors.border,
-                        },
+                        styles.themeLabel,
+                        { color: selected ? colors.primary : colors.text },
                       ]}
                     >
-                      <SymbolView
-                        name={{
-                          ios: active ? 'checkmark.circle.fill' : 'plus.circle',
-                          android: active ? 'check_circle' : domain.icon,
-                          web: active ? 'check_circle' : domain.icon,
-                        } as any}
-                        size={15}
-                        tintColor={active ? colors.primary : colors.textMuted}
-                      />
-                      <ThemedText
-                        style={[
-                          styles.chipLabel,
-                          { color: active ? colors.primary : colors.textSecondary },
-                        ]}
-                      >
-                        {domain.label}
-                      </ThemedText>
-                    </Pressable>
-                  );
-                })}
-              </View>
+                      {option.label}
+                    </ThemedText>
+                    <ThemedText style={[styles.themeDesc, { color: colors.textSecondary }]}>
+                      {option.id === 'system'
+                        ? `Auto (${activeTheme === 'dark' ? 'Dark' : 'Light'})`
+                        : option.description}
+                    </ThemedText>
+                  </Pressable>
+                );
+              })}
             </View>
+          </SettingsSectionCard>
 
-            {/* Active Workspace Categories */}
-            <View style={styles.subsection}>
-              <ThemedText style={[styles.fieldLabel, { color: colors.text }]}>
-                Active Workspace Categories ({prefs.categories.length})
-              </ThemedText>
-              <View style={styles.chipWrap}>
-                {prefs.categories.map((cat) => {
-                  const canDelete = canRemoveCategory(prefs.categories);
-                  return (
-                    <View
-                      key={cat}
-                      style={[
-                        styles.tagPill,
-                        {
-                          backgroundColor: colors.surfaceSecondary,
-                          borderColor: colors.border,
-                        },
-                      ]}
-                    >
-                      <ThemedText style={[styles.tagText, { color: colors.text }]}>
-                        {cat}
-                      </ThemedText>
-                      <Pressable
-                        onPress={() => handleRemoveCategory(cat)}
-                        hitSlop={6}
-                        disabled={!canDelete}
-                        accessibilityLabel={`Remove ${cat}`}
-                        style={{ opacity: canDelete ? 1 : 0.35 }}
-                      >
-                        <SymbolView
-                          name={{ ios: 'xmark.circle.fill', android: 'close', web: 'close' } as any}
-                          size={15}
-                          tintColor={colors.textMuted}
-                        />
-                      </Pressable>
-                    </View>
-                  );
-                })}
-              </View>
-
-              <View style={styles.addCategoryRow}>
-                <View style={styles.addCategoryInput}>
-                  <Input
-                    placeholder="Add custom category (e.g. Travel)"
-                    value={newCategory}
-                    onChangeText={(txt) => {
-                      setNewCategory(txt);
-                      if (categoryError) setCategoryError(null);
-                    }}
-                    error={categoryError || undefined}
-                    maxLength={32}
-                    onSubmitEditing={handleAddCustomCategory}
-                  />
-                </View>
-                <Button
-                  variant="secondary"
-                  size="md"
-                  onPress={handleAddCustomCategory}
-                  style={{ marginTop: 2 }}
-                >
-                  Add
-                </Button>
-              </View>
-            </View>
-
-            {/* AI Preferences */}
-            <View style={[styles.divider, { backgroundColor: colors.borderSubtle }]} />
+          {/* 3. NOTIFICATION PREFERENCES */}
+          <SettingsSectionCard
+            title="Notification Preferences"
+            subtitle="Alert channels, event categories, intervals & quiet hours"
+            icon={{ ios: 'bell.badge', android: 'notifications' }}
+          >
+            {/* Master Notification Switch */}
             <View style={styles.switchRow}>
               <View style={styles.switchTextCol}>
                 <ThemedText style={[styles.switchLabel, { color: colors.text }]}>
-                  Document AI Auto-Extraction
+                  Email & Push Notifications
+                </ThemedText>
+                <ThemedText style={[styles.switchDesc, { color: colors.textSecondary }]}>
+                  Receive alerts for upcoming deadlines, bills, appointments & reminders.
+                </ThemedText>
+              </View>
+              <Switch
+                value={prefs.notificationsEnabled}
+                onValueChange={handleToggleNotifications}
+                trackColor={{ false: colors.border, true: colors.primary }}
+                thumbColor="#FFFFFF"
+              />
+            </View>
+
+            {prefs.notificationsEnabled ? (
+              <>
+                <View style={[styles.divider, { backgroundColor: colors.borderSubtle }]} />
+
+                {/* Notification Types */}
+                <View style={styles.subsection}>
+                  <ThemedText style={[styles.fieldLabel, { color: colors.text }]}>
+                    Notification Types
+                  </ThemedText>
+                  <ThemedText style={[styles.fieldHelp, { color: colors.textSecondary }]}>
+                    Select which categories trigger alert notifications.
+                  </ThemedText>
+                  <View style={styles.chipWrap}>
+                    {(
+                      [
+                        { key: 'tasks', label: 'Tasks & Deadlines' },
+                        { key: 'bills', label: 'Bill Payments' },
+                        { key: 'appointments', label: 'Appointments' },
+                        { key: 'reminders', label: 'Reminders' },
+                      ] as const
+                    ).map((item) => {
+                      const active = Boolean(notificationTypes[item.key]);
+                      return (
+                        <Pressable
+                          key={item.key}
+                          onPress={() => handleToggleNotificationType(item.key)}
+                          accessibilityRole="button"
+                          accessibilityState={{ selected: active }}
+                          style={[
+                            styles.chip,
+                            {
+                              backgroundColor: active
+                                ? colors.primarySoft
+                                : isDark
+                                ? colors.surfaceElevated
+                                : colors.surfaceSecondary,
+                              borderColor: active ? colors.primary : colors.border,
+                            },
+                          ]}
+                        >
+                          <SymbolView
+                            name={{
+                              ios: active ? 'checkmark.circle.fill' : 'circle',
+                              android: active ? 'check_circle' : 'radio_button_unchecked',
+                              web: active ? 'check_circle' : 'radio_button_unchecked',
+                            } as any}
+                            size={14}
+                            tintColor={active ? colors.primary : colors.textMuted}
+                          />
+                          <ThemedText
+                            style={[
+                              styles.chipLabel,
+                              { color: active ? colors.primary : colors.textSecondary },
+                            ]}
+                          >
+                            {item.label}
+                          </ThemedText>
+                        </Pressable>
+                      );
+                    })}
+                  </View>
+                </View>
+
+                {/* Reminder Intervals */}
+                <View style={styles.subsection}>
+                  <ThemedText style={[styles.fieldLabel, { color: colors.text }]}>
+                    Reminder Timing
+                  </ThemedText>
+                  <ThemedText style={[styles.fieldHelp, { color: colors.textSecondary }]}>
+                    Choose when advance notifications are delivered before due time.
+                  </ThemedText>
+                  <View style={styles.chipWrap}>
+                    {INTERVAL_OPTIONS.map((opt) => {
+                      const active = reminderIntervals.includes(opt.minutes);
+                      return (
+                        <Pressable
+                          key={opt.minutes}
+                          onPress={() => handleToggleInterval(opt.minutes)}
+                          accessibilityRole="button"
+                          accessibilityState={{ selected: active }}
+                          style={[
+                            styles.chip,
+                            {
+                              backgroundColor: active
+                                ? colors.primarySoft
+                                : isDark
+                                ? colors.surfaceElevated
+                                : colors.surfaceSecondary,
+                              borderColor: active ? colors.primary : colors.border,
+                            },
+                          ]}
+                        >
+                          <ThemedText
+                            style={[
+                              styles.chipLabel,
+                              { color: active ? colors.primary : colors.textSecondary },
+                            ]}
+                          >
+                            {opt.label}
+                          </ThemedText>
+                        </Pressable>
+                      );
+                    })}
+                  </View>
+                </View>
+
+                {/* Timezone Selector Trigger */}
+                <View style={styles.subsection}>
+                  <ThemedText style={[styles.fieldLabel, { color: colors.text }]}>
+                    Timezone
+                  </ThemedText>
+                  <Pressable
+                    onPress={() => setIsTimezoneModalOpen(true)}
+                    accessibilityRole="button"
+                    accessibilityLabel="Select timezone"
+                    style={({ pressed }) => [
+                      styles.selectorTrigger,
+                      {
+                        backgroundColor: colors.surfaceSecondary,
+                        borderColor: colors.border,
+                      },
+                      pressed && { opacity: 0.8 },
+                    ]}
+                  >
+                    <View style={styles.selectorTextCol}>
+                      <ThemedText style={[styles.selectorTitle, { color: colors.text }]}>
+                        {currentTimezoneLabel}
+                      </ThemedText>
+                      <ThemedText style={[styles.selectorSubtitle, { color: colors.textSecondary }]}>
+                        {timezone}
+                      </ThemedText>
+                    </View>
+                    <SymbolView
+                      name={{ ios: 'chevron.right', android: 'chevron_right', web: 'chevron_right' } as any}
+                      size={16}
+                      tintColor={colors.textMuted}
+                    />
+                  </Pressable>
+                </View>
+
+                {/* Quiet Hours Window */}
+                <View style={styles.subsection}>
+                  <ThemedText style={[styles.fieldLabel, { color: colors.text }]}>
+                    Quiet Hours
+                  </ThemedText>
+                  <ThemedText style={[styles.fieldHelp, { color: colors.textSecondary }]}>
+                    Silence non-urgent notifications overnight to prevent interruptions.
+                  </ThemedText>
+                  <View style={styles.chipWrap}>
+                    {QUIET_HOURS_PRESETS.map((preset) => {
+                      const selected =
+                        prefs.quietHoursStart === preset.start && prefs.quietHoursEnd === preset.end;
+                      return (
+                        <Pressable
+                          key={preset.id}
+                          onPress={() => handleSelectQuietHours(preset.start, preset.end, preset.label)}
+                          accessibilityRole="button"
+                          accessibilityState={{ selected }}
+                          style={[
+                            styles.chip,
+                            {
+                              backgroundColor: selected
+                                ? colors.primarySoft
+                                : isDark
+                                ? colors.surfaceElevated
+                                : colors.surfaceSecondary,
+                              borderColor: selected ? colors.primary : colors.border,
+                            },
+                          ]}
+                        >
+                          <ThemedText
+                            style={[
+                              styles.chipLabel,
+                              { color: selected ? colors.primary : colors.textSecondary },
+                            ]}
+                          >
+                            {preset.label}
+                          </ThemedText>
+                        </Pressable>
+                      );
+                    })}
+                  </View>
+                </View>
+
+                {/* Device Notification Sync Button */}
+                <Button
+                  variant="outline"
+                  size="sm"
+                  loading={isSyncingNotifications}
+                  onPress={handleSyncDeviceNotifications}
+                  icon={
+                    <SymbolView
+                      name={{ ios: 'arrow.triangle.2.circlepath', android: 'sync', web: 'sync' } as any}
+                      size={15}
+                      tintColor={colors.primary}
+                    />
+                  }
+                >
+                  Sync Device Alert Queue
+                </Button>
+
+                {/* Android OS Permissions Status */}
+                {(!permissions.notificationsGranted || !permissions.exactAlarmGranted) && (
+                  <View style={styles.permissionSection}>
+                    <ThemedText style={[styles.fieldLabel, { color: colors.text }]}>
+                      Android System Permissions
+                    </ThemedText>
+
+                    {!permissions.notificationsGranted && (
+                      <View
+                        style={[
+                          styles.permissionBox,
+                          { backgroundColor: colors.surfaceSecondary, borderColor: Colors.status.danger },
+                        ]}
+                      >
+                        <ThemedText style={[styles.permissionTitle, { color: colors.text }]}>
+                          Notification Display Blocked
+                        </ThemedText>
+                        <ThemedText style={[styles.permissionDesc, { color: colors.textSecondary }]}>
+                          Android requires notification permission to show banners and lock screen alerts.
+                        </ThemedText>
+                        <Button
+                          variant="primary"
+                          size="sm"
+                          onPress={handleEnableDisplayNotifications}
+                          style={{ alignSelf: 'flex-start', marginTop: Spacing.two }}
+                        >
+                          {permissions.canAskNotifications ? 'Allow Notifications' : 'Open Settings'}
+                        </Button>
+                      </View>
+                    )}
+
+                    {!permissions.exactAlarmGranted && (
+                      <View
+                        style={[
+                          styles.permissionBox,
+                          { backgroundColor: colors.surfaceSecondary, borderColor: Colors.status.warning },
+                        ]}
+                      >
+                        <ThemedText style={[styles.permissionTitle, { color: colors.text }]}>
+                          Exact Alarms (Android 14+)
+                        </ThemedText>
+                        <ThemedText style={[styles.permissionDesc, { color: colors.textSecondary }]}>
+                          Enable Alarms & Reminders permission so scheduled alerts fire precisely on time.
+                        </ThemedText>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onPress={handleEnableExactAlarms}
+                          style={{ alignSelf: 'flex-start', marginTop: Spacing.two }}
+                        >
+                          Enable Exact Alarms
+                        </Button>
+                      </View>
+                    )}
+                  </View>
+                )}
+              </>
+            ) : null}
+          </SettingsSectionCard>
+
+          {/* 4. WORKSPACE CATEGORIES */}
+          <SettingsSectionCard
+            title="Workspace Categories"
+            subtitle="Organize tasks, bills, and documents into life areas"
+            icon={{ ios: 'tag', android: 'label' }}
+          >
+            <View style={styles.chipWrap}>
+              {prefs.categories.map((cat) => {
+                const canDelete = canRemoveCategory(prefs.categories);
+                return (
+                  <View
+                    key={cat}
+                    style={[
+                      styles.tagPill,
+                      {
+                        backgroundColor: colors.surfaceSecondary,
+                        borderColor: colors.border,
+                      },
+                    ]}
+                  >
+                    <ThemedText style={[styles.tagText, { color: colors.text }]}>
+                      {cat}
+                    </ThemedText>
+                    <Pressable
+                      onPress={() => handleRemoveCategory(cat)}
+                      hitSlop={6}
+                      disabled={!canDelete}
+                      accessibilityLabel={`Remove ${cat}`}
+                      style={{ opacity: canDelete ? 1 : 0.35 }}
+                    >
+                      <SymbolView
+                        name={{ ios: 'xmark.circle.fill', android: 'close', web: 'close' } as any}
+                        size={15}
+                        tintColor={colors.textMuted}
+                      />
+                    </Pressable>
+                  </View>
+                );
+              })}
+            </View>
+
+            <View style={styles.addCategoryRow}>
+              <View style={styles.addCategoryInput}>
+                <Input
+                  placeholder="Add custom category (e.g. Travel)"
+                  value={newCategory}
+                  onChangeText={(txt) => {
+                    setNewCategory(txt);
+                    if (categoryError) setCategoryError(null);
+                  }}
+                  error={categoryError || undefined}
+                  maxLength={32}
+                  onSubmitEditing={handleAddCategory}
+                />
+              </View>
+              <Button
+                variant="secondary"
+                size="md"
+                onPress={handleAddCategory}
+                style={{ marginTop: 2 }}
+              >
+                Add
+              </Button>
+            </View>
+          </SettingsSectionCard>
+
+          {/* 5. PREFERRED CURRENCY */}
+          <SettingsSectionCard
+            title="Preferred Currency"
+            subtitle="Display currency for bills, totals, and financial summaries"
+            icon={{ ios: 'indianrupeesign.circle', android: 'payments' }}
+          >
+            <Pressable
+              onPress={() => setIsCurrencyPickerOpen(true)}
+              accessibilityRole="button"
+              accessibilityLabel="Choose preferred currency"
+              style={({ pressed }) => [
+                styles.currencyTrigger,
+                {
+                  backgroundColor: colors.surfaceSecondary,
+                  borderColor: colors.border,
+                },
+                pressed && { opacity: 0.85 },
+              ]}
+            >
+              <View style={[styles.currencySymbolBox, { backgroundColor: colors.primary }]}>
+                <ThemedText
+                  style={[
+                    styles.currencySymbol,
+                    { color: isDark ? '#143440' : '#FFFFFF' },
+                  ]}
+                >
+                  {currentCurrency.symbol}
+                </ThemedText>
+              </View>
+              <View style={styles.currencyTextCol}>
+                <ThemedText style={[styles.currencyCode, { color: colors.text }]}>
+                  {currentCurrency.code} — {currentCurrency.name}
+                </ThemedText>
+                <ThemedText style={[styles.currencyMeta, { color: colors.textSecondary }]}>
+                  Locale: {currentCurrency.locale} • Tap to change
+                </ThemedText>
+              </View>
+              <SymbolView
+                name={{ ios: 'chevron.right', android: 'chevron_right', web: 'chevron_right' } as any}
+                size={16}
+                tintColor={colors.textMuted}
+              />
+            </Pressable>
+          </SettingsSectionCard>
+
+          {/* 6. SMART ASSISTANT & AUTOMATION */}
+          <SettingsSectionCard
+            title="Smart Assistant & Extraction"
+            subtitle="AI document extraction and proactive insights"
+            icon={{ ios: 'sparkles', android: 'auto_awesome' }}
+          >
+            <View style={styles.switchRow}>
+              <View style={styles.switchTextCol}>
+                <ThemedText style={[styles.switchLabel, { color: colors.text }]}>
+                  Document Auto-Extraction
                 </ThemedText>
                 <ThemedText style={[styles.switchDesc, { color: colors.textSecondary }]}>
                   Extract due dates, amounts & providers automatically when uploading files.
@@ -905,10 +1016,10 @@ export default function SettingsScreen() {
             <View style={styles.switchRow}>
               <View style={styles.switchTextCol}>
                 <ThemedText style={[styles.switchLabel, { color: colors.text }]}>
-                  Smart LifeBuddy Suggestions
+                  Smart Insights & Suggestions
                 </ThemedText>
                 <ThemedText style={[styles.switchDesc, { color: colors.textSecondary }]}>
-                  Show proactive insights and priority guidance on Dashboard & Assistant.
+                  Surface priority alerts and overdue notices on Dashboard.
                 </ThemedText>
               </View>
               <Switch
@@ -928,523 +1039,11 @@ export default function SettingsScreen() {
                 thumbColor="#FFFFFF"
               />
             </View>
-
-            {/* Re-run Guided Onboarding */}
-            <Pressable
-              onPress={restartOnboarding}
-              style={({ pressed }) => [
-                styles.actionRow,
-                {
-                  backgroundColor: isDark ? colors.surfaceElevated : colors.surfaceSecondary,
-                  borderColor: colors.border,
-                },
-                pressed && { opacity: 0.8 },
-              ]}
-            >
-              <SymbolView
-                name={{ ios: 'sparkles', android: 'auto_awesome', web: 'auto_awesome' } as any}
-                size={18}
-                tintColor={colors.primary}
-              />
-              <View style={styles.actionRowTextCol}>
-                <ThemedText style={[styles.actionRowTitle, { color: colors.text }]}>
-                  Revisit Setup & Onboarding
-                </ThemedText>
-                <ThemedText style={[styles.actionRowDesc, { color: colors.textSecondary }]}>
-                  Walk through domain setup, alert pacing & LifeBuddy companion selection again
-                </ThemedText>
-              </View>
-              <SymbolView
-                name={{ ios: 'chevron.right', android: 'chevron_right', web: 'chevron_right' } as any}
-                size={16}
-                tintColor={colors.textMuted}
-              />
-            </Pressable>
           </SettingsSectionCard>
-
-          {/* SECTION 3: APPEARANCE */}
-          <SettingsSectionCard
-            title="Appearance"
-            subtitle="Applies immediately across every screen and persists across restarts"
-            icon={{ ios: 'paintbrush', android: 'palette' }}
-          >
-            <View style={styles.themeGrid}>
-              {THEME_OPTIONS.map((option) => {
-                const selected = themePreference === option.id;
-                const swatchBg =
-                  option.id === 'light'
-                    ? '#F5F7F5'
-                    : option.id === 'dark'
-                    ? '#183B4A'
-                    : activeTheme === 'dark'
-                    ? '#183B4A'
-                    : '#F5F7F5';
-                const swatchAccent =
-                  option.id === 'light'
-                    ? '#087E83'
-                    : option.id === 'dark'
-                    ? '#55BDB5'
-                    : activeTheme === 'dark'
-                    ? '#55BDB5'
-                    : '#087E83';
-
-                return (
-                  <Pressable
-                    key={option.id}
-                    onPress={() => handleSelectTheme(option.id)}
-                    accessibilityRole="button"
-                    accessibilityState={{ selected }}
-                    style={({ pressed }) => [
-                      styles.themeCard,
-                      {
-                        backgroundColor: selected
-                          ? colors.primarySoft
-                          : isDark
-                          ? colors.surfaceElevated
-                          : colors.surfaceSecondary,
-                        borderColor: selected ? colors.primary : colors.border,
-                      },
-                      pressed && { opacity: 0.85 },
-                    ]}
-                  >
-                    <View
-                      style={[
-                        styles.themeSwatch,
-                        { backgroundColor: swatchBg, borderColor: colors.border },
-                      ]}
-                    >
-                      <View style={[styles.themeSwatchBar, { backgroundColor: swatchAccent }]} />
-                    </View>
-                    <ThemedText
-                      style={[
-                        styles.themeLabel,
-                        { color: selected ? colors.primary : colors.text },
-                      ]}
-                    >
-                      {option.label}
-                    </ThemedText>
-                    <ThemedText style={[styles.themeDesc, { color: colors.textSecondary }]}>
-                      {option.id === 'system'
-                        ? `Device (${activeTheme === 'dark' ? 'Dark' : 'Light'})`
-                        : option.description}
-                    </ThemedText>
-                    {selected ? (
-                      <View style={styles.themeCheckBadge}>
-                        <SymbolView
-                          name={{
-                            ios: 'checkmark.circle.fill',
-                            android: 'check_circle',
-                            web: 'check_circle',
-                          } as any}
-                          size={18}
-                          tintColor={colors.primary}
-                        />
-                      </View>
-                    ) : null}
-                  </Pressable>
-                );
-              })}
-            </View>
-          </SettingsSectionCard>
-
-          {/* SECTION 4: NOTIFICATIONS & ANDROID SYSTEM PERMISSIONS */}
-          <SettingsSectionCard
-            title="Notifications & Android Permissions"
-            subtitle="Configure LifeAdmin alert rules separately from Android OS system access"
-            icon={{ ios: 'bell.badge', android: 'notifications' }}
-          >
-            {/* App Notification Preferences */}
-            <View style={styles.switchRow}>
-              <View style={styles.switchTextCol}>
-                <ThemedText style={[styles.switchLabel, { color: colors.text }]}>
-                  Reminder Notifications
-                </ThemedText>
-                <ThemedText style={[styles.switchDesc, { color: colors.textSecondary }]}>
-                  Schedule device alerts for bills, tasks, appointments & reminders.
-                </ThemedText>
-              </View>
-              <Switch
-                value={prefs.notificationsEnabled}
-                onValueChange={handleToggleMasterNotifications}
-                trackColor={{ false: colors.border, true: colors.primary }}
-                thumbColor="#FFFFFF"
-              />
-            </View>
-
-            {/* Default Advance Alert Timing */}
-            <View style={styles.subsection}>
-              <ThemedText style={[styles.fieldLabel, { color: colors.text }]}>
-                Default Advance Alert Timing
-              </ThemedText>
-              <ThemedText style={[styles.fieldHelp, { color: colors.textSecondary }]}>
-                Pre-selected notification cadence for upcoming due items.
-              </ThemedText>
-              <View style={styles.chipWrap}>
-                {ALERT_TIMING_OPTIONS.map((opt) => {
-                  const selected = prefs.defaultReminderTiming.includes(opt.days);
-                  return (
-                    <Pressable
-                      key={opt.days}
-                      onPress={() => handleToggleTimingDay(opt.days)}
-                      style={[
-                        styles.timingChip,
-                        {
-                          backgroundColor: selected
-                            ? colors.primarySoft
-                            : isDark
-                            ? colors.surfaceElevated
-                            : colors.surfaceSecondary,
-                          borderColor: selected ? colors.primary : colors.border,
-                        },
-                      ]}
-                    >
-                      <ThemedText
-                        style={[
-                          styles.chipLabel,
-                          { color: selected ? colors.primary : colors.textSecondary },
-                        ]}
-                      >
-                        {opt.shortLabel}
-                      </ThemedText>
-                    </Pressable>
-                  );
-                })}
-              </View>
-            </View>
-
-            {/* Quiet Hours */}
-            <View style={styles.subsection}>
-              <ThemedText style={[styles.fieldLabel, { color: colors.text }]}>
-                Quiet Hours Window
-              </ThemedText>
-              <ThemedText style={[styles.fieldHelp, { color: colors.textSecondary }]}>
-                Stored on your profile to silence non-urgent background digests overnight.
-              </ThemedText>
-              <View style={styles.chipWrap}>
-                {QUIET_HOURS_PRESETS.map((preset) => {
-                  const selected =
-                    prefs.quietHoursStart === preset.start && prefs.quietHoursEnd === preset.end;
-                  return (
-                    <Pressable
-                      key={preset.id}
-                      onPress={() =>
-                        handleSelectQuietHours(preset.start, preset.end, preset.label)
-                      }
-                      style={[
-                        styles.timingChip,
-                        {
-                          backgroundColor: selected
-                            ? colors.primarySoft
-                            : isDark
-                            ? colors.surfaceElevated
-                            : colors.surfaceSecondary,
-                          borderColor: selected ? colors.primary : colors.border,
-                        },
-                      ]}
-                    >
-                      <ThemedText
-                        style={[
-                          styles.chipLabel,
-                          { color: selected ? colors.primary : colors.textSecondary },
-                        ]}
-                      >
-                        {preset.label}
-                      </ThemedText>
-                    </Pressable>
-                  );
-                })}
-              </View>
-            </View>
-
-            <Button
-              variant="outline"
-              size="sm"
-              loading={isSyncingNotifications}
-              onPress={handleSyncDeviceNotifications}
-              icon={
-                <SymbolView
-                  name={{ ios: 'arrow.triangle.2.circlepath', android: 'sync', web: 'sync' } as any}
-                  size={15}
-                  tintColor={colors.primary}
-                />
-              }
-            >
-              Sync Device Schedules Now
-            </Button>
-
-            {/* Android OS System Permissions */}
-            <View style={[styles.divider, { backgroundColor: colors.borderSubtle }]} />
-            <ThemedText style={[styles.fieldLabel, { color: colors.text }]}>
-              Android System Permissions
-            </ThemedText>
-
-            {/* 1. Notification Display Access */}
-            <View
-              style={[
-                styles.permissionBox,
-                {
-                  backgroundColor: colors.surfaceSecondary,
-                  borderColor: permissions.notificationsGranted
-                    ? colors.borderSubtle
-                    : Colors.status.danger,
-                },
-              ]}
-            >
-              <View style={styles.permissionTop}>
-                <ThemedText style={[styles.permissionTitle, { color: colors.text }]}>
-                  1. Notification Display Permission
-                </ThemedText>
-                <View
-                  style={[
-                    styles.statusBadge,
-                    {
-                      backgroundColor: permissions.notificationsGranted
-                        ? isDark
-                          ? 'rgba(16, 185, 129, 0.2)'
-                          : '#DCFCE7'
-                        : isDark
-                        ? 'rgba(239, 68, 68, 0.2)'
-                        : '#FEE2E2',
-                    },
-                  ]}
-                >
-                  <ThemedText
-                    style={[
-                      styles.statusBadgeText,
-                      {
-                        color: permissions.notificationsGranted
-                          ? Colors.status.success
-                          : Colors.status.danger,
-                      },
-                    ]}
-                  >
-                    {permissions.notificationsGranted ? 'Granted' : 'Blocked'}
-                  </ThemedText>
-                </View>
-              </View>
-              <ThemedText style={[styles.permissionDesc, { color: colors.textSecondary }]}>
-                Required by Android to display reminder alerts and due-date banners on your lock
-                screen and notification shade.
-              </ThemedText>
-              {!permissions.notificationsGranted ? (
-                <Button
-                  variant="primary"
-                  size="sm"
-                  onPress={handleEnableDisplayNotifications}
-                  style={{ alignSelf: 'flex-start', marginTop: Spacing.two }}
-                >
-                  {permissions.canAskNotifications
-                    ? 'Allow Notifications'
-                    : 'Open Notification Settings'}
-                </Button>
-              ) : null}
-            </View>
-
-            {/* 2. Exact Alarm Permission (Android 14+) */}
-            <View
-              style={[
-                styles.permissionBox,
-                {
-                  backgroundColor: colors.surfaceSecondary,
-                  borderColor: permissions.exactAlarmGranted
-                    ? colors.borderSubtle
-                    : Colors.status.warning,
-                },
-              ]}
-            >
-              <View style={styles.permissionTop}>
-                <ThemedText style={[styles.permissionTitle, { color: colors.text }]}>
-                  2. Exact Alarms (Android 14+)
-                </ThemedText>
-                <View
-                  style={[
-                    styles.statusBadge,
-                    {
-                      backgroundColor: permissions.exactAlarmGranted
-                        ? isDark
-                          ? 'rgba(16, 185, 129, 0.2)'
-                          : '#DCFCE7'
-                        : isDark
-                        ? 'rgba(245, 158, 11, 0.2)'
-                        : '#FEF3C7',
-                    },
-                  ]}
-                >
-                  <ThemedText
-                    style={[
-                      styles.statusBadgeText,
-                      {
-                        color: permissions.exactAlarmGranted
-                          ? Colors.status.success
-                          : Colors.status.warning,
-                      },
-                    ]}
-                  >
-                    {permissions.exactAlarmGranted ? 'Exact Timing' : 'Best-Effort'}
-                  </ThemedText>
-                </View>
-              </View>
-              <ThemedText style={[styles.permissionDesc, { color: colors.textSecondary }]}>
-                {permissions.exactAlarmGranted
-                  ? 'Alarms & Reminders access is enabled so scheduled due-time notifications fire on time.'
-                  : 'Android restricts exact alarms until approved in System Settings. Without it, alerts still run on a best-effort schedule (possible slight delay during Doze).'}
-              </ThemedText>
-              {!permissions.exactAlarmGranted ? (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onPress={handleEnableExactAlarms}
-                  style={{ alignSelf: 'flex-start', marginTop: Spacing.two }}
-                >
-                  Open Alarms & Reminders Settings
-                </Button>
-              ) : null}
-            </View>
-          </SettingsSectionCard>
-
-          {/* SECTION 5: UNIVERSAL FREE ACCESS */}
-          <SettingsSectionCard
-            title="Universal Free Access"
-            subtitle="Everything in LifeAdmin is free — zero paywalls or gated features"
-            icon={{ ios: 'heart.fill', android: 'favorite' }}
-          >
-            <ThemedText style={[styles.freePromiseText, { color: colors.textSecondary }]}>
-              Your account includes unlimited Bills, Appointments, Reminders, Documents Vault OCR,
-              Calendar unification, AI Goal Planning, and LifeBuddy companions at no cost.
-            </ThemedText>
-          </SettingsSectionCard>
-
-          {/* SECTION 6: PRIVACY, SECURITY & ACCOUNT */}
-          <SettingsSectionCard
-            title="Privacy, Security & Account"
-            subtitle="Credentials, personal backup export, session & account deletion"
-            icon={{ ios: 'lock.shield', android: 'shield' }}
-          >
-            <View
-              style={[
-                styles.securityInfoBox,
-                { backgroundColor: colors.surfaceSecondary, borderColor: colors.border },
-              ]}
-            >
-              <SymbolView
-                name={{ ios: 'checkmark.shield', android: 'verified_user', web: 'verified_user' } as any}
-                size={18}
-                tintColor={colors.primary}
-              />
-              <ThemedText style={[styles.securityInfoText, { color: colors.textSecondary }]}>
-                {accountMode.securityNote}
-              </ThemedText>
-            </View>
-
-            {/* Password & Recovery */}
-            <Pressable
-              disabled={!accountMode.canRequestPasswordReset}
-              onPress={() => setIsPasswordModalOpen(true)}
-              style={({ pressed }) => [
-                styles.actionRow,
-                {
-                  backgroundColor: isDark ? colors.surfaceElevated : colors.surfaceSecondary,
-                  borderColor: colors.border,
-                  opacity: accountMode.canRequestPasswordReset ? (pressed ? 0.8 : 1) : 0.5,
-                },
-              ]}
-            >
-              <SymbolView
-                name={{ ios: 'key.horizontal', android: 'vpn_key', web: 'vpn_key' } as any}
-                size={18}
-                tintColor={colors.primary}
-              />
-              <View style={styles.actionRowTextCol}>
-                <ThemedText style={[styles.actionRowTitle, { color: colors.text }]}>
-                  Password & Account Recovery
-                </ThemedText>
-                <ThemedText style={[styles.actionRowDesc, { color: colors.textSecondary }]}>
-                  {accountMode.canRequestPasswordReset
-                    ? 'Send a 30-minute reset email or apply an existing reset token'
-                    : 'Not applicable to ephemeral guest sessions'}
-                </ThemedText>
-              </View>
-              <SymbolView
-                name={{ ios: 'chevron.right', android: 'chevron_right', web: 'chevron_right' } as any}
-                size={16}
-                tintColor={colors.textMuted}
-              />
-            </Pressable>
-
-            {/* Export Personal Data JSON */}
-            <Pressable
-              disabled={!accountMode.canExportData || isExporting}
-              onPress={handleExportData}
-              style={({ pressed }) => [
-                styles.actionRow,
-                {
-                  backgroundColor: isDark ? colors.surfaceElevated : colors.surfaceSecondary,
-                  borderColor: colors.border,
-                  opacity: accountMode.canExportData ? (pressed ? 0.8 : 1) : 0.5,
-                },
-              ]}
-            >
-              <SymbolView
-                name={{ ios: 'square.and.arrow.up', android: 'download', web: 'download' } as any}
-                size={18}
-                tintColor={colors.primary}
-              />
-              <View style={styles.actionRowTextCol}>
-                <ThemedText style={[styles.actionRowTitle, { color: colors.text }]}>
-                  {isExporting ? 'Preparing JSON Backup...' : 'Export Personal Data (JSON)'}
-                </ThemedText>
-                <ThemedText style={[styles.actionRowDesc, { color: colors.textSecondary }]}>
-                  {accountMode.canExportData
-                    ? 'Export tasks, bills, appointments, reminders, docs & AI history via device Share'
-                    : 'Create a free registered account to export permanent backups'}
-                </ThemedText>
-              </View>
-              <SymbolView
-                name={{ ios: 'chevron.right', android: 'chevron_right', web: 'chevron_right' } as any}
-                size={16}
-                tintColor={colors.textMuted}
-              />
-            </Pressable>
-
-            {/* Sign Out / Exit Guest Demo */}
-            <Button
-              variant="outline"
-              size="md"
-              fullWidth
-              onPress={handleSignOutOrExitGuest}
-            >
-              {accountMode.isGuest ? 'Exit Guest Demo Session' : 'Sign Out'}
-            </Button>
-          </SettingsSectionCard>
-
-          {/* DANGER ZONE (Registered Accounts Only) */}
-          {accountMode.canDeleteAccount ? (
-            <SettingsSectionCard
-              title="Danger Zone"
-              subtitle="Permanently delete your account and erase all stored data"
-              icon={{ ios: 'trash', android: 'delete_forever' }}
-              accentTone="danger"
-            >
-              <ThemedText style={[styles.freePromiseText, { color: colors.textSecondary }]}>
-                Deleting your account cannot be undone. Consider exporting your JSON backup first.
-              </ThemedText>
-              <Button
-                variant="danger"
-                size="md"
-                fullWidth
-                onPress={() => {
-                  setDeleteError(null);
-                  setIsDeleteModalOpen(true);
-                }}
-              >
-                Delete Account Forever
-              </Button>
-            </SettingsSectionCard>
-          ) : null}
         </ScrollView>
       </SafeAreaView>
 
-      {/* Modals */}
+      {/* Currency Picker Modal */}
       <CurrencyPickerModal
         isOpen={isCurrencyPickerOpen}
         selectedCurrency={prefs.preferredCurrency}
@@ -1453,26 +1052,57 @@ export default function SettingsScreen() {
         isSaving={isSavingPrefs}
       />
 
-      <PasswordSecurityModal
-        isOpen={isPasswordModalOpen}
-        email={user?.email || ''}
-        isGuest={accountMode.isGuest}
-        onRequestResetEmail={(email) => settingsService.requestPasswordResetEmail(email)}
-        onApplyResetToken={(token, password, confirmPassword) =>
-          authService.resetPassword(token, { password, confirmPassword })
-        }
-        onClose={() => setIsPasswordModalOpen(false)}
-      />
-
-      <DeleteAccountModal
-        isOpen={isDeleteModalOpen}
-        userName={user?.name || ''}
-        userEmail={user?.email || ''}
-        isDeleting={isDeletingAccount}
-        error={deleteError}
-        onConfirmDelete={handleConfirmDeleteAccount}
-        onClose={() => setIsDeleteModalOpen(false)}
-      />
+      {/* Timezone Picker Sheet */}
+      <ModalSheet
+        isOpen={isTimezoneModalOpen}
+        onClose={() => setIsTimezoneModalOpen(false)}
+        title="Select Timezone"
+        description="Choose your local timezone for schedule alerts"
+      >
+        <ScrollView style={styles.timezoneList} showsVerticalScrollIndicator={false}>
+          {TIMEZONE_OPTIONS.map((item) => {
+            const isSelected = timezone === item.value;
+            return (
+              <Pressable
+                key={item.value}
+                onPress={() => handleSelectTimezone(item.value)}
+                style={({ pressed }) => [
+                  styles.timezoneItem,
+                  {
+                    backgroundColor: isSelected
+                      ? colors.primarySoft
+                      : pressed
+                      ? colors.surfaceSecondary
+                      : 'transparent',
+                    borderColor: isSelected ? colors.primary : colors.borderSubtle,
+                  },
+                ]}
+              >
+                <View style={styles.timezoneItemTextCol}>
+                  <ThemedText
+                    style={[
+                      styles.timezoneItemLabel,
+                      { color: isSelected ? colors.primary : colors.text },
+                    ]}
+                  >
+                    {item.label}
+                  </ThemedText>
+                  <ThemedText style={[styles.timezoneItemVal, { color: colors.textSecondary }]}>
+                    {item.value}
+                  </ThemedText>
+                </View>
+                {isSelected && (
+                  <SymbolView
+                    name={{ ios: 'checkmark.circle.fill', android: 'check_circle', web: 'check_circle' } as any}
+                    size={18}
+                    tintColor={colors.primary}
+                  />
+                )}
+              </Pressable>
+            );
+          })}
+        </ScrollView>
+      </ModalSheet>
     </ThemedView>
   );
 }
@@ -1504,62 +1134,8 @@ const styles = StyleSheet.create({
     fontSize: Typography.fontSize.xs,
     marginTop: 1,
   },
-  syncPill: {
-    paddingHorizontal: Spacing.three,
-    paddingVertical: 4,
-    borderRadius: Radius.full,
-  },
-  syncPillText: {
-    fontFamily: Typography.fontFamilies.sansSemiBold,
-    fontSize: Typography.fontSize.micro,
-  },
   scrollContent: {
     padding: Spacing.four,
-    paddingBottom: Spacing.nine,
-  },
-  feedbackBanner: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: Spacing.three,
-    borderWidth: 1,
-    borderRadius: Radius.lg,
-    paddingHorizontal: Spacing.three,
-    paddingVertical: Spacing.three,
-    marginBottom: Spacing.four,
-  },
-  feedbackText: {
-    flex: 1,
-    fontFamily: Typography.fontFamilies.sansMedium,
-    fontSize: Typography.fontSize.xs,
-    lineHeight: 18,
-  },
-  feedbackCloseBtn: {
-    minWidth: 36,
-    minHeight: 36,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  guestBanner: {
-    borderWidth: 1,
-    borderRadius: Radius.xl,
-    padding: Spacing.four,
-    marginBottom: Spacing.four,
-  },
-  guestTopRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.two,
-    marginBottom: 4,
-  },
-  guestTitle: {
-    fontFamily: Typography.fontFamilies.sansSemiBold,
-    fontSize: Typography.fontSize.sm,
-  },
-  guestDesc: {
-    fontFamily: Typography.fontFamilies.sans,
-    fontSize: Typography.fontSize.xs,
-    lineHeight: 18,
   },
   profileSummaryRow: {
     flexDirection: 'row',
@@ -1568,8 +1144,8 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.two,
   },
   avatarCircle: {
-    width: 54,
-    height: 54,
+    width: 50,
+    height: 50,
     borderRadius: Radius.full,
     alignItems: 'center',
     justifyContent: 'center',
@@ -1594,7 +1170,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.two,
-    marginTop: 6,
+    marginTop: 4,
     flexWrap: 'wrap',
   },
   metaChip: {
@@ -1610,6 +1186,52 @@ const styles = StyleSheet.create({
     fontFamily: Typography.fontFamilies.sans,
     fontSize: Typography.fontSize.xs,
   },
+  themeGrid: {
+    flexDirection: 'row',
+    gap: Spacing.two,
+  },
+  themeCard: {
+    flex: 1,
+    minHeight: 64,
+    borderWidth: 1.5,
+    borderRadius: Radius.lg,
+    padding: Spacing.three,
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 4,
+  },
+  themeLabel: {
+    fontFamily: Typography.fontFamilies.sansSemiBold,
+    fontSize: Typography.fontSize.sm,
+  },
+  themeDesc: {
+    fontFamily: Typography.fontFamilies.sans,
+    fontSize: 11,
+    textAlign: 'center',
+  },
+  switchRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: Spacing.three,
+  },
+  switchTextCol: {
+    flex: 1,
+    gap: 2,
+  },
+  switchLabel: {
+    fontFamily: Typography.fontFamilies.sansSemiBold,
+    fontSize: Typography.fontSize.sm,
+  },
+  switchDesc: {
+    fontFamily: Typography.fontFamilies.sans,
+    fontSize: Typography.fontSize.xs,
+    lineHeight: 16,
+  },
+  divider: {
+    height: 1,
+    marginVertical: Spacing.two,
+  },
   subsection: {
     gap: Spacing.two,
   },
@@ -1621,6 +1243,86 @@ const styles = StyleSheet.create({
     fontFamily: Typography.fontFamilies.sans,
     fontSize: Typography.fontSize.xs,
     lineHeight: 16,
+  },
+  chipWrap: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: Spacing.two,
+  },
+  chip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    borderWidth: 1,
+    borderRadius: Radius.full,
+    paddingHorizontal: Spacing.three,
+    paddingVertical: 7,
+  },
+  chipLabel: {
+    fontFamily: Typography.fontFamilies.sansMedium,
+    fontSize: Typography.fontSize.xs,
+  },
+  selectorTrigger: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    borderWidth: 1,
+    borderRadius: Radius.lg,
+    padding: Spacing.three,
+  },
+  selectorTextCol: {
+    flex: 1,
+  },
+  selectorTitle: {
+    fontFamily: Typography.fontFamilies.sansSemiBold,
+    fontSize: Typography.fontSize.sm,
+  },
+  selectorSubtitle: {
+    fontFamily: Typography.fontFamilies.sans,
+    fontSize: Typography.fontSize.xs,
+    marginTop: 2,
+  },
+  permissionSection: {
+    gap: Spacing.two,
+    marginTop: Spacing.two,
+  },
+  permissionBox: {
+    borderWidth: 1,
+    borderRadius: Radius.lg,
+    padding: Spacing.three,
+  },
+  permissionTitle: {
+    fontFamily: Typography.fontFamilies.sansSemiBold,
+    fontSize: Typography.fontSize.sm,
+  },
+  permissionDesc: {
+    fontFamily: Typography.fontFamilies.sans,
+    fontSize: Typography.fontSize.xs,
+    lineHeight: 16,
+    marginTop: 4,
+  },
+  tagPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    borderWidth: 1,
+    borderRadius: Radius.full,
+    paddingLeft: Spacing.three,
+    paddingRight: Spacing.two,
+    paddingVertical: 6,
+  },
+  tagText: {
+    fontFamily: Typography.fontFamilies.sansMedium,
+    fontSize: Typography.fontSize.xs,
+  },
+  addCategoryRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: Spacing.two,
+    marginTop: Spacing.one,
+  },
+  addCategoryInput: {
+    flex: 1,
   },
   currencyTrigger: {
     flexDirection: 'row',
@@ -1653,185 +1355,28 @@ const styles = StyleSheet.create({
     fontSize: Typography.fontSize.xs,
     marginTop: 2,
   },
-  chipWrap: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: Spacing.two,
+  timezoneList: {
+    maxHeight: 320,
   },
-  domainChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    borderWidth: 1,
-    borderRadius: Radius.full,
-    paddingHorizontal: Spacing.three,
-    paddingVertical: 7,
-  },
-  timingChip: {
-    borderWidth: 1,
-    borderRadius: Radius.full,
-    paddingHorizontal: Spacing.three,
-    paddingVertical: 7,
-  },
-  chipLabel: {
-    fontFamily: Typography.fontFamilies.sansMedium,
-    fontSize: Typography.fontSize.xs,
-  },
-  tagPill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    borderWidth: 1,
-    borderRadius: Radius.full,
-    paddingLeft: Spacing.three,
-    paddingRight: Spacing.two,
-    paddingVertical: 6,
-  },
-  tagText: {
-    fontFamily: Typography.fontFamilies.sansMedium,
-    fontSize: Typography.fontSize.xs,
-  },
-  addCategoryRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: Spacing.two,
-    marginTop: Spacing.one,
-  },
-  addCategoryInput: {
-    flex: 1,
-  },
-  divider: {
-    height: 1,
-    marginVertical: Spacing.one,
-  },
-  switchRow: {
+  timezoneItem: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    gap: Spacing.three,
+    paddingVertical: Spacing.three,
+    paddingHorizontal: Spacing.three,
+    borderBottomWidth: 1,
+    borderRadius: Radius.md,
   },
-  switchTextCol: {
+  timezoneItemTextCol: {
     flex: 1,
-    gap: 2,
   },
-  switchLabel: {
+  timezoneItemLabel: {
     fontFamily: Typography.fontFamilies.sansSemiBold,
     fontSize: Typography.fontSize.sm,
   },
-  switchDesc: {
-    fontFamily: Typography.fontFamilies.sans,
-    fontSize: Typography.fontSize.xs,
-    lineHeight: 16,
-  },
-  actionRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.three,
-    borderWidth: 1,
-    borderRadius: Radius.lg,
-    padding: Spacing.three,
-  },
-  actionRowTextCol: {
-    flex: 1,
-  },
-  actionRowTitle: {
-    fontFamily: Typography.fontFamilies.sansSemiBold,
-    fontSize: Typography.fontSize.sm,
-  },
-  actionRowDesc: {
+  timezoneItemVal: {
     fontFamily: Typography.fontFamilies.sans,
     fontSize: Typography.fontSize.xs,
     marginTop: 2,
-    lineHeight: 16,
-  },
-  themeGrid: {
-    flexDirection: 'row',
-    gap: Spacing.two,
-  },
-  themeCard: {
-    flex: 1,
-    borderWidth: 1.5,
-    borderRadius: Radius.lg,
-    padding: Spacing.three,
-    gap: 6,
-    position: 'relative',
-  },
-  themeSwatch: {
-    height: 28,
-    borderRadius: Radius.sm,
-    borderWidth: 1,
-    overflow: 'hidden',
-    justifyContent: 'flex-end',
-    padding: 4,
-  },
-  themeSwatchBar: {
-    height: 6,
-    width: '55%',
-    borderRadius: Radius.full,
-  },
-  themeLabel: {
-    fontFamily: Typography.fontFamilies.sansSemiBold,
-    fontSize: Typography.fontSize.sm,
-  },
-  themeDesc: {
-    fontFamily: Typography.fontFamilies.sans,
-    fontSize: 11,
-    lineHeight: 14,
-  },
-  themeCheckBadge: {
-    position: 'absolute',
-    top: Spacing.two,
-    right: Spacing.two,
-  },
-  permissionBox: {
-    borderWidth: 1,
-    borderRadius: Radius.lg,
-    padding: Spacing.three,
-  },
-  permissionTop: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: Spacing.two,
-    marginBottom: 4,
-  },
-  permissionTitle: {
-    flex: 1,
-    fontFamily: Typography.fontFamilies.sansSemiBold,
-    fontSize: Typography.fontSize.sm,
-  },
-  statusBadge: {
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: Radius.full,
-  },
-  statusBadgeText: {
-    fontFamily: Typography.fontFamilies.sansSemiBold,
-    fontSize: Typography.fontSize.micro,
-  },
-  permissionDesc: {
-    fontFamily: Typography.fontFamilies.sans,
-    fontSize: Typography.fontSize.xs,
-    lineHeight: 17,
-  },
-  freePromiseText: {
-    fontFamily: Typography.fontFamilies.sans,
-    fontSize: Typography.fontSize.xs,
-    lineHeight: 18,
-  },
-  securityInfoBox: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: Spacing.two,
-    borderWidth: 1,
-    borderRadius: Radius.lg,
-    padding: Spacing.three,
-  },
-  securityInfoText: {
-    flex: 1,
-    fontFamily: Typography.fontFamilies.sans,
-    fontSize: Typography.fontSize.xs,
-    lineHeight: 17,
   },
 });
-

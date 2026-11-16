@@ -37,13 +37,12 @@ export function LoginScreen({
   onNavigateToResetPassword,
 }: LoginScreenProps) {
   const { colors, isDark } = useAppTheme();
-  const { login, loginAsGuest, isAuthenticating, error, clearError } = useAuth();
+  const { login, isAuthenticating, error, clearError } = useAuth();
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [localError, setLocalError] = useState<string | null>(null);
-  const [isGuestLoading, setIsGuestLoading] = useState(false);
   const [isForgotModalVisible, setIsForgotModalVisible] = useState(false);
 
   const activeError = localError || error;
@@ -72,19 +71,6 @@ export function LoginScreen({
       await login(cleanEmail, password);
     } catch {
       // Error handled by AuthContext state
-    }
-  };
-
-  const handleGuestLogin = async () => {
-    setLocalError(null);
-    clearError();
-    setIsGuestLoading(true);
-    try {
-      await loginAsGuest();
-    } catch {
-      // Error handled by AuthContext
-    } finally {
-      setIsGuestLoading(false);
     }
   };
 
@@ -297,14 +283,14 @@ export function LoginScreen({
             {/* Submit Button */}
             <Pressable
               onPress={handleLogin}
-              disabled={isAuthenticating || isGuestLoading}
+              disabled={isAuthenticating}
               style={({ pressed }) => [
                 styles.submitBtn,
                 { backgroundColor: colors.primary },
                 (pressed || isAuthenticating) && { opacity: 0.85 },
               ]}
             >
-              {isAuthenticating && !isGuestLoading ? (
+              {isAuthenticating ? (
                 <ActivityIndicator
                   color={getButtonForegroundColor('primary', colors, isDark)}
                   size="small"
@@ -325,62 +311,6 @@ export function LoginScreen({
                     tintColor={getButtonForegroundColor('primary', colors, isDark)}
                   />
                 </View>
-              )}
-            </Pressable>
-
-            {/* Divider */}
-            <View style={styles.dividerRow}>
-              <View style={[styles.dividerLine, { backgroundColor: colors.borderSubtle }]} />
-              <ThemedText style={[styles.dividerText, { color: colors.textMuted }]}>
-                OR EXPLORE INSTANTLY
-              </ThemedText>
-              <View style={[styles.dividerLine, { backgroundColor: colors.borderSubtle }]} />
-            </View>
-
-            {/* Guest Demo CTA Card */}
-            <Pressable
-              onPress={handleGuestLogin}
-              disabled={isAuthenticating || isGuestLoading}
-              style={({ pressed }) => [
-                styles.guestCard,
-                {
-                  backgroundColor: colors.surfaceSecondary,
-                  borderColor: colors.border,
-                },
-                pressed && { opacity: 0.85 },
-              ]}
-            >
-              <View style={styles.guestCardLeft}>
-                <View
-                  style={[
-                    styles.guestIconCircle,
-                    { backgroundColor: isDark ? colors.surfaceElevated || '#285968' : '#FFFFFF' },
-                  ]}
-                >
-                  <SymbolView
-                    name={{ ios: 'sparkles', android: 'auto_awesome', web: 'auto_awesome' } as any}
-                    size={18}
-                    tintColor={colors.primary}
-                  />
-                </View>
-                <View style={styles.guestTextCol}>
-                  <ThemedText style={[styles.guestTitle, { color: colors.text }]}>
-                    Try Guest Demo
-                  </ThemedText>
-                  <ThemedText style={[styles.guestDesc, { color: colors.textSecondary }]}>
-                    2-hr instant preview with pre-seeded data. No signup.
-                  </ThemedText>
-                </View>
-              </View>
-
-              {isGuestLoading ? (
-                <ActivityIndicator color={colors.primary} size="small" />
-              ) : (
-                <SymbolView
-                  name={{ ios: 'chevron.right', android: 'chevron_right', web: 'chevron_right' } as any}
-                  size={18}
-                  tintColor={colors.textSecondary}
-                />
               )}
             </Pressable>
           </View>
@@ -406,10 +336,6 @@ export function LoginScreen({
         onGoToRegister={() => {
           setIsForgotModalVisible(false);
           onNavigateToRegister?.();
-        }}
-        onGoToGuest={() => {
-          setIsForgotModalVisible(false);
-          handleGuestLogin();
         }}
       />
     </SafeAreaView>
@@ -535,54 +461,6 @@ const styles = StyleSheet.create({
   submitBtnText: {
     fontFamily: Typography.fontFamilies.sansBold,
     fontSize: Typography.fontSize.base,
-  },
-  dividerRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginVertical: Spacing.five,
-  },
-  dividerLine: {
-    flex: 1,
-    height: 1,
-  },
-  dividerText: {
-    fontSize: 10,
-    fontFamily: Typography.fontFamilies.sansBold,
-    letterSpacing: 0.8,
-    marginHorizontal: Spacing.three,
-  },
-  guestCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    padding: Spacing.three,
-    borderRadius: Radius.md,
-    borderWidth: 1,
-  },
-  guestCardLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.three,
-    flex: 1,
-  },
-  guestIconCircle: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  guestTextCol: {
-    flex: 1,
-  },
-  guestTitle: {
-    fontSize: Typography.fontSize.sm,
-    fontFamily: Typography.fontFamilies.sansBold,
-    marginBottom: 2,
-  },
-  guestDesc: {
-    fontSize: 11,
-    lineHeight: 15,
   },
   footerRow: {
     flexDirection: 'row',

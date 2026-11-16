@@ -12,6 +12,13 @@ import {
   EditDocumentParams,
   CreateEntityFromDocParams,
 } from '../types';
+import {
+  prepareAccessibleUploadFile,
+  tryNativeUploadAsync,
+  uploadViaFetchAsync,
+  uploadViaXhrAsync,
+  isServerErrorToRethrow,
+} from './uploadHelpers';
 
 export interface FetchDocumentsParams {
   category?: string;
@@ -72,40 +79,50 @@ class DocumentService {
   }
 
   /**
-   * Uploads a document via multipart/form-data
+   * Uploads a document via multipart/form-data.
+   * Employs a resilient 3-tier pipeline:
+   * 1. Native background streaming via expo-file-system uploadAsync (OkHttp direct, no JS heap memory spike).
+   * 2. Standards-compliant Blob multipart fetch (Expo Winter-fetch / Web compliant).
+   * 3. Native React Native XMLHttpRequest multipart upload fallback.
+   * Completely eliminates "Unsupported FormDataPart implementation" and "Location isn't readable" errors.
    */
   public async uploadDocument(params: UploadDocumentParams): Promise<DocumentItem> {
-    const formData = new FormData();
+    const { localUri, cleanup } = await prepareAccessibleUploadFile(params.file);
 
-    // In React Native / Expo, file objects in FormData take the shape:
-    // { uri: string, name: string, type: string }
-    const filePayload = {
-      uri: params.file.uri,
-      name: params.file.name || 'document',
-      type: params.file.mimeType || 'application/octet-stream',
-    } as any;
+    try {
+      // Tier 1: Native background streaming uploadAsync (bypasses JS FormData completely)
+      try {
+        const nativeDoc = await tryNativeUploadAsync(params, localUri);
+        if (nativeDoc) {
+          return nativeDoc;
+        }
+      } catch (nativeErr: any) {
+        if (isServerErrorToRethrow(nativeErr)) {
+          throw nativeErr;
+        }
+        console.warn('Native uploadAsync failed, falling back to multipart fetch:', nativeErr?.message);
+      }
 
-    formData.append('file', filePayload);
+      // Tier 2: Standards-compliant Blob multipart upload (handles Expo Winter-fetch & Web)
+      try {
+        const fetchDoc = await uploadViaFetchAsync(params, localUri);
+        if (fetchDoc) {
+          return fetchDoc;
+        }
+      } catch (fetchErr: any) {
+        if (isServerErrorToRethrow(fetchErr)) {
+          throw fetchErr;
+        }
+        console.warn('Multipart fetch upload failed, falling back to native XHR:', fetchErr?.message);
+      }
 
-    if (params.category) {
-      formData.append('category', params.category);
+      // Tier 3: Native React Native XMLHttpRequest multipart upload (uses Android OkHttp / iOS RCTNetworking)
+      return await uploadViaXhrAsync(params, localUri);
+    } finally {
+      if (cleanup) {
+        await cleanup();
+      }
     }
-    if (params.documentType) {
-      formData.append('documentType', params.documentType);
-    }
-    if (params.notes) {
-      formData.append('notes', params.notes);
-    }
-    if (params.expiryDate) {
-      formData.append('expiryDate', params.expiryDate);
-    }
-
-    const res = await apiClient.upload<{ message: string; document: DocumentItem }>(
-      Endpoints.documents.upload,
-      formData
-    );
-
-    return res.document;
   }
 
   /**

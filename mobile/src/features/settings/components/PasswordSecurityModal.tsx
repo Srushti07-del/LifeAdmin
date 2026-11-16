@@ -1,10 +1,11 @@
 /**
  * LifeAdmin Mobile — Password Reset & Account Recovery Bottom Sheet
- * Integrates truthfully with backend /api/auth/forgot-password & /api/auth/reset-password/:token.
+ * Simplified email-based recovery flow matching web feature parity.
+ * LifeAdmin sends a secure password reset link to the registered email address.
  */
 
 import React, { useEffect, useState } from 'react';
-import { View, StyleSheet, Pressable } from 'react-native';
+import { View, StyleSheet } from 'react-native';
 import { SymbolView } from 'expo-symbols';
 import { useAppTheme } from '@/context/ThemeContext';
 import { ModalSheet, Input, Button, getButtonForegroundColor } from '@/components/ui';
@@ -16,9 +17,9 @@ import { Spacing, Radius } from '@/constants/spacing';
 export interface PasswordSecurityModalProps {
   isOpen: boolean;
   email: string;
-  isGuest: boolean;
+  isGuest?: boolean;
   onRequestResetEmail: (email: string) => Promise<{ message: string }>;
-  onApplyResetToken: (
+  onApplyResetToken?: (
     token: string,
     password: string,
     confirmPassword: string
@@ -29,18 +30,11 @@ export interface PasswordSecurityModalProps {
 export function PasswordSecurityModal({
   isOpen,
   email,
-  isGuest,
+  isGuest = false,
   onRequestResetEmail,
-  onApplyResetToken,
   onClose,
 }: PasswordSecurityModalProps) {
   const { colors, isDark } = useAppTheme();
-
-  const [mode, setMode] = useState<'request' | 'token'>('request');
-  const [token, setToken] = useState('');
-  const [newPassword, setNewPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
-  const [showPassword, setShowPassword] = useState(false);
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [feedback, setFeedback] = useState<{ type: 'success' | 'error'; text: string } | null>(
@@ -49,11 +43,6 @@ export function PasswordSecurityModal({
 
   useEffect(() => {
     if (!isOpen) {
-      setMode('request');
-      setToken('');
-      setNewPassword('');
-      setConfirmPassword('');
-      setShowPassword(false);
       setFeedback(null);
       setIsSubmitting(false);
     }
@@ -69,7 +58,7 @@ export function PasswordSecurityModal({
         type: 'success',
         text:
           res.message ||
-          'Reset instructions have been sent. Check your inbox for your 30-minute reset token or link.',
+          'Reset instructions have been sent. Please check your inbox for your 30-minute reset link.',
       });
     } catch (err: any) {
       setFeedback({
@@ -83,46 +72,6 @@ export function PasswordSecurityModal({
     }
   };
 
-  const handleApplyToken = async () => {
-    if (isGuest) return;
-    const cleanToken = token.trim();
-    if (!cleanToken) {
-      setFeedback({ type: 'error', text: 'Enter the reset token from your email.' });
-      return;
-    }
-    if (newPassword.length < 8) {
-      setFeedback({
-        type: 'error',
-        text: 'New password must be at least 8 characters long.',
-      });
-      return;
-    }
-    if (newPassword !== confirmPassword) {
-      setFeedback({ type: 'error', text: 'Passwords do not match.' });
-      return;
-    }
-
-    setFeedback(null);
-    setIsSubmitting(true);
-    try {
-      const res = await onApplyResetToken(cleanToken, newPassword, confirmPassword);
-      setFeedback({
-        type: 'success',
-        text: res.message || 'Your password has been updated securely.',
-      });
-      setToken('');
-      setNewPassword('');
-      setConfirmPassword('');
-    } catch (err: any) {
-      setFeedback({
-        type: 'error',
-        text: err?.message || 'Reset token could not be verified or has expired.',
-      });
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
   return (
     <ModalSheet
       isOpen={isOpen}
@@ -130,7 +79,7 @@ export function PasswordSecurityModal({
         if (!isSubmitting) onClose();
       }}
       title="Password & Recovery"
-      description="LifeAdmin verifies password changes using a 30-minute recovery token sent to your account email."
+      description="LifeAdmin sends a secure password reset link to your registered email address. The link is valid for 30 minutes."
     >
       <View style={styles.container}>
         {feedback ? (
@@ -179,122 +128,32 @@ export function PasswordSecurityModal({
           </View>
         ) : null}
 
-        <View style={[styles.modeTabs, { backgroundColor: colors.surfaceSecondary }]}>
-          <Pressable
-            onPress={() => {
-              setMode('request');
-              setFeedback(null);
-            }}
-            style={[
-              styles.modeTab,
-              mode === 'request' && { backgroundColor: colors.surface },
-            ]}
+        <View style={styles.section}>
+          <Input
+            label="Account Email"
+            value={email || 'Your registered email'}
+            editable={false}
+            helperText="A secure reset link valid for 30 minutes will be sent to this email."
+          />
+
+          <Button
+            variant="primary"
+            size="lg"
+            fullWidth
+            loading={isSubmitting}
+            disabled={isGuest || isSubmitting || !email}
+            onPress={handleSendEmail}
+            icon={
+              <SymbolView
+                name={{ ios: 'envelope.badge', android: 'mail', web: 'mail' } as any}
+                size={17}
+                tintColor={getButtonForegroundColor('primary', colors, isDark)}
+              />
+            }
           >
-            <ThemedText
-              style={[
-                styles.modeTabText,
-                { color: mode === 'request' ? colors.primary : colors.textSecondary },
-              ]}
-            >
-              Email Reset Link
-            </ThemedText>
-          </Pressable>
-          <Pressable
-            onPress={() => {
-              setMode('token');
-              setFeedback(null);
-            }}
-            style={[
-              styles.modeTab,
-              mode === 'token' && { backgroundColor: colors.surface },
-            ]}
-          >
-            <ThemedText
-              style={[
-                styles.modeTabText,
-                { color: mode === 'token' ? colors.primary : colors.textSecondary },
-              ]}
-            >
-              Enter Reset Token
-            </ThemedText>
-          </Pressable>
+            Send Password Reset Email
+          </Button>
         </View>
-
-        {mode === 'request' ? (
-          <View style={styles.section}>
-            <Input
-              label="Account Email"
-              value={email}
-              editable={false}
-              helperText="We will email a secure, single-use reset link valid for 30 minutes."
-            />
-
-            <Button
-              variant="primary"
-              size="lg"
-              fullWidth
-              loading={isSubmitting}
-              disabled={isGuest || isSubmitting}
-              onPress={handleSendEmail}
-              icon={
-                <SymbolView
-                  name={{ ios: 'envelope.badge', android: 'mail', web: 'mail' } as any}
-                  size={17}
-                  tintColor={getButtonForegroundColor('primary', colors, isDark)}
-                />
-              }
-            >
-              Send Password Reset Email
-            </Button>
-          </View>
-        ) : (
-          <View style={styles.section}>
-            <Input
-              label="Reset Token"
-              placeholder="Paste token from reset email"
-              value={token}
-              onChangeText={setToken}
-              autoCapitalize="none"
-              autoCorrect={false}
-            />
-
-            <Input
-              label="New Password"
-              placeholder="At least 8 characters"
-              value={newPassword}
-              onChangeText={setNewPassword}
-              secureTextEntry={!showPassword}
-              autoCapitalize="none"
-              rightIcon={
-                <Pressable onPress={() => setShowPassword((prev) => !prev)} hitSlop={8}>
-                  <ThemedText style={[styles.toggleText, { color: colors.primary }]}>
-                    {showPassword ? 'Hide' : 'Show'}
-                  </ThemedText>
-                </Pressable>
-              }
-            />
-
-            <Input
-              label="Confirm New Password"
-              placeholder="Re-enter new password"
-              value={confirmPassword}
-              onChangeText={setConfirmPassword}
-              secureTextEntry={!showPassword}
-              autoCapitalize="none"
-            />
-
-            <Button
-              variant="primary"
-              size="lg"
-              fullWidth
-              loading={isSubmitting}
-              disabled={isGuest || isSubmitting}
-              onPress={handleApplyToken}
-            >
-              Apply New Password
-            </Button>
-          </View>
-        )}
       </View>
     </ModalSheet>
   );
@@ -319,29 +178,8 @@ const styles = StyleSheet.create({
     fontSize: Typography.fontSize.xs,
     lineHeight: 18,
   },
-  modeTabs: {
-    flexDirection: 'row',
-    borderRadius: Radius.lg,
-    padding: 4,
-    gap: 4,
-  },
-  modeTab: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: Spacing.two,
-    borderRadius: Radius.md,
-  },
-  modeTabText: {
-    fontFamily: Typography.fontFamilies.sansSemiBold,
-    fontSize: Typography.fontSize.xs,
-  },
   section: {
     gap: Spacing.three,
-  },
-  toggleText: {
-    fontFamily: Typography.fontFamilies.sansSemiBold,
-    fontSize: Typography.fontSize.xs,
   },
 });
 

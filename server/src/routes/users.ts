@@ -78,6 +78,10 @@ router.put('/settings', async (req: Request, res: Response): Promise<void> => {
       companion,
       emailReminderIntervals,
       timezone,
+      notificationTypes,
+      quietHoursStart,
+      quietHoursEnd,
+      quietHoursEnabled,
     } = req.body;
 
     const user = await User.findById(req.user!._id);
@@ -95,6 +99,21 @@ router.put('/settings', async (req: Request, res: Response): Promise<void> => {
       user.emailReminderIntervals = cleaned.length > 0 ? cleaned : DEFAULT_EMAIL_INTERVALS;
     }
     if (typeof timezone === 'string' && timezone.trim()) user.timezone = timezone.trim();
+    if (notificationTypes && typeof notificationTypes === 'object') {
+      user.notificationTypes = {
+        tasks: typeof notificationTypes.tasks === 'boolean' ? notificationTypes.tasks : (user.notificationTypes?.tasks ?? true),
+        bills: typeof notificationTypes.bills === 'boolean' ? notificationTypes.bills : (user.notificationTypes?.bills ?? true),
+        appointments: typeof notificationTypes.appointments === 'boolean' ? notificationTypes.appointments : (user.notificationTypes?.appointments ?? true),
+        reminders: typeof notificationTypes.reminders === 'boolean' ? notificationTypes.reminders : (user.notificationTypes?.reminders ?? true),
+      };
+    }
+    if (quietHoursEnabled === false) {
+      user.quietHoursStart = undefined;
+      user.quietHoursEnd = undefined;
+    } else {
+      if (typeof quietHoursStart === 'string') user.quietHoursStart = quietHoursStart.trim();
+      if (typeof quietHoursEnd === 'string') user.quietHoursEnd = quietHoursEnd.trim();
+    }
     if (Array.isArray(categories)) user.categories = categories;
     if (preferredCurrency && typeof preferredCurrency === 'string') {
       const valid = ['INR', 'USD', 'EUR', 'GBP', 'AED', 'CAD', 'AUD', 'JPY', 'SGD'];

@@ -114,10 +114,10 @@ describe('More Screen Icons & Grouping (more.tsx)', () => {
     assert.equal(new Set(mdMatches).size, mdMatches.length, 'Every More row should have a unique Android icon');
   });
 
-  it('preserves existing menu items and navigation groups', () => {
+  it('preserves existing menu items and navigation groups (with AI Assistant removed from More)', () => {
+    assert.ok(fs.existsSync(path.join(MOBILE_ROOT, 'src/app/ai.tsx')), 'AI Assistant screen must be preserved');
     for (const label of [
       'LifeBuddy Companions',
-      'AI Assistant',
       'Appointments',
       'Documents Vault',
       'Reminders Timeline',
@@ -128,6 +128,7 @@ describe('More Screen Icons & Grouping (more.tsx)', () => {
     ]) {
       assert.ok(moreSource.includes(label), `Missing menu item: ${label}`);
     }
+    assert.ok(!moreSource.includes("'AI Assistant'"), 'AI Assistant must be removed from More menu rows');
   });
 });
 

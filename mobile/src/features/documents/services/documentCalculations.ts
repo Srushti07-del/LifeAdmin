@@ -4,7 +4,7 @@
  * multi-criteria search/filtering, and extraction entity converters.
  */
 
-import { Colors } from '@/constants/colors';
+import { Colors } from '../../../constants/colors';
 import { tryNormalizeCurrencyCode } from '../../../utils/currency';
 import { isValidLocalISODate, toLocalISODate } from '../../../utils/dateTimeValidation';
 import {

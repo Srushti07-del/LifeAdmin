@@ -18,6 +18,10 @@ import {
   ALLOWED_EXTENSIONS,
 } from '../features/documents/services/documentCalculations.ts';
 import { DocumentItem } from '../features/documents/types.ts';
+import {
+  base64ToUint8Array,
+  createUploadFilePart,
+} from '../features/documents/services/uploadHelpers.ts';
 
 function createMockDocument(overrides: Partial<DocumentItem> = {}): DocumentItem {
   return {
@@ -333,6 +337,103 @@ describe('Extraction Status & Entity Conversion', () => {
     assert.strictEqual(reminderParams.type, 'reminder');
     assert.ok(reminderParams.title.includes(doc.originalName));
     assert.strictEqual(reminderParams.dueDate, '2027-11-30');
+  });
+});
+
+describe('Document Upload & Winter Fetch Compatibility (FormDataPart Fix)', () => {
+  it('correctly decodes base64 strings to Uint8Array', () => {
+    // "Hello World" in base64: SGVsbG8gV29ybGQ=
+    const base64 = 'SGVsbG8gV29ybGQ=';
+    const decoded = base64ToUint8Array(base64);
+    const expected = new Uint8Array([72, 101, 108, 108, 111, 32, 87, 111, 114, 108, 100]);
+    assert.deepStrictEqual(decoded, expected);
+  });
+
+  it('generates an Expo Winter-fetch compliant file part with bytes() method', async () => {
+    // Simulate a data URI for testing readFileAsUint8Array fallback
+    const sampleText = 'Document content bytes';
+    const base64Data = Buffer.from(sampleText, 'utf8').toString('base64');
+    const dataUri = `data:text/plain;base64,${base64Data}`;
+
+    const filePart = await createUploadFilePart({
+      uri: dataUri,
+      name: 'receipt.txt',
+      mimeType: 'text/plain',
+    });
+
+    assert.ok(filePart, 'File part must be created');
+    assert.strictEqual(filePart.name, 'receipt.txt');
+    assert.strictEqual(filePart.type, 'text/plain');
+    assert.strictEqual(typeof filePart.bytes, 'function', 'Must implement bytes() for Expo Winter fetch convertFormDataAsync');
+
+    const bytes = await filePart.bytes();
+    assert.ok(bytes instanceof Uint8Array, 'bytes() must return a Uint8Array');
+    const decodedText = Buffer.from(bytes).toString('utf8');
+    assert.strictEqual(decodedText, sampleText);
+  });
+
+  it('provides prepareAccessibleUploadFile that preserves accessible paths and provides safe fallback', async () => {
+    const { prepareAccessibleUploadFile } = await import('../features/documents/services/uploadHelpers.ts');
+    assert.strictEqual(typeof prepareAccessibleUploadFile, 'function');
+
+    const result = await prepareAccessibleUploadFile({
+      uri: 'file:///app/accessible/doc.pdf',
+      name: 'doc.pdf',
+    });
+    assert.ok(result);
+    assert.ok(result.localUri);
+  });
+
+  it('tryNativeUploadAsync handles unreadable native locations gracefully', async () => {
+    const { tryNativeUploadAsync, isServerErrorToRethrow } = await import('../features/documents/services/uploadHelpers.ts');
+    assert.strictEqual(typeof tryNativeUploadAsync, 'function');
+    assert.strictEqual(typeof isServerErrorToRethrow, 'function');
+
+    // On node/test environment, returns null cleanly without crashing or throwing
+    const result = await tryNativeUploadAsync(
+      {
+        file: {
+          uri: 'file:///data/user/0/host.exp.exponent/cache/DocumentPicker/test.pdf',
+          name: 'test.pdf',
+          mimeType: 'application/pdf',
+        },
+      },
+      'file:///data/user/0/host.exp.exponent/cache/DocumentPicker/test.pdf'
+    );
+    assert.strictEqual(result, null);
+
+    assert.strictEqual(isServerErrorToRethrow({ status: 400 }), true);
+    assert.strictEqual(isServerErrorToRethrow({ status: 401 }), true);
+    assert.strictEqual(isServerErrorToRethrow({ message: 'File too large' }), true);
+    assert.strictEqual(isServerErrorToRethrow({ message: 'Random transport glitch' }), false);
+  });
+
+  it('constructs a Winter-fetch compliant multipart payload with bytes() method', async () => {
+    const sampleText = 'PDF content sample';
+    const base64Data = Buffer.from(sampleText, 'utf8').toString('base64');
+    const dataUri = `data:application/pdf;base64,${base64Data}`;
+
+    const filePart = await createUploadFilePart({
+      uri: dataUri,
+      name: 'uploaded_doc.pdf',
+      mimeType: 'application/pdf',
+    });
+
+    const formData = new FormData();
+    formData.append('file', filePart);
+    formData.append('category', 'Housing');
+    formData.append('documentType', 'Lease Agreement');
+
+    assert.ok(formData instanceof FormData);
+    assert.strictEqual(formData.get('category'), 'Housing');
+    assert.strictEqual(formData.get('documentType'), 'Lease Agreement');
+
+    assert.strictEqual(filePart.name, 'uploaded_doc.pdf');
+    assert.strictEqual(filePart.type, 'application/pdf');
+    assert.strictEqual(typeof filePart.bytes, 'function', 'file part must have bytes() method for Winter fetch');
+    const bytes = await filePart.bytes();
+    assert.ok(bytes instanceof Uint8Array);
+    assert.strictEqual(Buffer.from(bytes).toString('utf8'), sampleText);
   });
 });
 

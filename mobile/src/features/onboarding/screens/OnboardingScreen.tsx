@@ -18,13 +18,11 @@ import { OnboardingStep, OnboardingPreferences, INITIAL_ONBOARDING_PREFERENCES }
 
 export interface OnboardingScreenProps {
   userId: string;
-  isGuest?: boolean;
   onComplete: () => void;
 }
 
 export function OnboardingScreen({
   userId,
-  isGuest = false,
   onComplete,
 }: OnboardingScreenProps) {
   const { colors } = useAppTheme();
@@ -83,7 +81,7 @@ export function OnboardingScreen({
   const handleSkip = async () => {
     setIsSaving(true);
     try {
-      await onboardingService.skipOnboarding(userId, isGuest);
+      await onboardingService.skipOnboarding(userId);
     } finally {
       setIsSaving(false);
       onComplete();
@@ -93,7 +91,7 @@ export function OnboardingScreen({
   const handleFinish = async () => {
     setIsSaving(true);
     try {
-      await onboardingService.completeOnboarding(userId, preferences, isGuest);
+      await onboardingService.completeOnboarding(userId, preferences);
     } finally {
       setIsSaving(false);
       onComplete();

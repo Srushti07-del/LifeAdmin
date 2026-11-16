@@ -135,6 +135,17 @@ export const settingsService = {
       categories?: string[];
       preferredCurrency?: string;
       aiPreferences?: { autoExtract?: boolean; suggestionsEnabled?: boolean };
+      emailReminderIntervals?: number[];
+      timezone?: string;
+      quietHoursEnabled?: boolean;
+      quietHoursStart?: string;
+      quietHoursEnd?: string;
+      notificationTypes?: {
+        tasks: boolean;
+        bills: boolean;
+        appointments: boolean;
+        reminders: boolean;
+      };
     } = {};
 
     if (updates.theme) settingsPayload.theme = updates.theme;
@@ -152,6 +163,24 @@ export const settingsService = {
     }
     if (updates.aiPreferences) {
       settingsPayload.aiPreferences = updates.aiPreferences;
+    }
+    if (updates.emailReminderIntervals) {
+      settingsPayload.emailReminderIntervals = updates.emailReminderIntervals;
+    }
+    if (updates.timezone) {
+      settingsPayload.timezone = updates.timezone;
+    }
+    if (typeof updates.quietHoursEnabled === 'boolean') {
+      settingsPayload.quietHoursEnabled = updates.quietHoursEnabled;
+    }
+    if (typeof updates.quietHoursStart === 'string') {
+      settingsPayload.quietHoursStart = updates.quietHoursStart;
+    }
+    if (typeof updates.quietHoursEnd === 'string') {
+      settingsPayload.quietHoursEnd = updates.quietHoursEnd;
+    }
+    if (updates.notificationTypes) {
+      settingsPayload.notificationTypes = updates.notificationTypes;
     }
 
     if (Object.keys(settingsPayload).length > 0) {

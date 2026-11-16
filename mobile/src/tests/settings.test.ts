@@ -10,18 +10,24 @@ import assert from 'node:assert/strict';
 import {
   ALL_CURRENCY_OPTIONS,
   ALERT_TIMING_OPTIONS,
+  DEFAULT_NOTIFICATION_TYPES,
   DEFAULT_SETTINGS_PREFERENCES,
+  INTERVAL_OPTIONS,
   QUIET_HOURS_PRESETS,
   THEME_OPTIONS,
+  TIMEZONE_OPTIONS,
   canRemoveCategory,
   countExportRecords,
   filterCurrencies,
+  format12h,
+  format24h,
   formatMemberSince,
   getAccountModeInfo,
   getLocalSettingsStorageKey,
   getSettingsStorageScope,
   getThemeStorageKey,
   isValidThemeMode,
+  isValidTime12h,
   mergeSettingsPreferences,
   normalizeQuietHours,
   normalizeReminderTimingDays,
@@ -274,4 +280,60 @@ describe('Account Mode Capabilities & Export Summary', () => {
     assert.equal(countExportRecords(null).total, 0);
   });
 });
+
+describe('Web-Parity Notification Options & Time Formats', () => {
+  it('exposes identical notification interval options and defaults matching web', () => {
+    assert.deepEqual(
+      INTERVAL_OPTIONS.map((o) => o.minutes),
+      [1440, 60, 15, 0]
+    );
+    assert.deepEqual(DEFAULT_NOTIFICATION_TYPES, {
+      tasks: true,
+      bills: true,
+      appointments: true,
+      reminders: true,
+    });
+    assert.equal(TIMEZONE_OPTIONS.length, 12);
+    assert.ok(TIMEZONE_OPTIONS.some((t) => t.value === 'Asia/Kolkata'));
+    assert.ok(TIMEZONE_OPTIONS.some((t) => t.value === 'UTC'));
+  });
+
+  it('converts between 24-hour and 12-hour time cleanly', () => {
+    assert.equal(format12h('22:00'), '10:00 PM');
+    assert.equal(format12h('08:00'), '8:00 AM');
+    assert.equal(format12h('00:30'), '12:30 AM');
+    assert.equal(format12h('12:15'), '12:15 PM');
+
+    assert.equal(format24h('10:00 PM'), '22:00');
+    assert.equal(format24h('8:00 AM'), '08:00');
+    assert.equal(format24h('12:00 AM'), '00:00');
+    assert.equal(format24h('12:00 PM'), '12:00');
+
+    assert.equal(isValidTime12h('10:00 PM'), true);
+    assert.equal(isValidTime12h('25:00 PM'), false);
+    assert.equal(isValidTime12h('not-a-time'), false);
+  });
+
+  it('merges notification types, timezone and email reminder intervals', () => {
+    const merged = mergeSettingsPreferences(
+      {
+        notificationTypes: { tasks: true, bills: false, appointments: true, reminders: false },
+        emailReminderIntervals: [1440, 15],
+        timezone: 'Asia/Kolkata',
+      },
+      null,
+      null
+    );
+
+    assert.deepEqual(merged.notificationTypes, {
+      tasks: true,
+      bills: false,
+      appointments: true,
+      reminders: false,
+    });
+    assert.deepEqual(merged.emailReminderIntervals, [1440, 15]);
+    assert.equal(merged.timezone, 'Asia/Kolkata');
+  });
+});
+
 

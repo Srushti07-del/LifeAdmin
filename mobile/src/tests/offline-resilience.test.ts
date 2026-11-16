@@ -109,8 +109,8 @@ describe('Milestone 5.3: Persistent Offline Cache & User Isolation', () => {
 
   it('isolates cache records per user ID', async () => {
     assert.equal(buildUserCacheKey('tasks', 'user_123'), 'user_user_123:tasks');
-    assert.equal(buildUserCacheKey('tasks', null), 'user_guest:tasks');
-    assert.equal(buildUserCacheKey('tasks', undefined), 'user_guest:tasks');
+    assert.equal(buildUserCacheKey('tasks', null), 'user_default:tasks');
+    assert.equal(buildUserCacheKey('tasks', undefined), 'user_default:tasks');
 
     // Store data for User A
     await offlineCache.setCachedData('tasks', [{ id: 't1', title: 'Task A' }], 'user_A');

@@ -187,6 +187,11 @@ export function DocumentUploadModal({
   };
 
   const handleSubmit = async () => {
+    // Prevent duplicate upload triggers from repeated taps
+    if (isUploading) {
+      return;
+    }
+
     if (!selectedFile) {
       setUploadError('Please select a file to upload.');
       return;
@@ -214,7 +219,24 @@ export function DocumentUploadModal({
       onClose();
     } catch (err: any) {
       console.warn('Upload error:', err);
-      setUploadError(err?.message || 'Failed to upload document. Please check file type and size.');
+      const rawMessage = err?.message || '';
+      let displayMessage = 'Failed to upload document. Please check file type and size.';
+      if (
+        rawMessage.includes('FormDataPart') ||
+        rawMessage.includes('Network request failed') ||
+        rawMessage.includes('uploadAsync') ||
+        rawMessage.includes('rejected') ||
+        rawMessage.includes('readable')
+      ) {
+        displayMessage = 'File transfer interrupted. Please verify your connection and try again.';
+      } else if (rawMessage.includes('Invalid file type')) {
+        displayMessage = 'Invalid file type. Allowed formats: PDF, Images (JPG, PNG), Word documents, Text.';
+      } else if (rawMessage.includes('File too large') || rawMessage.includes('10MB') || rawMessage.includes('10 MB')) {
+        displayMessage = 'File exceeds the 10 MB maximum size limit.';
+      } else if (rawMessage && !rawMessage.includes('Exception')) {
+        displayMessage = rawMessage;
+      }
+      setUploadError(displayMessage);
     } finally {
       setIsUploading(false);
     }

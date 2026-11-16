@@ -180,7 +180,7 @@ export default function RemindersScreen() {
   }, [permissions, dismissedBanners]);
 
   // Filter & Search state
-  const [filterSection, setFilterSection] = useState<string>("all");
+  const [filterSection, setFilterSection] = useState<string>("active");
   const [selectedCategory, setSelectedCategory] = useState<string>("All");
   const [selectedPriority, setSelectedPriority] = useState<string>("all");
   const [searchQuery, setSearchQuery] = useState<string>("");
@@ -550,7 +550,7 @@ export default function RemindersScreen() {
 
     if (
       grouped.overdue.length > 0 &&
-      (filterSection === "all" || filterSection === "overdue")
+      (filterSection === "all" || filterSection === "active" || filterSection === "overdue")
     ) {
       list.push({
         key: "overdue",
@@ -566,7 +566,7 @@ export default function RemindersScreen() {
 
     if (
       grouped.today.length > 0 &&
-      (filterSection === "all" || filterSection === "today")
+      (filterSection === "all" || filterSection === "active" || filterSection === "today")
     ) {
       list.push({
         key: "today",
@@ -580,7 +580,7 @@ export default function RemindersScreen() {
 
     if (
       grouped.upcoming.length > 0 &&
-      (filterSection === "all" || filterSection === "upcoming")
+      (filterSection === "all" || filterSection === "active" || filterSection === "upcoming")
     ) {
       list.push({
         key: "upcoming",
@@ -792,33 +792,33 @@ export default function RemindersScreen() {
           title={
             searchQuery ||
             selectedCategory !== "All" ||
-            filterSection !== "all"
+            filterSection !== "active"
               ? "No matching reminders"
               : "No reminders yet"
           }
           description={
             searchQuery ||
             selectedCategory !== "All" ||
-            filterSection !== "all"
+            filterSection !== "active"
               ? "Try adjusting your search query, priority filter, or category."
               : "Stay ahead of your everyday obligations. Schedule native alerts for calls, bills, meds, and meetings."
           }
           actionLabel={
             searchQuery ||
             selectedCategory !== "All" ||
-            filterSection !== "all"
+            filterSection !== "active"
               ? "Clear Filters"
               : "Set First Reminder"
           }
           onAction={
             searchQuery ||
             selectedCategory !== "All" ||
-            filterSection !== "all"
+            filterSection !== "active"
               ? () => {
                   setSearchQuery("");
                   setSelectedCategory("All");
                   setSelectedPriority("all");
-                  setFilterSection("all");
+                  setFilterSection("active");
                 }
               : () => {
                   setEditingReminder(null);
@@ -831,19 +831,19 @@ export default function RemindersScreen() {
                 ios:
                   searchQuery ||
                   selectedCategory !== "All" ||
-                  filterSection !== "all"
+                  filterSection !== "active"
                     ? "magnifyingglass"
                     : "bell.badge",
                 android:
                   searchQuery ||
                   selectedCategory !== "All" ||
-                  filterSection !== "all"
+                  filterSection !== "active"
                     ? "search_off"
                     : "notifications_none",
                 web:
                   searchQuery ||
                   selectedCategory !== "All" ||
-                  filterSection !== "all"
+                  filterSection !== "active"
                     ? "search_off"
                     : "notifications_none",
               }}

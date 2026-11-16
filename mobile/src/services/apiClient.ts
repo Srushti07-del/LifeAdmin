@@ -267,11 +267,150 @@ class ApiClient {
     });
   }
 
-  public upload<T = any>(path: string, formData: FormData, options?: RequestOptions): Promise<T> {
-    return this.request<T>(path, {
-      ...options,
-      method: 'POST',
-      body: formData,
+  /**
+   * Resilient multipart form-data upload.
+   * Primary pipeline uses apiClient.request (native fetch) with Winter-fetch compliant byte streaming,
+   * with automatic fallback to native XMLHttpRequest if fetch encounters an engine/transport error.
+   */
+  public async upload<T = any>(path: string, formData: FormData, options?: RequestOptions): Promise<T> {
+    try {
+      return await this.request<T>(path, {
+        ...options,
+        method: 'POST',
+        body: formData,
+      });
+    } catch (fetchErr: any) {
+      // If server returned an HTTP error (e.g. 400, 401, 403, 413), rethrow directly to inform user
+      if (fetchErr?.status && fetchErr.status !== 0) {
+        throw fetchErr;
+      }
+
+      // If fetch encountered a low-level transport error and XMLHttpRequest is available, attempt XHR fallback
+      if (typeof XMLHttpRequest !== 'undefined') {
+        try {
+          const url = this.buildUrl(path, options?.params);
+          return await this.executeXhrUpload<T>(url, formData, options);
+        } catch {
+          throw fetchErr;
+        }
+      }
+
+      throw fetchErr;
+    }
+  }
+
+  private executeXhrUpload<T = any>(
+    url: string,
+    formData: FormData,
+    options?: RequestOptions
+  ): Promise<T> {
+    const { timeoutMs = apiConfig.getTimeout(), signal: callerSignal } = options || {};
+
+    return new Promise<T>((resolve, reject) => {
+      if (callerSignal?.aborted) {
+        reject(new DOMException('The user aborted a request.', 'AbortError'));
+        return;
+      }
+
+      const xhr = new XMLHttpRequest();
+      const method = options?.method || 'POST';
+      xhr.open(method, url);
+      xhr.timeout = timeoutMs;
+
+      let onCallerAbort: (() => void) | null = null;
+      if (callerSignal) {
+        onCallerAbort = () => {
+          xhr.abort();
+          reject(new DOMException('The user aborted a request.', 'AbortError'));
+        };
+        callerSignal.addEventListener('abort', onCallerAbort);
+      }
+
+      const token = apiConfig.getAuthToken();
+      if (token) {
+        xhr.setRequestHeader('Authorization', `Bearer ${token}`);
+      }
+      xhr.setRequestHeader('Accept', 'application/json');
+
+      if (options?.headers) {
+        const headers =
+          options.headers instanceof Headers
+            ? Object.fromEntries(options.headers.entries())
+            : (options.headers as Record<string, string>);
+        Object.entries(headers).forEach(([k, v]) => {
+          if (k.toLowerCase() !== 'content-type') {
+            xhr.setRequestHeader(k, v);
+          }
+        });
+      }
+
+      const cleanup = () => {
+        if (callerSignal && onCallerAbort) {
+          callerSignal.removeEventListener('abort', onCallerAbort);
+        }
+      };
+
+      xhr.onload = () => {
+        cleanup();
+        if (xhr.status === 401) {
+          apiConfig.notifyUnauthorized();
+        }
+
+        const isSuccess = xhr.status >= 200 && xhr.status < 300;
+        if (isSuccess) {
+          this.notifySuccess(url);
+          try {
+            const data = xhr.responseText ? JSON.parse(xhr.responseText) : ({} as T);
+            resolve(data);
+          } catch {
+            resolve({} as T);
+          }
+        } else {
+          let serverMessage = `Upload failed with status ${xhr.status}`;
+          try {
+            const errObj = JSON.parse(xhr.responseText);
+            serverMessage = errObj.message || errObj.error || serverMessage;
+          } catch {
+            if (xhr.statusText) serverMessage = xhr.statusText;
+          }
+          const apiErr: ApiError = {
+            message: serverMessage,
+            status: xhr.status,
+            code:
+              xhr.status === 401
+                ? 'UNAUTHORIZED'
+                : xhr.status === 403
+                ? 'FORBIDDEN'
+                : 'SERVER_ERROR',
+          };
+          this.notifyFailure(apiErr, url);
+          reject(apiErr);
+        }
+      };
+
+      xhr.onerror = () => {
+        cleanup();
+        const apiErr: ApiError = {
+          status: 0,
+          message: 'Network request failed. Please check your connection to the server.',
+          code: 'NETWORK_ERROR',
+        };
+        this.notifyFailure(apiErr, url);
+        reject(apiErr);
+      };
+
+      xhr.ontimeout = () => {
+        cleanup();
+        const apiErr: ApiError = {
+          status: 408,
+          message: `Upload request timed out after ${timeoutMs}ms`,
+          code: 'TIMEOUT',
+        };
+        this.notifyFailure(apiErr, url);
+        reject(apiErr);
+      };
+
+      xhr.send(formData);
     });
   }
 

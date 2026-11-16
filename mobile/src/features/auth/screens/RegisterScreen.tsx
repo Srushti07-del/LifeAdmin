@@ -31,7 +31,7 @@ interface RegisterScreenProps {
 
 export function RegisterScreen({ onNavigateToLogin, onNavigateToForgotPassword }: RegisterScreenProps) {
   const { colors, isDark } = useAppTheme();
-  const { register, loginAsGuest, isAuthenticating, error, clearError } = useAuth();
+  const { register, isAuthenticating, error, clearError } = useAuth();
 
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
@@ -429,25 +429,6 @@ export function RegisterScreen({ onNavigateToLogin, onNavigateToForgotPassword }
                 </View>
               )}
             </Pressable>
-
-            {/* Quick Guest Alternative */}
-            <Pressable
-              onPress={() => loginAsGuest()}
-              disabled={isAuthenticating}
-              style={({ pressed }) => [
-                styles.guestLinkBtn,
-                pressed && { opacity: 0.7 },
-              ]}
-            >
-              <SymbolView
-                name={{ ios: 'sparkles', android: 'auto_awesome', web: 'auto_awesome' } as any}
-                size={14}
-                tintColor={colors.primary}
-              />
-              <ThemedText style={[styles.guestLinkText, { color: colors.primary }]}>
-                Or start right away with Guest Demo
-              </ThemedText>
-            </Pressable>
           </View>
 
           {/* Navigation to Login */}
@@ -586,18 +567,6 @@ const styles = StyleSheet.create({
   submitBtnText: {
     fontFamily: Typography.fontFamilies.sansBold,
     fontSize: Typography.fontSize.base,
-  },
-  guestLinkBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: Spacing.two,
-    marginTop: Spacing.four,
-    paddingVertical: Spacing.one,
-  },
-  guestLinkText: {
-    fontSize: Typography.fontSize.sm,
-    fontFamily: Typography.fontFamilies.sansSemiBold,
   },
   footerRow: {
     flexDirection: 'row',

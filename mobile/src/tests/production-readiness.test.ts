@@ -17,16 +17,25 @@ const __dirname = path.dirname(__filename);
 const MOBILE_ROOT = path.resolve(__dirname, '../..');
 
 describe('Milestone 5.1: Root Error Boundary & Sanitization', () => {
-  it('implements +error-boundary.tsx exporting ErrorBoundary and sanitizeErrorMessage', () => {
-    const errorBoundaryPath = path.join(MOBILE_ROOT, 'src/app/+error-boundary.tsx');
-    assert.ok(fs.existsSync(errorBoundaryPath), '+error-boundary.tsx must exist in app root');
+  it('implements ErrorBoundary component and exports it from root layout without invalid "+" route nodes', () => {
+    // Expo Router convention: ErrorBoundary is exported from _layout.tsx (or routes), not as a '+' prefixed file in app/
+    const invalidPlusRoutePath = path.join(MOBILE_ROOT, 'src/app/+error-boundary.tsx');
+    assert.ok(!fs.existsSync(invalidPlusRoutePath), '+error-boundary.tsx must not exist in app/ as Expo Router rejects "+" route filenames');
 
-    const content = fs.readFileSync(errorBoundaryPath, 'utf8');
+    const componentPath = path.join(MOBILE_ROOT, 'src/components/ui/ErrorBoundary.tsx');
+    assert.ok(fs.existsSync(componentPath), 'ErrorBoundary component must exist in src/components/ui/ErrorBoundary.tsx');
+
+    const content = fs.readFileSync(componentPath, 'utf8');
     assert.ok(content.includes('export function ErrorBoundary'), 'Must export ErrorBoundary component');
     assert.ok(content.includes('ErrorBoundaryProps'), 'Must import and use ErrorBoundaryProps from expo-router');
     assert.ok(content.includes('retry()'), 'Must wire retry action');
     assert.ok(content.includes('Return to Dashboard') || content.includes('handleReturnHome'), 'Must provide safe return home navigation');
     assert.ok(content.includes('Something Went Wrong'), 'Must provide friendly editorial heading');
+
+    const layoutPath = path.join(MOBILE_ROOT, 'src/app/_layout.tsx');
+    const layoutContent = fs.readFileSync(layoutPath, 'utf8');
+    assert.ok(layoutContent.includes('export { ErrorBoundary }'), 'Root _layout.tsx must re-export ErrorBoundary for Expo Router');
+    assert.ok(layoutContent.includes('screenErrorBoundary: ErrorBoundary'), 'Root _layout.tsx must configure screenErrorBoundary for child screens');
   });
 
   it('sanitizes tokens, passwords, authorization headers, and secrets from error text', () => {
