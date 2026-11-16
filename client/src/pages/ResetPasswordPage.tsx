@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { Lock, Eye, EyeOff, ArrowRight, Loader2, Sparkles, CheckCircle2 } from 'lucide-react';
+import { Lock, Eye, EyeOff, ArrowRight, Loader2, CheckCircle2 } from 'lucide-react';
 import api from '../lib/api';
 
 export default function ResetPasswordPage() {
@@ -86,11 +86,6 @@ export default function ResetPasswordPage() {
                 <ArrowRight size={15} /> Go to Sign In
               </Link>
             </div>
-          </div>
-
-          <div className="mt-8 text-center flex items-center justify-center gap-1.5 text-[11px] text-surface-500">
-            <Sparkles size={12} className="text-primary-600" />
-            <span>100% Free · Editorial Workspace · Privacy-focused</span>
           </div>
         </div>
       </div>
@@ -218,11 +213,6 @@ export default function ResetPasswordPage() {
               Sign in
             </Link>
           </p>
-        </div>
-
-        <div className="mt-8 text-center flex items-center justify-center gap-1.5 text-[11px] text-surface-500">
-          <Sparkles size={12} className="text-primary-600" />
-          <span>100% Free · Editorial Workspace · Privacy-focused</span>
         </div>
       </div>
     </div>
